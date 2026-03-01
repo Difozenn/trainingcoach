@@ -17,6 +17,7 @@ import { updateProfile, updateSportProfile } from "./actions";
 import { formatPace, formatPacePer100m } from "@/lib/data/helpers";
 import { UpgradeButton, ManageSubscriptionButton } from "@/components/dashboard/billing-buttons";
 import { AccountActions } from "@/components/dashboard/account-actions";
+import { CalendarSubscribe } from "@/components/dashboard/calendar-subscribe";
 
 export default async function SettingsPage({
   searchParams,
@@ -243,6 +244,11 @@ export default async function SettingsPage({
                     </p>
                   </div>
                   <Badge variant="secondary">Coming soon</Badge>
+                </div>
+
+                {/* Calendar subscription */}
+                <div className="border-t pt-4">
+                  <CalendarSubscribe />
                 </div>
               </CardContent>
             </Card>

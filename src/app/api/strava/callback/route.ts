@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { platformConnections } from "@/lib/db/schema";
 import { exchangeCode, encryptTokens } from "@/lib/integrations/strava/client";
 import { and, eq } from "drizzle-orm";
+import { inngest } from "@/lib/inngest/client";
 
 /**
  * Strava OAuth callback — exchange code for tokens and store encrypted.
@@ -42,7 +43,7 @@ export async function GET(request: Request) {
       );
 
     // Create new connection
-    await db.insert(platformConnections).values({
+    const [newConn] = await db.insert(platformConnections).values({
       userId: state,
       platform: "strava",
       platformUserId: String(athlete.id),
@@ -51,6 +52,12 @@ export async function GET(request: Request) {
       tokenExpiresAt: encrypted.tokenExpiresAt,
       scopes: "read,activity:read_all,profile:read_all",
       isActive: true,
+    }).returning({ id: platformConnections.id });
+
+    // Trigger historical backfill (non-blocking)
+    await inngest.send({
+      name: "strava/backfill.requested",
+      data: { userId: state, connectionId: newConn.id },
     });
 
     return NextResponse.redirect(
