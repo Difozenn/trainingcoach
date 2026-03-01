@@ -1,34 +1,104 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getFitnessTimeline } from "@/lib/data/queries";
+import { FitnessChart } from "@/components/dashboard/fitness-chart";
+import { RangeSelector } from "@/components/dashboard/range-selector";
+import { formatDateShort } from "@/lib/data/helpers";
 
-export default function FitnessPage() {
+export default async function FitnessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ days?: string }>;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+
+  const params = await searchParams;
+  const days = Number(params.days) || 90;
+  const timeline = await getFitnessTimeline(session.user.id, days);
+
+  const chartData = timeline.map((d) => ({
+    date: formatDateShort(d.date),
+    ctl: d.ctl,
+    atl: d.atl,
+    tsb: d.tsb,
+    cyclingTss: d.cyclingTss ?? 0,
+    runningTss: d.runningTss ?? 0,
+    swimmingTss: d.swimmingTss ?? 0,
+  }));
+
   return (
     <>
       <DashboardHeader title="Fitness Timeline" />
       <div className="flex-1 space-y-6 p-6">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Performance Management Chart</CardTitle>
+            <Suspense>
+              <RangeSelector />
+            </Suspense>
           </CardHeader>
-          <CardContent className="h-[400px] flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              Fitness (CTL), Fatigue (ATL), and Form (TSB) chart will appear
-              here once you have activity data.
-            </p>
+          <CardContent>
+            <FitnessChart data={chartData} />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Daily TSS</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[200px] flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">
-              Daily training stress by sport (cycling, running, swimming) shown
-              as stacked bars.
-            </p>
-          </CardContent>
-        </Card>
+        {timeline.length > 0 && (
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Peak Fitness
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {Math.round(
+                    Math.max(...timeline.map((d) => d.ctl ?? 0))
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Highest CTL in period
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Current Form
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {timeline.at(-1)?.tsb != null
+                    ? Math.round(timeline.at(-1)!.tsb!)
+                    : "--"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Today&apos;s TSB
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Training Days
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {timeline.filter((d) => (d.totalTss ?? 0) > 0).length}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Days with activity
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </>
   );

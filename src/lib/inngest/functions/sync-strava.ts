@@ -59,12 +59,13 @@ export const processStravaWebhook = inngest.createFunction(
     const { accessToken, refreshed, newTokens } = await step.run(
       "get-token",
       async () => {
+        const expiresAt = connection.tokenExpiresAt
+          ? new Date(connection.tokenExpiresAt)
+          : new Date(Date.now());
         return getValidToken(
           connection.accessTokenEncrypted!,
           connection.refreshTokenEncrypted!,
-          connection.tokenExpiresAt instanceof Date
-            ? connection.tokenExpiresAt
-            : new Date(connection.tokenExpiresAt ?? Date.now())
+          expiresAt
         );
       }
     );
