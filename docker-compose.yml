@@ -1,0 +1,22 @@
+services:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: trainingcoach-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: trainingcoach
+      POSTGRES_PASSWORD: trainingcoach_dev
+      POSTGRES_DB: trainingcoach
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trainingcoach"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
