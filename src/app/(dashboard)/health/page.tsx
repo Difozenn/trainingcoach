@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { getHealthMetrics, getLatestMetrics } from "@/lib/data/queries";
 import { formatDateShort } from "@/lib/data/helpers";
 import { HealthTrendChart } from "@/components/dashboard/health-charts";
+import { getUserPlan } from "@/lib/subscription";
+import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 
 function recoveryStatus(metrics: {
   hrv: number | null;
@@ -45,6 +47,9 @@ function recoveryStatus(metrics: {
 export default async function HealthPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const userPlan = await getUserPlan(session.user.id);
+  if (userPlan === "free") return <UpgradePrompt feature="Health Tracking" />;
 
   const [healthData, latest] = await Promise.all([
     getHealthMetrics(session.user.id, 30),

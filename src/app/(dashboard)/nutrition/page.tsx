@@ -9,10 +9,16 @@ import {
   getUpcomingFueling,
 } from "@/lib/data/queries";
 import { formatDate } from "@/lib/data/helpers";
+import { getUserPlan } from "@/lib/subscription";
+import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 
 export default async function NutritionPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const plan = await getUserPlan(session.user.id);
+  if (plan === "free") return <UpgradePrompt feature="Nutrition Targets" />;
+
   const userId = session.user.id;
 
   const [today, week, fueling] = await Promise.all([

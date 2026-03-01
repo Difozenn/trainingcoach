@@ -11,6 +11,8 @@ import {
   getUpcomingEvents,
 } from "@/lib/data/queries";
 import { formatDuration, formatDate } from "@/lib/data/helpers";
+import { getUserPlan } from "@/lib/subscription";
+import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 import Link from "next/link";
 
 const sportIcons = {
@@ -22,6 +24,10 @@ const sportIcons = {
 export default async function PlanPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const plan = await getUserPlan(session.user.id);
+  if (plan === "free") return <UpgradePrompt feature="Training Plan" />;
+
   const userId = session.user.id;
 
   const [weeklyPlan, events] = await Promise.all([

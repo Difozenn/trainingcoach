@@ -16,6 +16,7 @@ import {
 import { updateProfile, updateSportProfile } from "./actions";
 import { formatPace, formatPacePer100m } from "@/lib/data/helpers";
 import { UpgradeButton, ManageSubscriptionButton } from "@/components/dashboard/billing-buttons";
+import { AccountActions } from "@/components/dashboard/account-actions";
 
 export default async function SettingsPage({
   searchParams,
@@ -70,6 +71,7 @@ export default async function SettingsPage({
             <TabsTrigger value="connections">Connections</TabsTrigger>
             <TabsTrigger value="sports">Sport Profiles</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="data">Data &amp; Privacy</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}
@@ -414,6 +416,22 @@ export default async function SettingsPage({
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Data & Privacy Tab */}
+          <TabsContent value="data">
+            <Card>
+              <CardHeader>
+                <CardTitle>Data &amp; Privacy</CardTitle>
+                <CardDescription>
+                  Export your data or delete your account. We comply with GDPR
+                  and data protection regulations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AccountActions />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Billing Tab */}

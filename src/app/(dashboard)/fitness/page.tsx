@@ -7,6 +7,8 @@ import { getFitnessTimeline } from "@/lib/data/queries";
 import { FitnessChart } from "@/components/dashboard/fitness-chart";
 import { RangeSelector } from "@/components/dashboard/range-selector";
 import { formatDateShort } from "@/lib/data/helpers";
+import { getUserPlan } from "@/lib/subscription";
+import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 
 export default async function FitnessPage({
   searchParams,
@@ -15,6 +17,9 @@ export default async function FitnessPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+
+  const plan = await getUserPlan(session.user.id);
+  if (plan === "free") return <UpgradePrompt feature="Fitness Timeline" />;
 
   const params = await searchParams;
   const days = Number(params.days) || 90;
