@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description: "Terms of Service for TrainingCoach endurance training platform.",
+};
+
 export default function TermsPage() {
   return (
     <main className="py-20">

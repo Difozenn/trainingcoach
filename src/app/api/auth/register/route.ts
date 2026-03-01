@@ -5,6 +5,7 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { sendWelcomeEmail } from "@/lib/email";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/security/rate-limit";
 
 const registerSchema = z.object({
   name: z.string().min(1).max(100),
@@ -17,6 +18,16 @@ const registerSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limit: 3 signups per hour per IP
+    const ip = getClientIp(request);
+    const rl = checkRateLimit(`signup:${ip}`, RATE_LIMITS.signup);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many signup attempts. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 

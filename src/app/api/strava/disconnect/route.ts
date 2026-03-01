@@ -23,5 +23,5 @@ export async function POST() {
       )
     );
 
-  return NextResponse.json({ disconnected: true });
+  return NextResponse.redirect(new URL("/settings", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
 }

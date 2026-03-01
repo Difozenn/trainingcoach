@@ -22,8 +22,9 @@ import {
   plannedWorkouts,
   targetEvents,
   dailyNutritionTargets,
+  subscriptions,
 } from "@/lib/db/schema";
-import { eq, and, desc, gte, lte } from "drizzle-orm";
+import { eq, and, desc, gte, inArray } from "drizzle-orm";
 import { generateWeeklyPlan } from "@/lib/engine/coaching/weekly-planner";
 import {
   generateAutoProgressivePlan,
@@ -39,8 +40,18 @@ export const generateWeeklyPlans = inngest.createFunction(
   },
   { cron: "0 20 * * 0" }, // Sunday 20:00 UTC
   async ({ step }) => {
-    // Get all users with completed onboarding
+    // Get all Pro users with completed onboarding
     const users = await step.run("get-active-users", async () => {
+      // Get active Pro subscriber user IDs
+      const proUsers = await db
+        .select({ userId: subscriptions.userId })
+        .from(subscriptions)
+        .where(
+          inArray(subscriptions.status, ["active", "trialing"])
+        );
+      const proUserIds = proUsers.map((u) => u.userId);
+      if (proUserIds.length === 0) return [];
+
       return db
         .select({
           userId: athleteProfiles.userId,
@@ -50,7 +61,12 @@ export const generateWeeklyPlans = inngest.createFunction(
           experienceLevel: athleteProfiles.experienceLevel,
         })
         .from(athleteProfiles)
-        .where(eq(athleteProfiles.onboardingCompleted, true));
+        .where(
+          and(
+            eq(athleteProfiles.onboardingCompleted, true),
+            inArray(athleteProfiles.userId, proUserIds)
+          )
+        );
     });
 
     let generated = 0;

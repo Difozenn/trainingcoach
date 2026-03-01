@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, X } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+  description:
+    "Free and Pro plans for endurance athletes. Start with basic metrics or unlock coaching, nutrition targets, and workout export.",
+};
 
 const plans = [
   {

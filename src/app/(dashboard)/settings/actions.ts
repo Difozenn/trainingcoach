@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { athleteProfiles, sportProfiles } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -43,6 +44,7 @@ export async function updateProfile(formData: FormData) {
     });
   }
 
+  revalidatePath("/settings");
 }
 
 const sportProfileSchema = z.object({
@@ -85,4 +87,6 @@ export async function updateSportProfile(formData: FormData) {
     });
   }
 
+  revalidatePath("/settings");
+  revalidatePath("/zones");
 }

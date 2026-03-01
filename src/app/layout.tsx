@@ -14,12 +14,41 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://trainingcoach.app"),
   title: {
     default: "TrainingCoach — Endurance Training Intelligence",
     template: "%s | TrainingCoach",
   },
   description:
     "AI-free endurance training coach for cycling, running, and swimming. Science-backed workouts, nutrition targets, and fitness tracking.",
+  keywords: [
+    "endurance training",
+    "cycling coach",
+    "running coach",
+    "swimming coach",
+    "training plan",
+    "FTP",
+    "TSS",
+    "CTL",
+    "ATL",
+    "TSB",
+    "nutrition",
+    "triathlon",
+  ],
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "TrainingCoach",
+    title: "TrainingCoach — Endurance Training Intelligence",
+    description:
+      "Science-backed training plans for cycling, running, and swimming. No AI hype — just peer-reviewed research and proven coaching principles.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TrainingCoach — Endurance Training Intelligence",
+    description:
+      "Science-backed training plans for cycling, running, and swimming.",
+  },
 };
 
 export default function RootLayout({

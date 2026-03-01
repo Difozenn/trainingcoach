@@ -57,6 +57,17 @@ export async function POST(request: Request) {
         break;
       }
 
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = (invoice as unknown as { subscription?: string }).subscription;
+        if (subId) {
+          const sub = await stripe.subscriptions.retrieve(subId);
+          const userId = sub.metadata?.userId;
+          if (userId) await upsertSubscription(userId, sub);
+        }
+        break;
+      }
+
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;

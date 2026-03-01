@@ -187,8 +187,10 @@ export default async function PlanPage() {
                         </div>
                         {/* Export button */}
                         {w.sport === "cycling" && w.structure && (
-                          <Button variant="ghost" size="icon" title="Export workout">
-                            <Download className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" title="Export workout" asChild>
+                            <a href={`/api/export?workoutId=${w.id}&format=zwo`} download>
+                              <Download className="h-4 w-4" />
+                            </a>
                           </Button>
                         )}
                       </div>

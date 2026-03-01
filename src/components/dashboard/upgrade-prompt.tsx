@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,6 +20,21 @@ const features = [
 ];
 
 export function UpgradePrompt({ feature }: { feature?: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleUpgrade() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <Card className="max-w-lg w-full">
@@ -44,11 +60,14 @@ export function UpgradePrompt({ feature }: { feature?: string }) {
               </li>
             ))}
           </ul>
-          <form action="/api/stripe/checkout" method="POST" className="w-full">
-            <Button type="submit" className="w-full" size="lg">
-              Upgrade to Pro
-            </Button>
-          </form>
+          <Button
+            onClick={handleUpgrade}
+            disabled={loading}
+            className="w-full"
+            size="lg"
+          >
+            {loading ? "Redirecting..." : "Upgrade to Pro"}
+          </Button>
           <p className="text-xs text-muted-foreground text-center">
             Cancel anytime. 7-day free trial included.
           </p>
