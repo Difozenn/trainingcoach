@@ -186,8 +186,8 @@ export default function LandingPage() {
               Three sports. One unified platform.
             </h2>
             <p className="text-muted-foreground">
-              Sport-specific metrics calculated internally. No intervals.icu, no
-              TrainingPeaks. Combined daily TSS feeds a unified fatigue model.
+              Sport-specific metrics calculated internally with full
+              transparency. Combined daily TSS feeds a unified fatigue model.
             </p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
@@ -429,34 +429,34 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl px-4">
           <div className="mx-auto mb-12 max-w-2xl text-center">
             <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              Built different
+              Why athletes choose Paincave
             </h2>
             <p className="text-muted-foreground">
-              No AI hallucinations. No food logging. No rigid schedules. Just
-              proven science.
+              Proven sports science. Full transparency. Built for athletes who
+              want to understand their training, not just follow instructions.
             </p>
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
               {
                 Icon: Zap,
-                title: "All Metrics Internal",
-                desc: "No intervals.icu or TrainingPeaks dependency. Every calculation is transparent.",
+                title: "Fully Transparent",
+                desc: "Every metric is calculated in front of you. See exactly how your TSS, FTP, and zones are derived.",
               },
               {
                 Icon: Shield,
                 title: "Research-Backed",
-                desc: "Every recommendation cites peer-reviewed sports science. No black-box algorithms.",
+                desc: "Coggan power model, Skiba W'bal, Banister impulse-response — peer-reviewed science, not guesswork.",
               },
               {
                 Icon: Dumbbell,
-                title: "Flexible Scheduling",
-                desc: "Weekly workout pool, not rigid calendar. Life happens — your plan adapts.",
+                title: "Fits Your Life",
+                desc: "A weekly workout pool you schedule around your life. Miss a day? The plan rebalances automatically.",
               },
               {
                 Icon: Target,
                 title: "Multi-Sport Native",
-                desc: "Cycling, running, swimming unified from day one. Not bolted on after the fact.",
+                desc: "Cycling, running, and swimming share one unified fatigue model — built together from day one.",
               },
             ].map((f) => (
               <div
