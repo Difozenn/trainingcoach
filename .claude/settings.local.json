@@ -8,7 +8,14 @@
       "Bash(npm install:*)",
       "Bash(mkdir:*)",
       "Bash(npx shadcn@latest:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx vitest:*)",
+      "Bash(xargs grep:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(python3:*)",
+      "Bash(npm ls:*)",
+      "Bash(netstat:*)"
     ]
   }
 }

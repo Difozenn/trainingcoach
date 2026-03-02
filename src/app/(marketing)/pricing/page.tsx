@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Check, X } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -64,7 +65,10 @@ export default function PricingPage() {
 
         <div className="grid gap-8 md:grid-cols-2">
           {plans.map((plan) => (
-            <Card key={plan.name} className={plan.highlighted ? "border-primary" : ""}>
+            <Card key={plan.name} className={plan.highlighted ? "relative border-primary/50 shadow-lg shadow-primary/10" : "border-border/50"}>
+              {plan.highlighted && (
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Most Popular</Badge>
+              )}
               <CardHeader>
                 <CardTitle>{plan.name}</CardTitle>
                 <p className="text-sm text-muted-foreground">{plan.description}</p>

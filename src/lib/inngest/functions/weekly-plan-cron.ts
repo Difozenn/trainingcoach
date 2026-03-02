@@ -32,6 +32,7 @@ import {
 } from "@/lib/engine/coaching/periodization";
 import type { AthleteState } from "@/lib/engine/coaching/decision-engine";
 import { calculateDailyMacros, getTrainingDayType } from "@/lib/engine/nutrition/daily-macros";
+import { computeHrv7DayTrend, computeRestingHrDelta } from "@/lib/engine/shared/health-trends";
 
 export const generateWeeklyPlans = inngest.createFunction(
   {
@@ -116,17 +117,30 @@ async function generatePlanForUser(user: {
     .orderBy(desc(dailyMetrics.date))
     .limit(1);
 
-  // Get recent metrics for consecutive hard days calc
+  // Get recent metrics for consecutive hard days calc + health trends
   const recentDays = await db
-    .select({ totalTss: dailyMetrics.totalTss })
+    .select({
+      totalTss: dailyMetrics.totalTss,
+      hrv: dailyMetrics.hrv,
+      restingHr: dailyMetrics.restingHr,
+    })
     .from(dailyMetrics)
     .where(eq(dailyMetrics.userId, user.userId))
     .orderBy(desc(dailyMetrics.date))
-    .limit(7);
+    .limit(30);
 
   const consecutiveHardDays = countConsecutiveHardDays(
     recentDays.map((d) => d.totalTss ?? 0)
   );
+
+  // Compute health trends from Garmin data (gracefully falls back when no data)
+  const last7Hrv = recentDays
+    .slice(0, 7)
+    .reverse()
+    .map((d) => d.hrv);
+  const last30RestingHr = recentDays
+    .reverse()
+    .map((d) => d.restingHr);
 
   const athleteState: AthleteState = {
     ctl: latest?.ctl ?? 0,
@@ -134,8 +148,8 @@ async function generatePlanForUser(user: {
     tsb: latest?.tsb ?? 0,
     rampRate: latest?.rampRate ?? 0,
     consecutiveHardDays,
-    hrv7DayTrend: "unknown",
-    restingHrDelta: 0,
+    hrv7DayTrend: computeHrv7DayTrend(last7Hrv),
+    restingHrDelta: computeRestingHrDelta(last30RestingHr),
     sleepScore: latest?.sleepScore ?? null,
     bodyBattery: latest?.bodyBattery ?? null,
   };

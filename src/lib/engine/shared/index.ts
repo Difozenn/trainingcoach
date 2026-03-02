@@ -13,3 +13,5 @@ export {
   estimateMaxHr,
 } from "./hr-zones";
 export type { HrZone } from "./hr-zones";
+export { computeHrv7DayTrend, computeRestingHrDelta } from "./health-trends";
+export type { HrvTrend } from "./health-trends";

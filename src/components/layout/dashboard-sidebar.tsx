@@ -30,7 +30,7 @@ import {
 import { signOut } from "next-auth/react";
 
 const navItems = [
-  { label: "Overview", href: "/", icon: LayoutDashboard },
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Fitness", href: "/fitness", icon: TrendingUp },
   { label: "Calendar", href: "/calendar", icon: Calendar },
   { label: "Activities", href: "/activities", icon: Activity },
@@ -50,7 +50,7 @@ export function DashboardSidebar() {
   return (
     <Sidebar>
       <SidebarHeader className="border-b px-6 py-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/dashboard" className="flex items-center gap-2">
           <Bike className="h-6 w-6 text-primary" />
           <span className="text-lg font-bold">TrainingCoach</span>
         </Link>

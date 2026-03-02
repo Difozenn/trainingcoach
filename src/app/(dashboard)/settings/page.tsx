@@ -17,6 +17,7 @@ import { updateProfile, updateSportProfile } from "./actions";
 import { formatPace, formatPacePer100m } from "@/lib/data/helpers";
 import { UpgradeButton, ManageSubscriptionButton } from "@/components/dashboard/billing-buttons";
 import { AccountActions } from "@/components/dashboard/account-actions";
+import { SubmitButton } from "@/components/dashboard/submit-button";
 import { CalendarSubscribe } from "@/components/dashboard/calendar-subscribe";
 
 export default async function SettingsPage({
@@ -30,12 +31,15 @@ export default async function SettingsPage({
 
   const params = await searchParams;
 
-  const [profile, sports, stravaConn, subscription] = await Promise.all([
-    getAthleteProfile(userId),
-    getSportProfiles(userId),
-    getConnection(userId, "strava"),
-    getSubscription(userId),
-  ]);
+  const [profile, sports, stravaConn, garminConn, wahooConn, subscription] =
+    await Promise.all([
+      getAthleteProfile(userId),
+      getSportProfiles(userId),
+      getConnection(userId, "strava"),
+      getConnection(userId, "garmin"),
+      getConnection(userId, "wahoo"),
+      getSubscription(userId),
+    ]);
 
   const cycling = sports.find((s) => s.sport === "cycling");
   const running = sports.find((s) => s.sport === "running");
@@ -46,9 +50,11 @@ export default async function SettingsPage({
       <DashboardHeader title="Settings" />
       <div className="flex-1 space-y-6 p-6">
         {/* Flash messages */}
-        {params.connected === "strava" && (
+        {params.connected && (
           <div className="rounded-lg border border-green-500/50 bg-green-500/10 p-3 text-sm text-green-700 dark:text-green-400">
-            Strava connected successfully! Your activities will start syncing.
+            {params.connected === "strava" && "Strava connected successfully! Your activities will start syncing."}
+            {params.connected === "garmin" && "Garmin connected successfully! Activities and health data will start syncing."}
+            {params.connected === "wahoo" && "Wahoo connected successfully! Your workouts will start syncing."}
           </div>
         )}
         {params.error && (
@@ -57,7 +63,17 @@ export default async function SettingsPage({
               ? "Strava connection was denied."
               : params.error === "strava_failed"
                 ? "Failed to connect Strava. Please try again."
-                : "An error occurred."}
+                : params.error === "garmin_denied"
+                  ? "Garmin connection was denied."
+                  : params.error === "garmin_failed"
+                    ? "Failed to connect Garmin. Please try again."
+                    : params.error === "garmin_expired"
+                      ? "Garmin connection timed out. Please try again."
+                      : params.error === "wahoo_denied"
+                        ? "Wahoo connection was denied."
+                        : params.error === "wahoo_failed"
+                          ? "Failed to connect Wahoo. Please try again."
+                          : "An error occurred."}
           </div>
         )}
         {params.billing === "success" && (
@@ -178,7 +194,7 @@ export default async function SettingsPage({
                       />
                     </div>
                   </div>
-                  <Button type="submit">Save Profile</Button>
+                  <SubmitButton>Save Profile</SubmitButton>
                 </form>
               </CardContent>
             </Card>
@@ -231,8 +247,27 @@ export default async function SettingsPage({
                     <p className="text-sm text-muted-foreground">
                       Activities + health data (HRV, sleep, resting HR)
                     </p>
+                    {garminConn?.lastSyncAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last synced:{" "}
+                        {garminConn.lastSyncAt.toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                  <Badge variant="secondary">Coming soon</Badge>
+                  {garminConn ? (
+                    <form action="/api/garmin/disconnect" method="POST">
+                      <Badge variant="outline" className="mr-2 text-green-600">
+                        Connected
+                      </Badge>
+                      <Button variant="outline" size="sm" type="submit">
+                        Disconnect
+                      </Button>
+                    </form>
+                  ) : (
+                    <a href="/api/garmin/connect">
+                      <Button size="sm">Connect</Button>
+                    </a>
+                  )}
                 </div>
 
                 {/* Wahoo */}
@@ -242,8 +277,27 @@ export default async function SettingsPage({
                     <p className="text-sm text-muted-foreground">
                       Cycling activity sync
                     </p>
+                    {wahooConn?.lastSyncAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Last synced:{" "}
+                        {wahooConn.lastSyncAt.toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                  <Badge variant="secondary">Coming soon</Badge>
+                  {wahooConn ? (
+                    <form action="/api/wahoo/disconnect" method="POST">
+                      <Badge variant="outline" className="mr-2 text-green-600">
+                        Connected
+                      </Badge>
+                      <Button variant="outline" size="sm" type="submit">
+                        Disconnect
+                      </Button>
+                    </form>
+                  ) : (
+                    <a href="/api/wahoo/connect">
+                      <Button size="sm">Connect</Button>
+                    </a>
+                  )}
                 </div>
 
                 {/* Calendar subscription */}
@@ -301,9 +355,7 @@ export default async function SettingsPage({
                         />
                       </div>
                     </div>
-                    <Button type="submit" size="sm">
-                      Save Cycling
-                    </Button>
+                    <SubmitButton>Save Cycling</SubmitButton>
                   </form>
                 </CardContent>
               </Card>
@@ -359,9 +411,7 @@ export default async function SettingsPage({
                         />
                       </div>
                     </div>
-                    <Button type="submit" size="sm">
-                      Save Running
-                    </Button>
+                    <SubmitButton>Save Running</SubmitButton>
                   </form>
                 </CardContent>
               </Card>
@@ -415,9 +465,7 @@ export default async function SettingsPage({
                         />
                       </div>
                     </div>
-                    <Button type="submit" size="sm">
-                      Save Swimming
-                    </Button>
+                    <SubmitButton>Save Swimming</SubmitButton>
                   </form>
                 </CardContent>
               </Card>
