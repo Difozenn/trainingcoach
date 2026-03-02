@@ -494,7 +494,7 @@ export default async function SettingsPage({
               <CardHeader>
                 <CardTitle>Subscription</CardTitle>
                 <CardDescription>
-                  Manage your PainCave subscription.
+                  Manage your Paincave subscription.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">

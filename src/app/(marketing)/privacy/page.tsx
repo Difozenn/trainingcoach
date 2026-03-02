@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How PainCave collects, uses, and protects your data. GDPR compliant.",
+    "How Paincave collects, uses, and protects your data. GDPR compliant.",
 };
 
 export default function PrivacyPage() {
@@ -16,9 +16,9 @@ export default function PrivacyPage() {
         </p>
 
         <p>
-          PainCave (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;)
+          Paincave (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;)
           operates the website{" "}
-          <a href="https://paincave.io">paincave.io</a> and the PainCave
+          <a href="https://paincave.io">paincave.io</a> and the Paincave
           platform (the &ldquo;Service&rdquo;). This Privacy Policy explains
           what personal data we collect, why we collect it, and your rights
           regarding that data.
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         {/* ── 1. Data Controller ─────────────────────────────────── */}
         <h2>1. Data Controller</h2>
         <p>
-          PainCave is the data controller responsible for your personal data.
+          Paincave is the data controller responsible for your personal data.
           For questions about this policy or to exercise your rights, contact us
           at{" "}
           <a href="mailto:privacy@paincave.io">privacy@paincave.io</a>.
@@ -269,7 +269,7 @@ export default function PrivacyPage() {
         <h3>Connected Platforms (User-Initiated)</h3>
         <p>
           When you connect Strava, Garmin, or Wahoo, you authorise those
-          platforms to share data with PainCave via OAuth. These connections are
+          platforms to share data with Paincave via OAuth. These connections are
           initiated and controlled by you and can be revoked at any time.
         </p>
 
@@ -358,7 +358,7 @@ export default function PrivacyPage() {
         {/* ── 9. Cookies ─────────────────────────────────────────── */}
         <h2>9. Cookies</h2>
         <p>
-          PainCave uses only <strong>strictly necessary cookies</strong> for
+          Paincave uses only <strong>strictly necessary cookies</strong> for
           authentication (session token). We do not use tracking cookies,
           analytics cookies, or advertising cookies. No cookie consent banner is
           required because we only use essential cookies (ePrivacy Directive
@@ -439,7 +439,7 @@ export default function PrivacyPage() {
         {/* ── 11. Children's Privacy ─────────────────────────────── */}
         <h2>11. Children&apos;s Privacy</h2>
         <p>
-          PainCave is not intended for individuals under the age of 16. We do
+          Paincave is not intended for individuals under the age of 16. We do
           not knowingly collect personal data from children. If we learn that we
           have collected data from a child under 16, we will delete it promptly.
         </p>

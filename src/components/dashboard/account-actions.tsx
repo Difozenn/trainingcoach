@@ -38,7 +38,7 @@ export function AccountActions() {
       {/* Disclaimer */}
       <div className="rounded-lg border p-4">
         <p className="text-xs text-muted-foreground">
-          <strong>Disclaimer:</strong> PainCave provides training and
+          <strong>Disclaimer:</strong> Paincave provides training and
           nutrition recommendations based on published exercise science research.
           This is not medical or dietary advice. Consult a healthcare
           professional before starting any new training program or making

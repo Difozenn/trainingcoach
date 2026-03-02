@@ -1,7 +1,7 @@
 /**
  * Strava API Response Types
  *
- * Subset of Strava API v3 types used by PainCave.
+ * Subset of Strava API v3 types used by Paincave.
  */
 
 export type StravaActivity = {

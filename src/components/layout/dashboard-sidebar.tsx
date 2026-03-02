@@ -52,7 +52,7 @@ export function DashboardSidebar() {
       <SidebarHeader className="border-b px-6 py-4">
         <Link href="/dashboard" className="flex items-center gap-2">
           <Bike className="h-6 w-6 text-primary" />
-          <span className="text-lg font-bold">PainCave</span>
+          <span className="text-lg font-bold">Paincave</span>
         </Link>
       </SidebarHeader>
 

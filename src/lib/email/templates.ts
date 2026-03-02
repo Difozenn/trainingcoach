@@ -1,7 +1,7 @@
 /**
  * Email Templates — Plain HTML
  *
- * Transactional emails for PainCave:
+ * Transactional emails for Paincave:
  * - Welcome (on registration)
  * - Weekly training summary (Monday morning)
  * - Overtraining alert (TSB < -30 + declining HRV)
@@ -11,13 +11,13 @@
 
 export function welcomeEmail(name: string): { subject: string; html: string } {
   return {
-    subject: "Welcome to PainCave",
+    subject: "Welcome to Paincave",
     html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1a1a1a;">
-  <h1 style="font-size: 24px; margin-bottom: 16px;">Welcome to PainCave${name ? `, ${name}` : ""}</h1>
+  <h1 style="font-size: 24px; margin-bottom: 16px;">Welcome to Paincave${name ? `, ${name}` : ""}</h1>
   <p style="font-size: 16px; line-height: 1.6; color: #444;">
     Your training coach is ready. Here's how to get started:
   </p>
@@ -34,7 +34,7 @@ export function welcomeEmail(name: string): { subject: string; html: string } {
     Go to Dashboard
   </a>
   <p style="font-size: 13px; color: #888; margin-top: 32px;">
-    PainCave provides training and nutrition recommendations based on exercise science research.
+    Paincave provides training and nutrition recommendations based on exercise science research.
     This is not medical or dietary advice.
   </p>
 </body>
@@ -143,7 +143,7 @@ export function weeklySummaryEmail(data: WeeklySummaryData): {
   </a>
 
   <p style="font-size: 12px; color: #888; margin-top: 32px;">
-    PainCave · <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}/settings" style="color: #888;">Manage email preferences</a>
+    Paincave · <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}/settings" style="color: #888;">Manage email preferences</a>
   </p>
 </body>
 </html>`,
@@ -194,7 +194,7 @@ export function overtrainingAlertEmail(
   </a>
 
   <p style="font-size: 12px; color: #888; margin-top: 32px;">
-    PainCave · This is not medical advice. If you feel unwell, consult a healthcare professional.
+    Paincave · This is not medical advice. If you feel unwell, consult a healthcare professional.
   </p>
 </body>
 </html>`,

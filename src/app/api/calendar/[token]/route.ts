@@ -89,7 +89,7 @@ export async function GET(
 
   const ics = generateICSCalendar(
     events,
-    `PainCave — ${user.name ?? "Workouts"}`
+    `Paincave — ${user.name ?? "Workouts"}`
   );
 
   return new NextResponse(ics, {
