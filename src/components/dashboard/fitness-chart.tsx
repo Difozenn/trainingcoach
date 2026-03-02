@@ -2,7 +2,6 @@
 
 import {
   ComposedChart,
-  AreaChart,
   Line,
   Area,
   Bar,
@@ -14,7 +13,6 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from "recharts";
-import { tsbInsight } from "@/lib/data/helpers";
 
 type TimelinePoint = {
   date: string;
@@ -36,12 +34,10 @@ const FORM_ZONES = [
   { min: -60, max: -30, label: "High Risk", color: "#ef4444", opacity: 0.10 },
 ] as const;
 
-function getFormZoneName(tsb: number): string {
-  if (tsb > 25) return "Race Ready";
-  if (tsb > 5) return "Fresh";
-  if (tsb > -10) return "Grey Zone";
-  if (tsb > -30) return "Optimal";
-  return "High Risk";
+function getFormZoneColor(tsb: number): string {
+  return (
+    FORM_ZONES.find((z) => tsb >= z.min && tsb < z.max)?.color ?? "#ef4444"
+  );
 }
 
 // ── Legend ───────────────────────────────────────────────────────────
@@ -97,7 +93,6 @@ function MainTooltip({
 }) {
   if (!active || !payload?.length) return null;
 
-  // Access the full data point from any payload item
   const point = payload[0]?.payload as TimelinePoint | undefined;
   if (!point) return null;
 
@@ -110,9 +105,10 @@ function MainTooltip({
     (point.swimmingTss ?? 0);
 
   return (
-    <div className="pointer-events-none rounded-md border bg-background/95 backdrop-blur-sm px-3 py-2 shadow-sm text-xs space-y-1">
-      <div className="font-medium text-foreground">{label}</div>
+    <div className="pointer-events-none rounded-md border bg-background/95 backdrop-blur-sm px-3 py-1.5 shadow-sm text-xs">
       <div className="flex items-center gap-3">
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="h-3 w-px bg-border" />
         {ctl != null && (
           <span className="flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-[#3b82f6]" />
@@ -127,37 +123,87 @@ function MainTooltip({
             <span className="font-semibold">{Math.round(atl)}</span>
           </span>
         )}
-        {totalTss > 0 && (
+        {tsb != null && (
           <span className="flex items-center gap-1">
-            <span className="text-muted-foreground">TSS</span>
-            <span className="font-semibold">{Math.round(totalTss)}</span>
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: getFormZoneColor(tsb) }}
+            />
+            <span className="text-muted-foreground">Form</span>
+            <span className="font-semibold">{Math.round(tsb)}</span>
           </span>
         )}
+        {totalTss > 0 && (
+          <>
+            <span className="h-3 w-px bg-border" />
+            <span className="flex items-center gap-1">
+              <span className="text-muted-foreground">TSS</span>
+              <span className="font-semibold">{Math.round(totalTss)}</span>
+            </span>
+          </>
+        )}
       </div>
-      {tsb != null && (
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Form</span>
-          <span className="font-semibold">{Math.round(tsb)}</span>
-          <span
-            className="rounded px-1 py-0.5 text-[10px] font-medium"
-            style={{
-              backgroundColor:
-                FORM_ZONES.find((z) => tsb >= z.min && tsb < z.max)?.color ??
-                "#ef4444",
-              opacity: 0.2,
-            }}
-          >
-            {getFormZoneName(tsb)}
-          </span>
-        </div>
-      )}
-      {tsb != null && (
-        <div className="text-[10px] text-muted-foreground/70 max-w-[280px]">
-          {tsbInsight(tsb)}
-        </div>
-      )}
     </div>
   );
+}
+
+// ── Zone-segmented TSB data ─────────────────────────────────────────
+
+type ChartRow = TimelinePoint & {
+  _zonePad: number | null;
+  _zoneGreen: number | null;
+  _tsb0: number | null;
+  _tsb1: number | null;
+  _tsb2: number | null;
+  _tsb3: number | null;
+  _tsb4: number | null;
+};
+
+function isInZone(
+  tsb: number | null,
+  zone: (typeof FORM_ZONES)[number]
+): boolean {
+  if (tsb == null) return false;
+  return tsb >= zone.min && (zone.max >= 60 || tsb < zone.max);
+}
+
+function buildChartData(data: TimelinePoint[]): ChartRow[] {
+  const rows: ChartRow[] = data.map((d) => ({
+    ...d,
+    cyclingTss: d.cyclingTss ?? 0,
+    runningTss: d.runningTss ?? 0,
+    swimmingTss: d.swimmingTss ?? 0,
+    _zonePad: d.ctl != null ? d.ctl : null,
+    _zoneGreen: d.ctl != null ? 20 : null,
+    _tsb0: null,
+    _tsb1: null,
+    _tsb2: null,
+    _tsb3: null,
+    _tsb4: null,
+  }));
+
+  // Assign TSB to per-zone keys with adjacent overlap for line continuity
+  const keys = ["_tsb0", "_tsb1", "_tsb2", "_tsb3", "_tsb4"] as const;
+  for (let zi = 0; zi < FORM_ZONES.length; zi++) {
+    const zone = FORM_ZONES[zi];
+    const key = keys[zi];
+    for (let i = 0; i < rows.length; i++) {
+      const tsb = rows[i].tsb;
+      if (tsb == null) continue;
+      if (isInZone(tsb, zone)) {
+        rows[i][key] = tsb;
+        continue;
+      }
+      // Include boundary points so line segments connect seamlessly
+      const prev = i > 0 ? rows[i - 1].tsb : null;
+      const next = i < rows.length - 1 ? rows[i + 1].tsb : null;
+      if (isInZone(prev, zone) || isInZone(next, zone)) {
+        rows[i][key] = tsb;
+      }
+    }
+  }
+
+  return rows;
 }
 
 // ── Main component ──────────────────────────────────────────────────
@@ -171,16 +217,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
     );
   }
 
-  // Build chart data — TSS positive (bars go up), green zone via stacking
-  const chartData = data.map((d) => ({
-    ...d,
-    cyclingTss: d.cyclingTss ?? 0,
-    runningTss: d.runningTss ?? 0,
-    swimmingTss: d.swimmingTss ?? 0,
-    // Green productive zone: invisible pad up to CTL, then 20-unit green band
-    _zonePad: d.ctl != null ? d.ctl : null,
-    _zoneGreen: d.ctl != null ? 20 : null,
-  }));
+  const chartData = buildChartData(data);
 
   // Domain calculations
   const maxFitnessZone = Math.max(
@@ -238,8 +275,6 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
               strokeWidth: 1,
               strokeDasharray: "4 4",
             }}
-            position={{ y: 0 }}
-            allowEscapeViewBox={{ x: true, y: true }}
             wrapperStyle={{ zIndex: 10 }}
           />
 
@@ -318,28 +353,14 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
       </ResponsiveContainer>
 
       {/* ── Form (TSB) chart ───────────────────────────────────────── */}
-      <div className="mt-2 flex items-center gap-3 px-1">
+      <div className="mt-2 px-1">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Form
         </span>
-        <div className="flex items-center gap-2">
-          {FORM_ZONES.map((z) => (
-            <span
-              key={z.label}
-              className="flex items-center gap-1 text-[10px]"
-            >
-              <span
-                className="h-2 w-2 rounded-sm"
-                style={{ backgroundColor: z.color, opacity: 0.7 }}
-              />
-              <span className="text-muted-foreground/70">{z.label}</span>
-            </span>
-          ))}
-        </div>
       </div>
 
       <ResponsiveContainer width="100%" height={120}>
-        <AreaChart
+        <ComposedChart
           data={chartData}
           syncId="pmc"
           margin={{ top: 4, right: 10, bottom: 5, left: 0 }}
@@ -397,17 +418,34 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             </linearGradient>
           </defs>
 
+          {/* TSB area fill (neutral, behind the colored lines) */}
           <Area
             type="monotone"
             dataKey="tsb"
             fill="url(#tsbFill)"
-            stroke="#a855f7"
-            strokeWidth={1.5}
+            stroke="none"
             dot={false}
-            activeDot={{ r: 2, strokeWidth: 0, fill: "#a855f7" }}
+            activeDot={false}
             isAnimationActive={false}
+            legendType="none"
           />
-        </AreaChart>
+
+          {/* Zone-colored TSB line segments */}
+          {FORM_ZONES.map((zone, zi) => (
+            <Line
+              key={zi}
+              type="monotone"
+              dataKey={`_tsb${zi}`}
+              stroke={zone.color}
+              strokeWidth={2}
+              dot={false}
+              connectNulls={false}
+              activeDot={false}
+              isAnimationActive={false}
+              legendType="none"
+            />
+          ))}
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );
