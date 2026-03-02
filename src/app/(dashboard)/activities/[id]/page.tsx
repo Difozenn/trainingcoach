@@ -32,9 +32,10 @@ import {
 } from "@/lib/data/helpers";
 import Link from "next/link";
 import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
-import { ActivityStreamCharts } from "@/components/dashboard/stream-charts";
+import { ActivityStreamCharts, BreakthroughChart } from "@/components/dashboard/stream-charts";
 import type { StreamData } from "@/components/dashboard/stream-charts";
-import { FetchStreamsButton } from "@/components/dashboard/fetch-streams-button";
+import { StreamLoader } from "@/components/dashboard/stream-loader";
+import { calculateWbal, downsampleWbal } from "@/lib/engine/cycling/wbal";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";
 import { getSwimmingZones } from "@/lib/engine/swimming/zones";
@@ -251,6 +252,7 @@ export default async function ActivityDetailPage({
     altitudeMeters: s.altitudeMeters,
   }));
   const hasStreams = streamData.length > 0;
+  const hasPower = streams.some((s) => s.powerWatts != null);
 
   // Derived metrics
   const avgSpeed =
@@ -572,19 +574,36 @@ export default async function ActivityDetailPage({
 
         {/* Stream timeline charts */}
         {hasStreams ? (
-          <Card className="p-4 sm:p-5">
-            <CardContent className="p-0">
-              <ActivityStreamCharts
-                streams={streamData}
-                ftp={ftp}
-                sport={activity.sport}
-              />
-            </CardContent>
-          </Card>
+          <>
+            <Card className="p-4 sm:p-5">
+              <CardContent className="p-0">
+                <ActivityStreamCharts
+                  streams={streamData}
+                  ftp={ftp}
+                  sport={activity.sport}
+                />
+              </CardContent>
+            </Card>
+            {/* W'bal / MPA Breakthrough chart for cycling with power */}
+            {activity.sport === "cycling" && ftp && hasPower && (() => {
+              const powerStream = streams
+                .map((s) => s.powerWatts ?? 0);
+              const wbalData = calculateWbal(powerStream, ftp);
+              const downsampled = downsampleWbal(wbalData);
+              if (downsampled.length === 0) return null;
+              return (
+                <Card className="p-4 sm:p-5">
+                  <CardContent className="p-0">
+                    <BreakthroughChart data={downsampled} ftp={ftp} />
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </>
         ) : activity.platform === "strava" && activity.externalId ? (
           <Card className="p-4 sm:p-5">
             <CardContent className="p-0">
-              <FetchStreamsButton activityId={activity.id} />
+              <StreamLoader activityId={activity.id} />
             </CardContent>
           </Card>
         ) : null}

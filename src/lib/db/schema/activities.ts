@@ -58,6 +58,9 @@ export const activities = pgTable(
     // Zone distribution (% time in each zone)
     zoneDistribution: jsonb("zone_distribution").$type<number[]>(),
 
+    // FTP used for this activity's TSS calculation (cycling only)
+    ftpUsed: integer("ftp_used"),
+
     // Metadata
     gearId: text("gear_id"),
     sourceData: jsonb("source_data"), // Raw API response subset

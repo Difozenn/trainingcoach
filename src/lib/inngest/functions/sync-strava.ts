@@ -7,7 +7,7 @@ import {
   dailyMetrics,
   sportProfiles,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import {
   getValidToken,
   encryptTokens,
@@ -19,6 +19,7 @@ import {
 import type { StravaStreamSet, StravaActivity } from "@/lib/integrations/strava";
 import { calculateTSS, estimateTSSFromAvgPower } from "@/lib/engine/cycling/tss";
 import { calculateNormalizedPower } from "@/lib/engine/cycling/normalized-power";
+import { getEffectiveFTP, detectFTPFromActivity } from "@/lib/engine/cycling/ftp-model";
 import { thresholdHistory } from "@/lib/db/schema";
 import { calculateRTSS, estimateRTSSFromAvgPace } from "@/lib/engine/running/rtss";
 import { calculateNGP } from "@/lib/engine/running/normalized-graded-pace";
@@ -138,21 +139,30 @@ export const processStravaWebhook = inngest.createFunction(
       }
     });
 
-    // Auto-detect FTP from this activity's power data
-    const updatedProfile = await step.run("auto-detect-ftp", async () => {
-      if (processed.sport !== "cycling") return profile;
+    // Auto-detect FTP from this activity's power data (with decay model)
+    const ftpResult = await step.run("auto-detect-ftp", async () => {
+      if (processed.sport !== "cycling") return { profile, effectiveFtp: profile?.ftp ?? 0 };
       const np = stravaActivity.weighted_average_watts;
-      if (!np) return profile;
-      return autoDetectCyclingFTP(connection.userId, np, profile);
+      if (!np) return { profile, effectiveFtp: profile?.ftp ?? 0 };
+      return autoDetectCyclingFTP(
+        connection.userId,
+        np,
+        profile,
+        new Date(stravaActivity.start_date),
+        String(objectId)
+      );
     });
 
-    // Calculate sport-specific metrics from streams
+    // Calculate sport-specific metrics from streams (using effective FTP)
     const metrics = await step.run("calculate-metrics", async () => {
+      const profileForMetrics = processed.sport === "cycling"
+        ? { ...ftpResult.profile, ftp: ftpResult.effectiveFtp } as SportProfileRow
+        : ftpResult.profile;
       return calculateActivityMetrics(
         processed.sport,
         stravaActivity,
         streams,
-        updatedProfile
+        profileForMetrics
       );
     });
 
@@ -166,6 +176,7 @@ export const processStravaWebhook = inngest.createFunction(
         intensityFactor: metrics.intensityFactor,
         tss: metrics.tss,
         trimp: metrics.trimp,
+        ftpUsed: processed.sport === "cycling" ? ftpResult.effectiveFtp || null : null,
       };
 
       // Upsert: update if exists, insert if new
@@ -290,7 +301,8 @@ export const backfillStravaActivities = inngest.createFunction(
 
       if (pageActivities.length === 0) break;
       allStravaActivities.push(...pageActivities);
-      if (pageActivities.length < perPage) break;
+      // Don't break on short pages — Strava may return fewer than perPage
+      // due to deleted/hidden activities. Only break on truly empty pages.
     }
 
     // Sort oldest-first for chronological FTP auto-detection
@@ -321,7 +333,8 @@ export const backfillStravaActivities = inngest.createFunction(
           .limit(1);
         if (existing) continue;
 
-        // Auto-detect FTP from this activity's NP (updates profile in-place)
+        // Auto-detect FTP from this activity's NP (with decay model)
+        let effectiveFtp = 0;
         if (processed.sport === "cycling") {
           const np =
             (stravaActivity as { weighted_average_watts?: number })
@@ -337,7 +350,14 @@ export const backfillStravaActivities = inngest.createFunction(
                 )
               )
               .limit(1);
-            await autoDetectCyclingFTP(userId, np, currentProfile);
+            const result = await autoDetectCyclingFTP(
+              userId,
+              np,
+              currentProfile,
+              new Date(stravaActivity.start_date as string),
+              String(stravaActivity.id)
+            );
+            effectiveFtp = result.effectiveFtp;
           }
         }
 
@@ -353,11 +373,16 @@ export const backfillStravaActivities = inngest.createFunction(
           )
           .limit(1);
 
+        // Use the time-appropriate FTP for metrics
+        const profileForMetrics = processed.sport === "cycling" && effectiveFtp > 0
+          ? { ...profile, ftp: effectiveFtp } as SportProfileRow
+          : profile;
+
         const metrics = calculateActivityMetrics(
           processed.sport,
           stravaActivity,
           null,
-          profile
+          profileForMetrics
         );
 
         await db.insert(activities).values({
@@ -368,6 +393,7 @@ export const backfillStravaActivities = inngest.createFunction(
           intensityFactor: metrics.intensityFactor,
           tss: metrics.tss,
           trimp: metrics.trimp,
+          ftpUsed: processed.sport === "cycling" ? effectiveFtp || null : null,
         });
 
         imported++;
@@ -638,52 +664,98 @@ async function storeActivityStreams(
 }
 
 /**
- * Auto-detect cycling FTP from a ride's NP.
- * If NP × 0.95 > current FTP, update the sport profile and record in threshold history.
- * Returns the (possibly updated) profile row.
+ * Auto-detect cycling FTP from a ride's NP with exponential decay model.
+ * Applies decay since last threshold detection, then checks for breakthrough.
+ * Returns the effective FTP for this activity date and the (possibly updated) profile.
  */
 async function autoDetectCyclingFTP(
   userId: string,
   np: number,
-  currentProfile: SportProfileRow
-): Promise<SportProfileRow> {
-  const detectedFtp = Math.round(np * 0.95);
-  const currentFtp = currentProfile?.ftp ?? 0;
+  currentProfile: SportProfileRow,
+  activityDate: Date,
+  activityExternalId?: string
+): Promise<{ profile: SportProfileRow; effectiveFtp: number }> {
+  // Look up last threshold from history
+  const [lastThreshold] = await db
+    .select({ value: thresholdHistory.value, detectedAt: thresholdHistory.detectedAt })
+    .from(thresholdHistory)
+    .where(
+      and(
+        eq(thresholdHistory.userId, userId),
+        eq(thresholdHistory.sport, "cycling"),
+        eq(thresholdHistory.metricName, "ftp")
+      )
+    )
+    .orderBy(desc(thresholdHistory.detectedAt))
+    .limit(1);
 
-  if (detectedFtp <= currentFtp) return currentProfile;
+  const lastFtp = lastThreshold?.value ?? currentProfile?.ftp ?? 0;
+  const lastFtpDate = lastThreshold?.detectedAt ?? new Date(0);
 
-  if (currentProfile) {
+  // Apply decay: effective FTP at this activity's date
+  const effectiveFtp = lastFtp > 0
+    ? getEffectiveFTP(lastFtp, lastFtpDate, activityDate)
+    : 0;
+
+  // Check for breakthrough
+  const newFtp = effectiveFtp > 0
+    ? detectFTPFromActivity(np, effectiveFtp)
+    : Math.round(np * 0.95); // Bootstrap: first-ever FTP
+
+  if (newFtp && newFtp > 0) {
+    // Breakthrough — update profile and record
+    if (currentProfile) {
+      await db
+        .update(sportProfiles)
+        .set({ ftp: newFtp, updatedAt: new Date() })
+        .where(
+          and(
+            eq(sportProfiles.userId, userId),
+            eq(sportProfiles.sport, "cycling")
+          )
+        );
+    } else {
+      await db.insert(sportProfiles).values({
+        userId,
+        sport: "cycling",
+        ftp: newFtp,
+      });
+    }
+
+    // Record in threshold history with activity date (not now())
+    await db.insert(thresholdHistory).values({
+      userId,
+      sport: "cycling",
+      metricName: "ftp",
+      value: newFtp,
+      source: "auto_detect",
+      activityId: activityExternalId,
+      detectedAt: activityDate,
+    });
+
+    return {
+      profile: { ...currentProfile, ftp: newFtp } as SportProfileRow,
+      effectiveFtp: newFtp,
+    };
+  }
+
+  // No breakthrough — update sport profile to current decayed FTP
+  if (effectiveFtp > 0 && currentProfile && currentProfile.ftp !== effectiveFtp) {
     await db
       .update(sportProfiles)
-      .set({ ftp: detectedFtp, updatedAt: new Date() })
+      .set({ ftp: effectiveFtp, updatedAt: new Date() })
       .where(
         and(
           eq(sportProfiles.userId, userId),
           eq(sportProfiles.sport, "cycling")
         )
       );
-  } else {
-    await db.insert(sportProfiles).values({
-      userId,
-      sport: "cycling",
-      ftp: detectedFtp,
-    });
   }
 
-  // Record in threshold history
-  await db.insert(thresholdHistory).values({
-    userId,
-    sport: "cycling",
-    metricName: "ftp",
-    value: detectedFtp,
-    source: "auto_detect",
-  });
-
-  // Return updated profile shape
   return {
-    ...currentProfile,
-    ftp: detectedFtp,
-  } as SportProfileRow;
+    profile: currentProfile ? { ...currentProfile, ftp: effectiveFtp || currentProfile.ftp } as SportProfileRow : currentProfile,
+    effectiveFtp: effectiveFtp || (currentProfile?.ftp ?? 0),
+  };
 }
 
 async function upsertDailyMetrics(

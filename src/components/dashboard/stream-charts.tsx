@@ -3,6 +3,7 @@
 import {
   AreaChart,
   Area,
+  ComposedChart,
   LineChart,
   Line,
   XAxis,
@@ -266,6 +267,137 @@ export function ActivityStreamCharts({
           gradientId="alt-grad"
         />
       )}
+    </div>
+  );
+}
+
+// ── Breakthrough Chart (W'bal / MPA) ────────────────────────────────
+
+type BreakthroughPoint = {
+  time: number;
+  power: number;
+  mpa: number;
+  wbal: number;
+  isBreakthrough: boolean;
+};
+
+function BreakthroughTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ dataKey: string; value: number; color: string }>;
+  label?: number;
+}) {
+  if (!active || !payload?.length) return null;
+  const power = payload.find((p) => p.dataKey === "power")?.value;
+  const mpa = payload.find((p) => p.dataKey === "mpa")?.value;
+  const wbal = payload.find((p) => p.dataKey === "wbal")?.value;
+  return (
+    <div className="rounded-md border bg-background/95 backdrop-blur-sm px-3 py-2 shadow-sm text-xs space-y-0.5">
+      <div className="text-muted-foreground">{formatStreamTime(label as number)}</div>
+      {power != null && (
+        <div><span className="font-medium text-blue-500">{Math.round(power)}W</span> Power</div>
+      )}
+      {mpa != null && (
+        <div><span className="font-medium text-orange-500">{Math.round(mpa)}W</span> MPA</div>
+      )}
+      {wbal != null && (
+        <div><span className="font-medium text-emerald-500">{(wbal / 1000).toFixed(1)}kJ</span> W&apos;bal</div>
+      )}
+    </div>
+  );
+}
+
+export function BreakthroughChart({
+  data,
+  ftp,
+}: {
+  data: BreakthroughPoint[];
+  ftp: number;
+}) {
+  if (data.length === 0) return null;
+
+  const hasBreakthrough = data.some((d) => d.isBreakthrough);
+
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between px-1">
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          W&apos;bal / MPA
+        </span>
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-blue-500" /> Power
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-orange-500" /> MPA
+          </span>
+          {hasBreakthrough && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block h-2 w-2 rounded-full bg-red-500" /> Breakthrough
+            </span>
+          )}
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={200}>
+        <ComposedChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="power-bt-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.02} />
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey="time"
+            tick={{ fontSize: 10 }}
+            tickFormatter={formatStreamTime}
+            className="text-muted-foreground"
+            tickLine={false}
+            axisLine={false}
+            minTickGap={60}
+          />
+          <YAxis
+            tick={{ fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+            className="text-muted-foreground"
+            width={40}
+            domain={["auto", "auto"]}
+          />
+          <Tooltip
+            content={<BreakthroughTooltip />}
+            cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "4 4" }}
+          />
+          <ReferenceLine
+            y={ftp}
+            stroke="#6b7280"
+            strokeDasharray="6 3"
+            strokeOpacity={0.5}
+            strokeWidth={1}
+            label={{ value: "FTP", position: "insideTopRight", fontSize: 10, fill: "#6b7280" }}
+          />
+          <Area
+            type="monotone"
+            dataKey="power"
+            stroke="#3b82f6"
+            strokeWidth={1}
+            fill="url(#power-bt-grad)"
+            dot={false}
+            isAnimationActive={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="mpa"
+            stroke="#f97316"
+            strokeWidth={2}
+            strokeDasharray="4 2"
+            dot={false}
+            isAnimationActive={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
     </div>
   );
 }
