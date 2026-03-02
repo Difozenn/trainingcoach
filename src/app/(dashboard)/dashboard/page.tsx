@@ -40,6 +40,17 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
 
+  // Check onboarding — redirect if no athlete profile yet
+  const { db } = await import("@/lib/db");
+  const { athleteProfiles } = await import("@/lib/db/schema");
+  const { eq } = await import("drizzle-orm");
+  const [profile] = await db
+    .select({ onboardingCompleted: athleteProfiles.onboardingCompleted })
+    .from(athleteProfiles)
+    .where(eq(athleteProfiles.userId, userId))
+    .limit(1);
+  if (!profile?.onboardingCompleted) redirect("/onboarding");
+
   const [metrics, weeklyTss, recentActivities, nutrition, weeklyPlan] =
     await Promise.all([
       getLatestMetrics(userId),
