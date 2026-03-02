@@ -40,33 +40,33 @@ function CustomTooltip({
     Math.abs(payload.find((p) => p.dataKey === "runningTssNeg")?.value ?? 0) +
     Math.abs(payload.find((p) => p.dataKey === "swimmingTssNeg")?.value ?? 0);
 
+  const metrics = payload.filter((p) => ["ctl", "atl", "tsb"].includes(p.dataKey));
+
   return (
-    <div className="pointer-events-none rounded-lg border bg-background/95 backdrop-blur-sm p-2.5 shadow-lg text-xs">
-      <p className="font-medium text-sm mb-1.5">{label}</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-        {payload
-          .filter((p) => ["ctl", "atl", "tsb"].includes(p.dataKey))
-          .map((p) => (
-            <div key={p.name} className="flex items-center gap-1.5">
-              <span
-                className="h-2 w-2 rounded-full shrink-0"
-                style={{ backgroundColor: p.color }}
-              />
-              <span className="text-muted-foreground">{p.name}</span>
-              <span className="font-semibold ml-auto">{Math.round(p.value)}</span>
-            </div>
-          ))}
-        {totalTss > 0 && (
-          <div className="flex items-center gap-1.5 col-span-2 border-t pt-1 mt-1">
+    <div className="pointer-events-none flex items-center gap-3 rounded-md border bg-background/95 backdrop-blur-sm px-3 py-1.5 shadow-sm text-xs">
+      <span className="font-medium text-foreground">{label}</span>
+      <span className="h-3 w-px bg-border" />
+      {metrics.map((p) => (
+        <div key={p.name} className="flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: p.color }} />
+          <span className="text-muted-foreground">{p.name}</span>
+          <span className="font-semibold">{Math.round(p.value)}</span>
+        </div>
+      ))}
+      {totalTss > 0 && (
+        <>
+          <span className="h-3 w-px bg-border" />
+          <div className="flex items-center gap-1">
             <span className="text-muted-foreground">TSS</span>
-            <span className="font-semibold ml-auto">{Math.round(totalTss)}</span>
+            <span className="font-semibold">{Math.round(totalTss)}</span>
           </div>
-        )}
-      </div>
+        </>
+      )}
       {tsb != null && (
-        <p className="mt-1.5 text-muted-foreground border-t pt-1.5">
-          {tsbInsight(tsb)}
-        </p>
+        <>
+          <span className="h-3 w-px bg-border" />
+          <span className="text-muted-foreground">{tsbInsight(tsb)}</span>
+        </>
       )}
     </div>
   );
@@ -107,7 +107,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
     <ResponsiveContainer width="100%" height={400}>
       <ComposedChart
         data={chartData}
-        margin={{ top: 5, right: 10, bottom: 5, left: 0 }}
+        margin={{ top: 28, right: 10, bottom: 5, left: 0 }}
       >
         <CartesianGrid
           strokeDasharray="3 3"
@@ -131,8 +131,9 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         <Tooltip
           content={<CustomTooltip />}
           cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "4 4" }}
+          position={{ y: -20 }}
           allowEscapeViewBox={{ x: true, y: true }}
-          offset={20}
+          wrapperStyle={{ zIndex: 10 }}
         />
 
         {/* Zero reference line — divides fitness metrics from activity bars */}

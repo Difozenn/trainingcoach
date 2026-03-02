@@ -16,9 +16,10 @@ import {
   fetchActivityStreams,
   processStravaActivity,
 } from "@/lib/integrations/strava";
-import type { StravaStreamSet } from "@/lib/integrations/strava";
-import { calculateTSS, estimateTSSFromAvgPower, estimateFTPFrom20Min } from "@/lib/engine/cycling/tss";
+import type { StravaStreamSet, StravaActivity } from "@/lib/integrations/strava";
+import { calculateTSS, estimateTSSFromAvgPower } from "@/lib/engine/cycling/tss";
 import { calculateNormalizedPower } from "@/lib/engine/cycling/normalized-power";
+import { thresholdHistory } from "@/lib/db/schema";
 import { calculateRTSS, estimateRTSSFromAvgPace } from "@/lib/engine/running/rtss";
 import { calculateNGP } from "@/lib/engine/running/normalized-graded-pace";
 import { calculateSTSS } from "@/lib/engine/swimming/stss";
@@ -137,13 +138,21 @@ export const processStravaWebhook = inngest.createFunction(
       }
     });
 
+    // Auto-detect FTP from this activity's power data
+    const updatedProfile = await step.run("auto-detect-ftp", async () => {
+      if (processed.sport !== "cycling") return profile;
+      const np = stravaActivity.weighted_average_watts;
+      if (!np) return profile;
+      return autoDetectCyclingFTP(connection.userId, np, profile);
+    });
+
     // Calculate sport-specific metrics from streams
     const metrics = await step.run("calculate-metrics", async () => {
       return calculateActivityMetrics(
         processed.sport,
         stravaActivity,
         streams,
-        profile
+        updatedProfile
       );
     });
 
@@ -265,8 +274,9 @@ export const backfillStravaActivities = inngest.createFunction(
       });
     }
 
-    // Fetch activities from Jan 1 2025 onwards (200 per page, up to 10 pages)
-    let totalImported = 0;
+    // Fetch all activities from Jan 1 2025 onwards
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allStravaActivities: StravaActivity[] = [];
     const perPage = 200;
     const maxPages = 10;
     const after = Math.floor(new Date("2025-01-01T00:00:00Z").getTime() / 1000);
@@ -280,63 +290,161 @@ export const backfillStravaActivities = inngest.createFunction(
       );
 
       if (pageActivities.length === 0) break;
-
-      // Process each activity in the page
-      await step.run(`process-page-${page}`, async () => {
-        for (const stravaActivity of pageActivities) {
-          const processed = processStravaActivity(stravaActivity);
-          if (!processed) continue;
-
-          // Check if already exists
-          const [existing] = await db
-            .select({ id: activities.id })
-            .from(activities)
-            .where(
-              and(
-                eq(activities.externalId, String(stravaActivity.id)),
-                eq(activities.platform, "strava")
-              )
-            )
-            .limit(1);
-
-          if (existing) continue; // Skip duplicates
-
-          // Get sport profile for thresholds
-          const [profile] = await db
-            .select()
-            .from(sportProfiles)
-            .where(
-              and(
-                eq(sportProfiles.userId, userId),
-                eq(sportProfiles.sport, processed.sport)
-              )
-            )
-            .limit(1);
-
-          // Calculate basic metrics from summary data (no streams for backfill)
-          const metrics = calculateActivityMetrics(
-            processed.sport,
-            stravaActivity,
-            null,
-            profile
-          );
-
-          await db.insert(activities).values({
-            ...processed,
-            userId,
-            normalizedPower: metrics.normalizedPower,
-            normalizedGradedPace: metrics.normalizedGradedPace,
-            intensityFactor: metrics.intensityFactor,
-            tss: metrics.tss,
-            trimp: metrics.trimp,
-          });
-
-          totalImported++;
-        }
-      });
-
-      if (pageActivities.length < perPage) break; // Last page
+      allStravaActivities.push(...pageActivities);
+      if (pageActivities.length < perPage) break;
     }
+
+    // Sort oldest-first for chronological FTP auto-detection
+    allStravaActivities.sort(
+      (a, b) =>
+        new Date(a.start_date as string).getTime() -
+        new Date(b.start_date as string).getTime()
+    );
+
+    // Process all activities chronologically — FTP evolves as we go
+    const totalImported = await step.run("process-activities", async () => {
+      let imported = 0;
+
+      for (const stravaActivity of allStravaActivities) {
+        const processed = processStravaActivity(stravaActivity);
+        if (!processed) continue;
+
+        // Skip duplicates
+        const [existing] = await db
+          .select({ id: activities.id })
+          .from(activities)
+          .where(
+            and(
+              eq(activities.externalId, String(stravaActivity.id)),
+              eq(activities.platform, "strava")
+            )
+          )
+          .limit(1);
+        if (existing) continue;
+
+        // Auto-detect FTP from this activity's NP (updates profile in-place)
+        if (processed.sport === "cycling") {
+          const np =
+            (stravaActivity as { weighted_average_watts?: number })
+              .weighted_average_watts;
+          if (np) {
+            const [currentProfile] = await db
+              .select()
+              .from(sportProfiles)
+              .where(
+                and(
+                  eq(sportProfiles.userId, userId),
+                  eq(sportProfiles.sport, "cycling")
+                )
+              )
+              .limit(1);
+            await autoDetectCyclingFTP(userId, np, currentProfile);
+          }
+        }
+
+        // Fetch fresh profile (may have just been updated)
+        const [profile] = await db
+          .select()
+          .from(sportProfiles)
+          .where(
+            and(
+              eq(sportProfiles.userId, userId),
+              eq(sportProfiles.sport, processed.sport)
+            )
+          )
+          .limit(1);
+
+        const metrics = calculateActivityMetrics(
+          processed.sport,
+          stravaActivity,
+          null,
+          profile
+        );
+
+        await db.insert(activities).values({
+          ...processed,
+          userId,
+          normalizedPower: metrics.normalizedPower,
+          normalizedGradedPace: metrics.normalizedGradedPace,
+          intensityFactor: metrics.intensityFactor,
+          tss: metrics.tss,
+          trimp: metrics.trimp,
+        });
+
+        imported++;
+      }
+      return imported;
+    });
+
+    // Build daily_metrics chronologically from all imported activities
+    await step.run("build-daily-metrics", async () => {
+      // Aggregate TSS by day
+      const dailyTss = await db.execute<{
+        day: string;
+        cycling_tss: number;
+        running_tss: number;
+        swimming_tss: number;
+        total_tss: number;
+      }>(/* sql */ `
+        SELECT DATE(started_at) AS day,
+          COALESCE(SUM(CASE WHEN sport='cycling' THEN tss ELSE 0 END),0) AS cycling_tss,
+          COALESCE(SUM(CASE WHEN sport='running' THEN tss ELSE 0 END),0) AS running_tss,
+          COALESCE(SUM(CASE WHEN sport='swimming' THEN tss ELSE 0 END),0) AS swimming_tss,
+          COALESCE(SUM(tss),0) AS total_tss
+        FROM activities WHERE user_id = '${userId}' AND tss IS NOT NULL
+        GROUP BY DATE(started_at) ORDER BY day ASC
+      `);
+
+      if (dailyTss.length === 0) return;
+
+      // Delete any existing daily_metrics for clean rebuild
+      await db
+        .delete(dailyMetrics)
+        .where(eq(dailyMetrics.userId, userId));
+
+      const tssMap = new Map<string, { c: number; r: number; s: number; t: number }>();
+      for (const row of dailyTss) {
+        const key = new Date(row.day).toISOString().split("T")[0];
+        tssMap.set(key, {
+          c: Number(row.cycling_tss),
+          r: Number(row.running_tss),
+          s: Number(row.swimming_tss),
+          t: Number(row.total_tss),
+        });
+      }
+
+      // Walk from first activity to today, calculating CTL/ATL/TSB
+      const firstDay = new Date(dailyTss[0].day);
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      let ctl = 0;
+      let atl = 0;
+      const current = new Date(firstDay);
+
+      while (current <= today) {
+        const key = current.toISOString().split("T")[0];
+        const d = tssMap.get(key) ?? { c: 0, r: 0, s: 0, t: 0 };
+
+        ctl = ctl + (d.t - ctl) / 42;
+        atl = atl + (d.t - atl) / 7;
+        const tsb = ctl - atl;
+
+        await db.insert(dailyMetrics).values({
+          userId,
+          date: new Date(current),
+          totalTss: Math.round(d.t * 10) / 10,
+          cyclingTss: Math.round(d.c * 10) / 10,
+          runningTss: Math.round(d.r * 10) / 10,
+          swimmingTss: Math.round(d.s * 10) / 10,
+          ctl: Math.round(ctl * 10) / 10,
+          atl: Math.round(atl * 10) / 10,
+          tsb: Math.round(tsb * 10) / 10,
+        });
+
+        current.setUTCDate(current.getUTCDate() + 1);
+      }
+    });
 
     // Update last sync time
     await step.run("update-sync-time", async () => {
@@ -358,7 +466,7 @@ type SportProfileRow = {
   cssSPer100m: number | null;
   lthr: number | null;
   sportMaxHr: number | null;
-} | undefined;
+} | null | undefined;
 
 type CalculatedMetrics = {
   normalizedPower: number | null;
@@ -391,27 +499,36 @@ function calculateActivityMetrics(
   };
 
   if (sport === "cycling") {
-    const ftp = profile?.ftp ?? 200;
+    const ftp = profile?.ftp;
 
-    // Try stream-based NP/TSS first
+    // Always capture NP (needed for FTP auto-detect even without current FTP)
     if (streams?.watts?.data && streams.watts.data.length >= 30) {
-      const tssResult = calculateTSS(streams.watts.data, ftp);
-      if (tssResult) {
-        result.normalizedPower = tssResult.normalizedPower;
-        result.intensityFactor = tssResult.intensityFactor;
-        result.tss = tssResult.tss;
-      }
+      result.normalizedPower = calculateNormalizedPower(streams.watts.data);
+    }
+    if (!result.normalizedPower && activity.weighted_average_watts) {
+      result.normalizedPower = Math.round(activity.weighted_average_watts);
     }
 
-    // Fall back to Strava's weighted_average_watts or average power
-    if (!result.tss) {
-      const power = activity.weighted_average_watts ?? activity.average_watts;
-      if (power) {
-        result.normalizedPower = activity.weighted_average_watts
-          ? Math.round(activity.weighted_average_watts)
-          : null;
-        result.tss = estimateTSSFromAvgPower(power, activity.moving_time, ftp);
-        result.intensityFactor = Math.round((power / ftp) * 1000) / 1000;
+    // TSS calculation requires FTP
+    if (ftp) {
+      // Try stream-based TSS first
+      if (streams?.watts?.data && streams.watts.data.length >= 30) {
+        const tssResult = calculateTSS(streams.watts.data, ftp);
+        if (tssResult) {
+          result.intensityFactor = tssResult.intensityFactor;
+          result.tss = tssResult.tss;
+        }
+      }
+
+      // Fall back to NP or average power
+      if (!result.tss) {
+        const power = result.normalizedPower ?? activity.average_watts;
+        if (power) {
+          result.intensityFactor = Math.round((power / ftp) * 1000) / 1000;
+          result.tss = Math.round(
+            result.intensityFactor ** 2 * (activity.moving_time / 3600) * 100 * 10
+          ) / 10;
+        }
       }
     }
   } else if (sport === "running") {
@@ -519,6 +636,55 @@ async function storeActivityStreams(
     const batch = rows.slice(i, i + 1000);
     await db.insert(activityStreams).values(batch);
   }
+}
+
+/**
+ * Auto-detect cycling FTP from a ride's NP.
+ * If NP × 0.95 > current FTP, update the sport profile and record in threshold history.
+ * Returns the (possibly updated) profile row.
+ */
+async function autoDetectCyclingFTP(
+  userId: string,
+  np: number,
+  currentProfile: SportProfileRow
+): Promise<SportProfileRow> {
+  const detectedFtp = Math.round(np * 0.95);
+  const currentFtp = currentProfile?.ftp ?? 0;
+
+  if (detectedFtp <= currentFtp) return currentProfile;
+
+  if (currentProfile) {
+    await db
+      .update(sportProfiles)
+      .set({ ftp: detectedFtp, updatedAt: new Date() })
+      .where(
+        and(
+          eq(sportProfiles.userId, userId),
+          eq(sportProfiles.sport, "cycling")
+        )
+      );
+  } else {
+    await db.insert(sportProfiles).values({
+      userId,
+      sport: "cycling",
+      ftp: detectedFtp,
+    });
+  }
+
+  // Record in threshold history
+  await db.insert(thresholdHistory).values({
+    userId,
+    sport: "cycling",
+    metricName: "ftp",
+    value: detectedFtp,
+    source: "auto_detect",
+  });
+
+  // Return updated profile shape
+  return {
+    ...currentProfile,
+    ftp: detectedFtp,
+  } as SportProfileRow;
 }
 
 async function upsertDailyMetrics(
