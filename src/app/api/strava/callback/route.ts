@@ -54,22 +54,31 @@ export async function GET(request: Request) {
       isActive: true,
     }).returning({ id: platformConnections.id });
 
-    // Trigger historical backfill (non-blocking)
-    await inngest.send({
-      name: "strava/backfill.requested",
-      data: { userId: state, connectionId: newConn.id },
-    });
+    // Trigger historical backfill (best-effort, don't break the flow)
+    try {
+      await inngest.send({
+        name: "strava/backfill.requested",
+        data: { userId: state, connectionId: newConn.id },
+      });
+    } catch (e) {
+      console.warn("Inngest backfill trigger failed (non-critical):", e);
+    }
 
     // Redirect back to onboarding if not completed, otherwise settings
-    const [profile] = await db
-      .select({ onboardingCompleted: athleteProfiles.onboardingCompleted })
-      .from(athleteProfiles)
-      .where(eq(athleteProfiles.userId, state))
-      .limit(1);
+    let destination = "/settings?connected=strava";
+    try {
+      const [profile] = await db
+        .select({ onboardingCompleted: athleteProfiles.onboardingCompleted })
+        .from(athleteProfiles)
+        .where(eq(athleteProfiles.userId, state))
+        .limit(1);
 
-    const destination = profile?.onboardingCompleted
-      ? "/settings?connected=strava"
-      : "/onboarding?connected=strava";
+      if (!profile?.onboardingCompleted) {
+        destination = "/onboarding?connected=strava";
+      }
+    } catch {
+      // Fall through to settings
+    }
 
     return NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_APP_URL}${destination}`
