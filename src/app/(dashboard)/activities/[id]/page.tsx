@@ -1,20 +1,217 @@
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Bike, Footprints, Waves, Activity } from "lucide-react";
-import { getActivityById } from "@/lib/data/queries";
-import { formatDuration, formatDistance, formatDate, formatPace } from "@/lib/data/helpers";
-import { ZoneChart } from "@/components/dashboard/zone-chart";
+import {
+  ArrowLeft,
+  Bike,
+  Footprints,
+  Waves,
+  Activity,
+  Zap,
+  Heart,
+  Timer,
+  TrendingUp,
+} from "lucide-react";
+import {
+  getActivityById,
+  getActivityStreams,
+  getDailyMetricsForDate,
+  getSportProfiles,
+} from "@/lib/data/queries";
+import {
+  formatDuration,
+  formatDistance,
+  formatDate,
+  formatPace,
+  formatSpeed,
+  sportColor,
+  tsbColor,
+} from "@/lib/data/helpers";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import { ActivityStreamCharts } from "@/components/dashboard/stream-charts";
+import type { StreamData } from "@/components/dashboard/stream-charts";
+import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
+import { getRunningPaceZones } from "@/lib/engine/running/zones";
+import { getSwimmingZones } from "@/lib/engine/swimming/zones";
+
+const ActivityMap = dynamic(
+  () =>
+    import("@/components/dashboard/activity-map").then(
+      (mod) => mod.ActivityMap
+    ),
+  { ssr: false, loading: () => <MapSkeleton /> }
+);
+
+function MapSkeleton() {
+  return (
+    <div className="h-[300px] w-full animate-pulse rounded-lg bg-muted" />
+  );
+}
 
 const sportIcons = {
   cycling: Bike,
   running: Footprints,
   swimming: Waves,
 };
+
+// ── Zone colors ─────────────────────────────────────────────────────
+
+const zoneColors = [
+  "#6b7280", // Z1 - gray
+  "#3b82f6", // Z2 - blue
+  "#22c55e", // Z3 - green
+  "#eab308", // Z4 - yellow
+  "#f97316", // Z5 - orange
+  "#ef4444", // Z6 - red
+  "#dc2626", // Z7 - dark red
+];
+
+// ── Helper: stat row ────────────────────────────────────────────────
+
+function Stat({
+  label,
+  value,
+  unit,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  unit?: string;
+  sub?: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between py-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-sm font-semibold tabular-nums">
+        {value}
+        {unit && (
+          <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+            {unit}
+          </span>
+        )}
+        {sub && (
+          <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+            {sub}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function StatSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </span>
+      </div>
+      <div className="divide-y divide-border/50">{children}</div>
+    </div>
+  );
+}
+
+// ── Zone bar ────────────────────────────────────────────────────────
+
+function ZoneBar({ distribution }: { distribution: number[] }) {
+  const total = distribution.reduce((a, b) => a + b, 0);
+  if (total === 0) return null;
+
+  return (
+    <div className="flex h-3 w-full overflow-hidden rounded-full">
+      {distribution.map((pct, i) => {
+        if (pct <= 0) return null;
+        return (
+          <div
+            key={i}
+            className="transition-all"
+            style={{
+              width: `${(pct / total) * 100}%`,
+              backgroundColor: zoneColors[i] ?? "#6b7280",
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+type ZoneInfo = {
+  zone: string;
+  name: string;
+  range: string;
+  pct: number;
+  timeSeconds: number;
+};
+
+function getZoneDetails(
+  distribution: number[],
+  sport: string,
+  durationSeconds: number,
+  ftp?: number | null,
+  thresholdPace?: number | null,
+  css?: number | null
+): ZoneInfo[] {
+  if (sport === "cycling" && ftp) {
+    const zones = getCyclingPowerZones(ftp);
+    return zones.map((z, i) => ({
+      zone: `Z${z.zone}`,
+      name: z.name,
+      range: z.maxWatts
+        ? `${z.minWatts}-${z.maxWatts}W`
+        : `>${z.minWatts}W`,
+      pct: distribution[i] ?? 0,
+      timeSeconds: Math.round(((distribution[i] ?? 0) / 100) * durationSeconds),
+    }));
+  }
+
+  if (sport === "running" && thresholdPace) {
+    const zones = getRunningPaceZones(thresholdPace);
+    return zones.map((z, i) => ({
+      zone: `Z${z.zone}`,
+      name: z.name,
+      range: z.paceRangeFormatted,
+      pct: distribution[i] ?? 0,
+      timeSeconds: Math.round(((distribution[i] ?? 0) / 100) * durationSeconds),
+    }));
+  }
+
+  if (sport === "swimming" && css) {
+    const zones = getSwimmingZones(css);
+    return zones.map((z, i) => ({
+      zone: `Z${z.zone}`,
+      name: z.name,
+      range: z.paceRangeFormatted,
+      pct: distribution[i] ?? 0,
+      timeSeconds: Math.round(((distribution[i] ?? 0) / 100) * durationSeconds),
+    }));
+  }
+
+  // Fallback: no threshold data
+  return distribution.map((pct, i) => ({
+    zone: `Z${i + 1}`,
+    name: "",
+    range: "",
+    pct,
+    timeSeconds: Math.round((pct / 100) * durationSeconds),
+  }));
+}
+
+// ── Page ────────────────────────────────────────────────────────────
 
 export default async function ActivityDetailPage({
   params,
@@ -25,229 +222,437 @@ export default async function ActivityDetailPage({
   if (!session?.user?.id) redirect("/login");
 
   const { id } = await params;
-  const activity = await getActivityById(session.user.id, id);
+  const userId = session.user.id;
+
+  // Parallel data fetch
+  const [activity, streams, profiles] = await Promise.all([
+    getActivityById(userId, id),
+    getActivityStreams(id),
+    getSportProfiles(userId),
+  ]);
+
   if (!activity) notFound();
 
-  const Icon = sportIcons[activity.sport as keyof typeof sportIcons] ?? Activity;
+  // Get fitness context for activity date
+  const fitnessContext = await getDailyMetricsForDate(
+    userId,
+    activity.startedAt
+  );
+
+  const Icon =
+    sportIcons[activity.sport as keyof typeof sportIcons] ?? Activity;
+  const color = sportColor(activity.sport);
+
+  // Sport profile for thresholds
+  const sportProfile = profiles.find((p) => p.sport === activity.sport);
+  const ftp = sportProfile?.ftp;
+  const thresholdPace = sportProfile?.thresholdPaceSPerKm;
+  const css = sportProfile?.cssSPer100m;
+
+  // GPS points
+  const gpsPoints = streams
+    .filter((s) => s.latitudeDeg != null && s.longitudeDeg != null)
+    .map((s) => ({ lat: s.latitudeDeg!, lng: s.longitudeDeg! }));
+  const hasGps = gpsPoints.length > 10;
+
+  // Stream data for charts
+  const streamData: StreamData = streams.map((s) => ({
+    secondOffset: s.secondOffset,
+    powerWatts: s.powerWatts,
+    heartRate: s.heartRate,
+    cadenceRpm: s.cadenceRpm,
+    altitudeMeters: s.altitudeMeters,
+  }));
+  const hasStreams = streamData.length > 0;
+
+  // Derived metrics
+  const avgSpeed =
+    activity.distanceMeters && activity.movingTimeSeconds
+      ? activity.distanceMeters / activity.movingTimeSeconds
+      : activity.averageSpeedMps;
+
+  const vi =
+    activity.sport === "cycling" &&
+    activity.normalizedPower &&
+    activity.averagePowerWatts &&
+    activity.averagePowerWatts > 0
+      ? activity.normalizedPower / activity.averagePowerWatts
+      : null;
+
+  const powerHr =
+    activity.averagePowerWatts && activity.averageHr && activity.averageHr > 0
+      ? activity.averagePowerWatts / activity.averageHr
+      : null;
+
+  const efficiencyFactor =
+    activity.normalizedPower && activity.averageHr && activity.averageHr > 0
+      ? activity.normalizedPower / activity.averageHr
+      : null;
+
+  const workKJ =
+    activity.sport === "cycling" && activity.averagePowerWatts
+      ? (activity.averagePowerWatts * activity.durationSeconds) / 1000
+      : null;
+
+  const calories = workKJ ? Math.round(workKJ / 4.184) : null;
+
+  // Coasting % from streams
+  const coastingPct =
+    activity.sport === "cycling" && hasStreams
+      ? (() => {
+          const powerPoints = streamData.filter(
+            (s) => s.powerWatts != null
+          );
+          if (powerPoints.length === 0) return null;
+          const zeros = powerPoints.filter((s) => s.powerWatts === 0).length;
+          return Math.round((zeros / powerPoints.length) * 100);
+        })()
+      : null;
+
+  // Zone details
+  const zoneDetails =
+    activity.zoneDistribution
+      ? getZoneDetails(
+          activity.zoneDistribution,
+          activity.sport,
+          activity.durationSeconds,
+          ftp,
+          thresholdPace,
+          css
+        )
+      : null;
+
+  // Summary line
+  const summaryParts: string[] = [];
+  if (activity.distanceMeters)
+    summaryParts.push(formatDistance(activity.distanceMeters));
+  summaryParts.push(formatDuration(activity.durationSeconds));
+  if (activity.elevationGainMeters)
+    summaryParts.push(`${Math.round(activity.elevationGainMeters)}m climbing`);
+  if (avgSpeed && activity.sport === "cycling")
+    summaryParts.push(formatSpeed(avgSpeed));
+  if (avgSpeed && activity.sport === "running")
+    summaryParts.push(formatPace(1000 / avgSpeed));
 
   return (
     <>
       <DashboardHeader title="Activity Detail" />
-      <div className="flex-1 space-y-6 p-6">
+      <div className="flex-1 space-y-6 p-4 sm:p-6">
+        {/* Back button */}
         <Link href="/activities">
-          <Button variant="ghost" size="sm">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to activities
+          <Button variant="ghost" size="sm" className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Back
           </Button>
         </Link>
 
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Icon className="h-8 w-8 text-muted-foreground" />
-          <div>
-            <h2 className="text-2xl font-bold">
-              {activity.name ?? "Untitled"}
-            </h2>
-            <p className="text-muted-foreground">
-              {formatDate(activity.startedAt)} &middot;{" "}
-              <span className="capitalize">{activity.sport}</span>
-            </p>
+        {/* Title & summary */}
+        <div>
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg"
+              style={{ backgroundColor: `${color}20` }}
+            >
+              <Icon className="h-5 w-5" style={{ color }} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold sm:text-2xl">
+                  {activity.name ?? "Untitled Activity"}
+                </h1>
+                <Badge variant="outline" className="capitalize">
+                  {activity.sport}
+                </Badge>
+              </div>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {formatDate(activity.startedAt)}
+                {activity.platform && (
+                  <span className="ml-2 capitalize">via {activity.platform}</span>
+                )}
+              </p>
+            </div>
           </div>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {summaryParts.join(" \u00B7 ")}
+          </p>
         </div>
 
-        {/* Metric cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Duration</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {formatDuration(activity.durationSeconds)}
-              </p>
-              {activity.movingTimeSeconds &&
-                activity.movingTimeSeconds !== activity.durationSeconds && (
-                  <p className="text-xs text-muted-foreground">
-                    Moving: {formatDuration(activity.movingTimeSeconds)}
-                  </p>
+        {/* Map + Stats grid */}
+        <div
+          className={`grid gap-6 ${hasGps ? "lg:grid-cols-[1fr_320px]" : "lg:grid-cols-1 max-w-3xl"}`}
+        >
+          {/* Left: Map */}
+          {hasGps && (
+            <Card className="overflow-hidden p-0">
+              <ActivityMap gpsPoints={gpsPoints} color={color} />
+            </Card>
+          )}
+
+          {/* Right: Stats sidebar */}
+          <Card className="p-4 sm:p-5">
+            <CardContent className="space-y-5 p-0">
+              {/* Power section */}
+              {activity.sport === "cycling" &&
+                (activity.normalizedPower || activity.averagePowerWatts) && (
+                  <StatSection icon={Zap} title="Power">
+                    {activity.normalizedPower && (
+                      <Stat
+                        label="Normalized Power"
+                        value={Math.round(activity.normalizedPower)}
+                        unit="W"
+                      />
+                    )}
+                    {activity.averagePowerWatts && (
+                      <Stat
+                        label="Average"
+                        value={activity.averagePowerWatts}
+                        unit="W"
+                      />
+                    )}
+                    {activity.maxPowerWatts && (
+                      <Stat
+                        label="Max"
+                        value={activity.maxPowerWatts}
+                        unit="W"
+                      />
+                    )}
+                    {vi && <Stat label="Variability Index" value={vi.toFixed(2)} />}
+                    {ftp && <Stat label="FTP" value={ftp} unit="W" />}
+                    {workKJ && (
+                      <Stat
+                        label="Work"
+                        value={Math.round(workKJ).toLocaleString()}
+                        unit="kJ"
+                      />
+                    )}
+                    {calories && (
+                      <Stat
+                        label="Calories"
+                        value={`~${calories.toLocaleString()}`}
+                        unit="kcal"
+                      />
+                    )}
+                    {coastingPct != null && (
+                      <Stat label="Coasting" value={coastingPct} unit="%" />
+                    )}
+                  </StatSection>
                 )}
+
+              {/* Running pace section */}
+              {activity.sport === "running" && (
+                <StatSection icon={Timer} title="Pace">
+                  {activity.normalizedGradedPace && (
+                    <Stat
+                      label="NGP"
+                      value={formatPace(activity.normalizedGradedPace)}
+                    />
+                  )}
+                  {avgSpeed && (
+                    <Stat label="Avg Pace" value={formatPace(1000 / avgSpeed)} />
+                  )}
+                  {thresholdPace && (
+                    <Stat
+                      label="Threshold"
+                      value={formatPace(thresholdPace)}
+                    />
+                  )}
+                </StatSection>
+              )}
+
+              {/* Swimming section */}
+              {activity.sport === "swimming" && (
+                <StatSection icon={Waves} title="Swim">
+                  {activity.averageSwolf != null && (
+                    <Stat
+                      label="SWOLF"
+                      value={Math.round(activity.averageSwolf)}
+                    />
+                  )}
+                  {activity.poolLengthMeters != null && (
+                    <Stat
+                      label="Pool"
+                      value={activity.poolLengthMeters}
+                      unit="m"
+                    />
+                  )}
+                  {activity.totalStrokes != null && (
+                    <Stat
+                      label="Total Strokes"
+                      value={activity.totalStrokes.toLocaleString()}
+                    />
+                  )}
+                </StatSection>
+              )}
+
+              {/* Heart rate */}
+              {activity.averageHr && (
+                <StatSection icon={Heart} title="Heart Rate">
+                  <Stat
+                    label="Average"
+                    value={activity.averageHr}
+                    unit="bpm"
+                  />
+                  {activity.maxHr && (
+                    <Stat label="Max" value={activity.maxHr} unit="bpm" />
+                  )}
+                  {powerHr && (
+                    <Stat
+                      label="Power/HR"
+                      value={powerHr.toFixed(2)}
+                    />
+                  )}
+                  {efficiencyFactor && (
+                    <Stat
+                      label="Efficiency Factor"
+                      value={efficiencyFactor.toFixed(2)}
+                    />
+                  )}
+                </StatSection>
+              )}
+
+              {/* Performance */}
+              {(activity.tss || activity.trimp || activity.averageCadence) && (
+                <StatSection icon={Activity} title="Performance">
+                  {activity.tss != null && (
+                    <Stat
+                      label={
+                        activity.sport === "cycling"
+                          ? "TSS"
+                          : activity.sport === "running"
+                            ? "rTSS"
+                            : "sTSS"
+                      }
+                      value={Math.round(activity.tss)}
+                    />
+                  )}
+                  {activity.intensityFactor != null && (
+                    <Stat
+                      label="IF"
+                      value={activity.intensityFactor.toFixed(2)}
+                    />
+                  )}
+                  {activity.trimp != null && (
+                    <Stat label="TRIMP" value={Math.round(activity.trimp)} />
+                  )}
+                  {activity.averageCadence != null && (
+                    <Stat
+                      label="Cadence"
+                      value={Math.round(activity.averageCadence)}
+                      unit={activity.sport === "running" ? "spm" : "rpm"}
+                    />
+                  )}
+                </StatSection>
+              )}
+
+              {/* Fitness context */}
+              {fitnessContext && (
+                <StatSection icon={TrendingUp} title="Fitness Context">
+                  {fitnessContext.ctl != null && (
+                    <Stat
+                      label="Fitness (CTL)"
+                      value={Math.round(fitnessContext.ctl)}
+                    />
+                  )}
+                  {fitnessContext.atl != null && (
+                    <Stat
+                      label="Fatigue (ATL)"
+                      value={Math.round(fitnessContext.atl)}
+                    />
+                  )}
+                  {fitnessContext.tsb != null && (
+                    <div className="flex items-baseline justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">
+                        Form (TSB)
+                      </span>
+                      <span
+                        className={`text-sm font-semibold tabular-nums ${tsbColor(fitnessContext.tsb)}`}
+                      >
+                        {Math.round(fitnessContext.tsb)}
+                      </span>
+                    </div>
+                  )}
+                  {fitnessContext.rampRate != null && (
+                    <Stat
+                      label="Ramp Rate"
+                      value={fitnessContext.rampRate.toFixed(1)}
+                      unit="CTL/wk"
+                    />
+                  )}
+                </StatSection>
+              )}
             </CardContent>
           </Card>
-
-          {activity.distanceMeters != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Distance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {formatDistance(activity.distanceMeters)}
-                </p>
-                {activity.elevationGainMeters != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {Math.round(activity.elevationGainMeters)}m elevation
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.tss != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {activity.sport === "cycling"
-                    ? "TSS"
-                    : activity.sport === "running"
-                      ? "rTSS"
-                      : "sTSS"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {Math.round(activity.tss)}
-                </p>
-                {activity.intensityFactor != null && (
-                  <p className="text-xs text-muted-foreground">
-                    IF: {activity.intensityFactor.toFixed(2)}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.sport === "cycling" && activity.normalizedPower != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Normalized Power
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {Math.round(activity.normalizedPower)}W
-                </p>
-                {activity.averagePowerWatts != null && (
-                  <p className="text-xs text-muted-foreground">
-                    Avg: {activity.averagePowerWatts}W
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.sport === "running" &&
-            activity.normalizedGradedPace != null && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">NGP</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold">
-                    {formatPace(activity.normalizedGradedPace)}
-                  </p>
-                  {activity.averageSpeedMps != null && (
-                    <p className="text-xs text-muted-foreground">
-                      Avg pace:{" "}
-                      {formatPace(1000 / activity.averageSpeedMps)}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            )}
         </div>
 
-        {/* More metrics */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {activity.averageHr != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Heart Rate</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{activity.averageHr} bpm</p>
-                {activity.maxHr != null && (
-                  <p className="text-xs text-muted-foreground">
-                    Max: {activity.maxHr} bpm
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.averageCadence != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Cadence</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {Math.round(activity.averageCadence)}{" "}
-                  {activity.sport === "running" ? "spm" : "rpm"}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.averageSwolf != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">SWOLF</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {Math.round(activity.averageSwolf)}
-                </p>
-                {activity.poolLengthMeters != null && (
-                  <p className="text-xs text-muted-foreground">
-                    {activity.poolLengthMeters}m pool
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {activity.trimp != null && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">TRIMP</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {Math.round(activity.trimp)}
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Zone distribution */}
-        {activity.zoneDistribution && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Zone Distribution</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ZoneChart
-                distribution={activity.zoneDistribution}
+        {/* Stream timeline charts */}
+        {hasStreams && (
+          <Card className="p-4 sm:p-5">
+            <CardContent className="p-0">
+              <ActivityStreamCharts
+                streams={streamData}
+                ftp={ftp}
                 sport={activity.sport}
               />
             </CardContent>
           </Card>
         )}
 
+        {/* Zone distribution */}
+        {zoneDetails && zoneDetails.some((z) => z.pct > 0) && (
+          <Card className="p-4 sm:p-5">
+            <CardContent className="p-0">
+              <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Zone Distribution
+              </h3>
+              <ZoneBar distribution={zoneDetails.map((z) => z.pct)} />
+              <div className="mt-4 space-y-0">
+                {zoneDetails.map((z, i) =>
+                  z.pct > 0 ? (
+                    <div
+                      key={i}
+                      className="grid grid-cols-[2.5rem_1fr_4rem_5rem] items-center gap-2 border-b border-border/40 py-2 text-xs last:border-0"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="h-2.5 w-2.5 rounded-sm"
+                          style={{
+                            backgroundColor: zoneColors[i] ?? "#6b7280",
+                          }}
+                        />
+                        <span className="font-medium">{z.zone}</span>
+                      </div>
+                      <span className="text-muted-foreground truncate">
+                        {z.name}
+                        {z.range && (
+                          <span className="ml-1.5 text-[10px] opacity-70">
+                            {z.range}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-right font-semibold tabular-nums">
+                        {z.pct.toFixed(1)}%
+                      </span>
+                      <span className="text-right text-muted-foreground tabular-nums">
+                        {formatDuration(z.timeSeconds)}
+                      </span>
+                    </div>
+                  ) : null
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tags */}
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="capitalize">
-            {activity.sport}
-          </Badge>
-          {activity.platform && (
-            <Badge variant="outline" className="capitalize">
-              via {activity.platform}
-            </Badge>
-          )}
           {activity.gearId && (
             <Badge variant="outline">Gear: {activity.gearId}</Badge>
           )}
+          {activity.movingTimeSeconds &&
+            activity.movingTimeSeconds !== activity.durationSeconds && (
+              <Badge variant="outline">
+                Moving: {formatDuration(activity.movingTimeSeconds)}
+              </Badge>
+            )}
         </div>
       </div>
     </>

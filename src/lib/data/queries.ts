@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import {
   activities,
+  activityStreams,
   dailyMetrics,
   dailyNutritionTargets,
   rideFuelingPlans,
@@ -17,7 +18,7 @@ import {
   plannedWorkouts,
   targetEvents,
 } from "@/lib/db/schema";
-import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, lt, sql } from "drizzle-orm";
 
 // ── Dashboard overview ──────────────────────────────────────────────
 
@@ -358,4 +359,49 @@ export async function getPlannedWorkoutsForRange(
       )
     )
     .orderBy(plannedWorkouts.scheduledDate);
+}
+
+// ── Activity Streams ────────────────────────────────────────────────
+
+export async function getActivityStreams(activityId: string) {
+  return db
+    .select({
+      secondOffset: activityStreams.secondOffset,
+      powerWatts: activityStreams.powerWatts,
+      heartRate: activityStreams.heartRate,
+      cadenceRpm: activityStreams.cadenceRpm,
+      speedMps: activityStreams.speedMps,
+      altitudeMeters: activityStreams.altitudeMeters,
+      distanceMeters: activityStreams.distanceMeters,
+      latitudeDeg: activityStreams.latitudeDeg,
+      longitudeDeg: activityStreams.longitudeDeg,
+    })
+    .from(activityStreams)
+    .where(eq(activityStreams.activityId, activityId))
+    .orderBy(activityStreams.secondOffset);
+}
+
+export async function getDailyMetricsForDate(userId: string, date: Date) {
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const [row] = await db
+    .select({
+      ctl: dailyMetrics.ctl,
+      atl: dailyMetrics.atl,
+      tsb: dailyMetrics.tsb,
+      rampRate: dailyMetrics.rampRate,
+    })
+    .from(dailyMetrics)
+    .where(
+      and(
+        eq(dailyMetrics.userId, userId),
+        gte(dailyMetrics.date, dayStart),
+        lt(dailyMetrics.date, dayEnd)
+      )
+    )
+    .limit(1);
+  return row ?? null;
 }

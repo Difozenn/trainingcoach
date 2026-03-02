@@ -84,3 +84,16 @@ export function formatDateShort(date: Date): string {
     day: "numeric",
   });
 }
+
+export function formatSpeed(mps: number): string {
+  const kmh = mps * 3.6;
+  return `${kmh.toFixed(1)} km/h`;
+}
+
+export function formatStreamTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
