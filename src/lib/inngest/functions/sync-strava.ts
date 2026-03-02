@@ -265,13 +265,17 @@ export const backfillStravaActivities = inngest.createFunction(
       });
     }
 
-    // Fetch all activities page by page (max 10 pages = 500 activities)
+    // Fetch activities from Jan 1 2025 onwards (200 per page, up to 10 pages)
     let totalImported = 0;
-    for (let page = 1; page <= 10; page++) {
+    const perPage = 200;
+    const maxPages = 10;
+    const after = Math.floor(new Date("2025-01-01T00:00:00Z").getTime() / 1000);
+
+    for (let page = 1; page <= maxPages; page++) {
       const pageActivities = await step.run(
         `fetch-page-${page}`,
         async () => {
-          return fetchActivities(accessToken, page, 50);
+          return fetchActivities(accessToken, page, perPage, after);
         }
       );
 
@@ -331,7 +335,7 @@ export const backfillStravaActivities = inngest.createFunction(
         }
       });
 
-      if (pageActivities.length < 50) break; // Last page
+      if (pageActivities.length < perPage) break; // Last page
     }
 
     // Update last sync time
