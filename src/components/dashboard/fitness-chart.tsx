@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
@@ -30,30 +29,42 @@ function CustomTooltip({
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{ name: string; value: number; color: string; dataKey: string }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
 
-  const tsb = payload.find((p) => p.name === "Form (TSB)")?.value;
+  const tsb = payload.find((p) => p.dataKey === "tsb")?.value;
+  const totalTss =
+    Math.abs(payload.find((p) => p.dataKey === "cyclingTssNeg")?.value ?? 0) +
+    Math.abs(payload.find((p) => p.dataKey === "runningTssNeg")?.value ?? 0) +
+    Math.abs(payload.find((p) => p.dataKey === "swimmingTssNeg")?.value ?? 0);
 
   return (
-    <div className="rounded-lg border bg-background p-3 shadow-md">
-      <p className="text-sm font-medium">{label}</p>
-      <div className="mt-1 space-y-1">
-        {payload.map((p) => (
-          <div key={p.name} className="flex items-center gap-2 text-sm">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: p.color }}
-            />
-            <span className="text-muted-foreground">{p.name}:</span>
-            <span className="font-medium">{Math.round(p.value)}</span>
+    <div className="pointer-events-none rounded-lg border bg-background/95 backdrop-blur-sm p-2.5 shadow-lg text-xs">
+      <p className="font-medium text-sm mb-1.5">{label}</p>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+        {payload
+          .filter((p) => ["ctl", "atl", "tsb"].includes(p.dataKey))
+          .map((p) => (
+            <div key={p.name} className="flex items-center gap-1.5">
+              <span
+                className="h-2 w-2 rounded-full shrink-0"
+                style={{ backgroundColor: p.color }}
+              />
+              <span className="text-muted-foreground">{p.name}</span>
+              <span className="font-semibold ml-auto">{Math.round(p.value)}</span>
+            </div>
+          ))}
+        {totalTss > 0 && (
+          <div className="flex items-center gap-1.5 col-span-2 border-t pt-1 mt-1">
+            <span className="text-muted-foreground">TSS</span>
+            <span className="font-semibold ml-auto">{Math.round(totalTss)}</span>
           </div>
-        ))}
+        )}
       </div>
       {tsb != null && (
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-1.5 text-muted-foreground border-t pt-1.5">
           {tsbInsight(tsb)}
         </p>
       )}
@@ -70,27 +81,121 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
     );
   }
 
+  // Negate TSS values so bars render downward from the zero line
+  const chartData = data.map((d) => ({
+    ...d,
+    cyclingTssNeg: -(d.cyclingTss ?? 0),
+    runningTssNeg: -(d.runningTss ?? 0),
+    swimmingTssNeg: -(d.swimmingTss ?? 0),
+  }));
+
+  // Calculate domains so the zero line sits around 30% from bottom
+  const maxFitness = Math.max(
+    ...data.map((d) => Math.max(d.ctl ?? 0, d.atl ?? 0, d.tsb ?? 0))
+  );
+  const minTsb = Math.min(...data.map((d) => d.tsb ?? 0));
+  const maxTss = Math.max(
+    ...data.map((d) => (d.cyclingTss ?? 0) + (d.runningTss ?? 0) + (d.swimmingTss ?? 0))
+  );
+
+  // Upper domain: max of CTL/ATL with padding
+  const upperDomain = Math.ceil((maxFitness * 1.15) / 10) * 10;
+  // Lower domain: enough room for TSS bars below zero + TSB if negative
+  const lowerDomain = -Math.ceil((Math.max(maxTss * 1.1, Math.abs(minTsb) * 1.2)) / 10) * 10;
+
   return (
     <ResponsiveContainer width="100%" height={400}>
-      <ComposedChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="date" tick={{ fontSize: 12 }} className="text-muted-foreground" />
-        <YAxis yAxisId="tss" orientation="right" tick={{ fontSize: 12 }} />
-        <YAxis yAxisId="fitness" tick={{ fontSize: 12 }} />
-        <Tooltip content={<CustomTooltip />} />
-        <Legend />
+      <ComposedChart
+        data={chartData}
+        margin={{ top: 5, right: 10, bottom: 5, left: 0 }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          className="stroke-muted/50"
+          vertical={false}
+        />
+        <XAxis
+          dataKey="date"
+          tick={{ fontSize: 11 }}
+          className="text-muted-foreground"
+          tickLine={false}
+          axisLine={false}
+        />
+        <YAxis
+          domain={[lowerDomain, upperDomain]}
+          tick={{ fontSize: 11 }}
+          tickLine={false}
+          axisLine={false}
+          className="text-muted-foreground"
+        />
+        <Tooltip
+          content={<CustomTooltip />}
+          cursor={{ stroke: "hsl(var(--muted-foreground))", strokeWidth: 1, strokeDasharray: "4 4" }}
+          allowEscapeViewBox={{ x: true, y: true }}
+          offset={20}
+        />
 
-        <ReferenceLine yAxisId="fitness" y={0} stroke="#6b7280" strokeDasharray="3 3" />
+        {/* Zero reference line — divides fitness metrics from activity bars */}
+        <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeWidth={1} />
 
-        {/* Stacked TSS bars */}
-        <Bar yAxisId="tss" dataKey="cyclingTss" name="Cycling TSS" stackId="tss" fill="#3b82f6" opacity={0.6} />
-        <Bar yAxisId="tss" dataKey="runningTss" name="Running TSS" stackId="tss" fill="#22c55e" opacity={0.6} />
-        <Bar yAxisId="tss" dataKey="swimmingTss" name="Swimming TSS" stackId="tss" fill="#14b8a6" opacity={0.6} />
+        {/* Activity TSS bars below the zero line (negated values, stacked) */}
+        <Bar
+          dataKey="cyclingTssNeg"
+          name="Cycling"
+          stackId="tss"
+          fill="#3b82f6"
+          opacity={0.7}
+          radius={[0, 0, 0, 0]}
+          maxBarSize={8}
+        />
+        <Bar
+          dataKey="runningTssNeg"
+          name="Running"
+          stackId="tss"
+          fill="#22c55e"
+          opacity={0.7}
+          radius={[0, 0, 0, 0]}
+          maxBarSize={8}
+        />
+        <Bar
+          dataKey="swimmingTssNeg"
+          name="Swimming"
+          stackId="tss"
+          fill="#14b8a6"
+          opacity={0.7}
+          radius={[0, 0, 0, 0]}
+          maxBarSize={8}
+        />
 
-        {/* PMC lines */}
-        <Line yAxisId="fitness" type="monotone" dataKey="ctl" name="Fitness (CTL)" stroke="#3b82f6" strokeWidth={2} dot={false} />
-        <Line yAxisId="fitness" type="monotone" dataKey="atl" name="Fatigue (ATL)" stroke="#ef4444" strokeWidth={2} dot={false} />
-        <Line yAxisId="fitness" type="monotone" dataKey="tsb" name="Form (TSB)" stroke="#22c55e" strokeWidth={2} dot={false} />
+        {/* PMC lines above the zero line */}
+        <Line
+          type="monotone"
+          dataKey="ctl"
+          name="Fitness"
+          stroke="#3b82f6"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 3, strokeWidth: 0 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="atl"
+          name="Fatigue"
+          stroke="#ef4444"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 3, strokeWidth: 0 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="tsb"
+          name="Form"
+          stroke="#22c55e"
+          strokeWidth={1.5}
+          strokeDasharray="4 2"
+          dot={false}
+          activeDot={{ r: 3, strokeWidth: 0 }}
+        />
       </ComposedChart>
     </ResponsiveContainer>
   );
