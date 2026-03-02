@@ -34,6 +34,7 @@ import Link from "next/link";
 import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
 import { ActivityStreamCharts } from "@/components/dashboard/stream-charts";
 import type { StreamData } from "@/components/dashboard/stream-charts";
+import { FetchStreamsButton } from "@/components/dashboard/fetch-streams-button";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";
 import { getSwimmingZones } from "@/lib/engine/swimming/zones";
@@ -367,11 +368,11 @@ export default async function ActivityDetailPage({
           className={`grid gap-6 ${hasGps ? "lg:grid-cols-[1fr_320px]" : "lg:grid-cols-1 max-w-3xl"}`}
         >
           {/* Left: Map */}
-          {hasGps && (
+          {hasGps ? (
             <Card className="overflow-hidden p-0">
               <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
             </Card>
-          )}
+          ) : null}
 
           {/* Right: Stats sidebar */}
           <Card className="p-4 sm:p-5">
@@ -570,7 +571,7 @@ export default async function ActivityDetailPage({
         </div>
 
         {/* Stream timeline charts */}
-        {hasStreams && (
+        {hasStreams ? (
           <Card className="p-4 sm:p-5">
             <CardContent className="p-0">
               <ActivityStreamCharts
@@ -580,7 +581,13 @@ export default async function ActivityDetailPage({
               />
             </CardContent>
           </Card>
-        )}
+        ) : activity.platform === "strava" && activity.externalId ? (
+          <Card className="p-4 sm:p-5">
+            <CardContent className="p-0">
+              <FetchStreamsButton activityId={activity.id} />
+            </CardContent>
+          </Card>
+        ) : null}
 
         {/* Zone distribution */}
         {zoneDetails && zoneDetails.some((z) => z.pct > 0) && (

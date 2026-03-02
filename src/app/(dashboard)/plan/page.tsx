@@ -14,6 +14,7 @@ import { formatDuration, formatDate } from "@/lib/data/helpers";
 import { getUserPlan } from "@/lib/subscription";
 import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 import Link from "next/link";
+import { GeneratePlanButton } from "@/components/dashboard/generate-plan-button";
 
 const sportIcons = {
   cycling: Bike,
@@ -100,12 +101,13 @@ export default async function PlanPage() {
           </Card>
         ) : (
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="space-y-4 p-6">
               <p className="text-sm text-muted-foreground">
-                Complete onboarding and sync your activities to receive your
-                first weekly training plan. The coaching engine generates a pool
-                of workouts — you pick when to do each one.
+                No weekly plan yet. Plans are generated every Sunday, or you can
+                generate one now. The coaching engine creates a pool of
+                workouts — you pick when to do each one.
               </p>
+              <GeneratePlanButton />
             </CardContent>
           </Card>
         )}

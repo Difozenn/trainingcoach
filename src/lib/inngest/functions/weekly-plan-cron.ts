@@ -90,7 +90,7 @@ export const generateWeeklyPlans = inngest.createFunction(
   }
 );
 
-async function generatePlanForUser(user: {
+export async function generatePlanForUser(user: {
   userId: string;
   weightKg: number | null;
   weeklyHoursAvailable: number | null;
@@ -300,7 +300,7 @@ async function generatePlanForUser(user: {
   }
 }
 
-function countConsecutiveHardDays(recentTss: number[]): number {
+export function countConsecutiveHardDays(recentTss: number[]): number {
   let count = 0;
   for (const tss of recentTss) {
     if (tss >= 80) {
@@ -312,7 +312,7 @@ function countConsecutiveHardDays(recentTss: number[]): number {
   return count;
 }
 
-function estimateBaseWeeklyTss(
+export function estimateBaseWeeklyTss(
   weeklyHours: number,
   experience: string
 ): number {

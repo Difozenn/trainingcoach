@@ -98,8 +98,10 @@ export default async function NutritionPage() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Set up your profile (weight, sport) and sync activities to see
-                daily nutrition targets tailored to your training.
+                No nutrition targets yet. Targets are generated alongside your
+                weekly training plan — head to the{" "}
+                <a href="/plan" className="underline">Plan</a> page to generate
+                your first plan.
               </p>
             )}
           </CardContent>
@@ -151,6 +153,8 @@ export default async function NutritionPage() {
             ) : (
               <p className="text-sm text-muted-foreground">
                 Weekly targets appear once you have a training plan.
+                Generate one from the{" "}
+                <a href="/plan" className="underline">Plan</a> page.
               </p>
             )}
           </CardContent>

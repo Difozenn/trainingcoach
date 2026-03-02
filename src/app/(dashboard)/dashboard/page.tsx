@@ -265,8 +265,9 @@ export default async function DashboardPage() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Complete onboarding to receive your first weekly training
-                  plan.
+                  No plan yet. Visit the{" "}
+                  <a href="/plan" className="underline">Plan</a> page to generate
+                  your first weekly training plan.
                 </p>
               )}
             </CardContent>
