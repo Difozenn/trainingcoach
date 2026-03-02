@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { platformConnections } from "@/lib/db/schema";
+import { platformConnections, athleteProfiles } from "@/lib/db/schema";
 import { exchangeCode, encryptTokens } from "@/lib/integrations/strava/client";
 import { and, eq } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
@@ -60,8 +60,19 @@ export async function GET(request: Request) {
       data: { userId: state, connectionId: newConn.id },
     });
 
+    // Redirect back to onboarding if not completed, otherwise settings
+    const [profile] = await db
+      .select({ onboardingCompleted: athleteProfiles.onboardingCompleted })
+      .from(athleteProfiles)
+      .where(eq(athleteProfiles.userId, state))
+      .limit(1);
+
+    const destination = profile?.onboardingCompleted
+      ? "/settings?connected=strava"
+      : "/onboarding?connected=strava";
+
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/settings?connected=strava`
+      `${process.env.NEXT_PUBLIC_APP_URL}${destination}`
     );
   } catch (err) {
     console.error("Strava OAuth callback error:", err);
