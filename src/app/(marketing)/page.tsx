@@ -586,7 +586,7 @@ export default function LandingPage() {
               asChild
             >
               <Link href="/pricing">Compare Plans</Link>
-            </Link>
+            </Button>
           </div>
         </div>
       </section>
