@@ -31,26 +31,12 @@ import {
   tsbColor,
 } from "@/lib/data/helpers";
 import Link from "next/link";
-import dynamic from "next/dynamic";
+import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
 import { ActivityStreamCharts } from "@/components/dashboard/stream-charts";
 import type { StreamData } from "@/components/dashboard/stream-charts";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";
 import { getSwimmingZones } from "@/lib/engine/swimming/zones";
-
-const ActivityMap = dynamic(
-  () =>
-    import("@/components/dashboard/activity-map").then(
-      (mod) => mod.ActivityMap
-    ),
-  { ssr: false, loading: () => <MapSkeleton /> }
-);
-
-function MapSkeleton() {
-  return (
-    <div className="h-[300px] w-full animate-pulse rounded-lg bg-muted" />
-  );
-}
 
 const sportIcons = {
   cycling: Bike,
@@ -383,7 +369,7 @@ export default async function ActivityDetailPage({
           {/* Left: Map */}
           {hasGps && (
             <Card className="overflow-hidden p-0">
-              <ActivityMap gpsPoints={gpsPoints} color={color} />
+              <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
             </Card>
           )}
 
