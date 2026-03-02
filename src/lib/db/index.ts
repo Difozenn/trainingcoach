@@ -2,11 +2,9 @@ import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-// Lazy singleton — only connects on first query, not at import/build time
 let _db: PostgresJsDatabase<typeof schema> | null = null;
 
-export function getDb(): PostgresJsDatabase<typeof schema> {
-  if (_db) return _db;
+function createDb(): PostgresJsDatabase<typeof schema> {
   const url = process.env.DATABASE_URL;
   if (!url) {
     throw new Error("DATABASE_URL environment variable is not set");
@@ -17,22 +15,25 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
     connect_timeout: 10,
     ssl: process.env.NODE_ENV === "production" ? "require" : false,
   });
-  _db = drizzle(client, { schema });
+  return drizzle(client, { schema });
+}
+
+/**
+ * Lazy DB accessor — safe to call at runtime.
+ * Throws if DATABASE_URL is missing (won't happen in production).
+ */
+export function getDb(): PostgresJsDatabase<typeof schema> {
+  if (!_db) _db = createDb();
   return _db;
 }
 
-// Backwards-compatible default export via getter
-// All imports like `import { db } from "@/lib/db"` resolve on first access
-export const db: PostgresJsDatabase<typeof schema> = new Proxy(
-  {} as PostgresJsDatabase<typeof schema>,
-  {
-    get(_target, prop, receiver) {
-      const instance = getDb();
-      const value = Reflect.get(instance, prop, receiver);
-      return typeof value === "function" ? value.bind(instance) : value;
-    },
-  }
-);
+/**
+ * Eagerly initialized DB instance.
+ * Safe at runtime; during `next build` DATABASE_URL is present via env vars.
+ */
+export const db: PostgresJsDatabase<typeof schema> = process.env.DATABASE_URL
+  ? createDb()
+  : (null as unknown as PostgresJsDatabase<typeof schema>);
 
 // Separate client for migrations
 export function getMigrationClient() {
