@@ -7,7 +7,7 @@ import {
   sportProfiles,
   thresholdHistory,
 } from "@/lib/db/schema";
-import { eq, and, isNull, notInArray, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import {
   getValidToken,
   encryptTokens,
@@ -243,27 +243,17 @@ export const backfillStreams = inngest.createFunction(
 
     // Find all activities without streams
     const missing = await step.run("find-missing", async () => {
-      const activitiesWithStreams = db
-        .select({ activityId: activityStreams.activityId })
-        .from(activityStreams);
+      const result = await db.execute<{ id: string; external_id: string }>(sql`
+        SELECT a.id, a.external_id
+        FROM activities a
+        WHERE a.user_id = ${userId}
+          AND a.platform = ${platform}
+          AND a.external_id IS NOT NULL
+          AND a.id NOT IN (SELECT DISTINCT activity_id FROM activity_streams)
+        ORDER BY a.started_at ASC
+      `);
 
-      const result = await db
-        .select({
-          id: activities.id,
-          externalId: activities.externalId,
-        })
-        .from(activities)
-        .where(
-          and(
-            eq(activities.userId, userId),
-            eq(activities.platform, platform),
-            sql`${activities.externalId} IS NOT NULL`,
-            sql`${activities.id} NOT IN (SELECT DISTINCT activity_id FROM activity_streams)`
-          )
-        )
-        .orderBy(activities.startedAt);
-
-      return result;
+      return result.map((r) => ({ id: r.id, externalId: r.external_id }));
     });
 
     if (missing.length === 0) {
