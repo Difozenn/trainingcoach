@@ -17,10 +17,10 @@ export default function MarketingLayout({
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">Pricing</Link>
-            <Link href="/login"><Button variant="ghost" size="sm">Sign in</Button></Link>
-            <Link href="/register"><Button size="sm">Get Started</Button></Link>
+            <Button variant="outline" size="sm" asChild><Link href="/login">Sign in</Link></Button>
+            <Button size="sm" asChild><Link href="/register">Get Started</Link></Button>
           </nav>
-          <Link href="/register" className="md:hidden"><Button size="sm">Get Started</Button></Link>
+          <Button size="sm" asChild className="md:hidden"><Link href="/register">Get Started</Link></Button>
         </div>
       </header>
       {children}

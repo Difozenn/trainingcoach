@@ -78,9 +78,9 @@ export default function PricingPage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Link href="/register">
-                  <Button variant={plan.ctaVariant} className="w-full">{plan.cta}</Button>
-                </Link>
+                <Button variant={plan.ctaVariant} className="w-full" asChild>
+                  <Link href="/register">{plan.cta}</Link>
+                </Button>
                 <ul className="space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature.name} className="flex items-center gap-3 text-sm">

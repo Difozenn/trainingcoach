@@ -61,23 +61,21 @@ export default function LandingPage() {
               recommendation backed by research.
             </p>
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/register">
-                <Button
-                  size="lg"
-                  className="gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
-                >
-                  Start Free <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/pricing">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="border-primary/40 text-primary hover:bg-primary/5"
-                >
-                  View Pricing
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                className="gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+                asChild
+              >
+                <Link href="/register">Start Free <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="border-primary/40 text-primary hover:bg-primary/5"
+                asChild
+              >
+                <Link href="/pricing">View Pricing</Link>
+              </Button>
             </div>
           </div>
 
@@ -516,11 +514,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register">
-                  <Button variant="outline" className="w-full">
-                    Get Started
-                  </Button>
-                </Link>
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href="/register">Get Started</Link>
+                </Button>
               </CardContent>
             </Card>
             <Card className="relative border-primary/50 bg-card/50 shadow-lg shadow-primary/10">
@@ -554,9 +550,9 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link href="/register">
-                  <Button className="w-full">Start Free Trial</Button>
-                </Link>
+                <Button className="w-full" asChild>
+                  <Link href="/register">Start Free Trial</Link>
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -576,22 +572,20 @@ export default function LandingPage() {
             structured training. Free forever — upgrade when you&apos;re ready.
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/register">
-              <Button
-                size="lg"
-                className="gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
-              >
-                Create Free Account <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/pricing">
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-primary/40 text-primary hover:bg-primary/5"
-              >
-                Compare Plans
-              </Button>
+            <Button
+              size="lg"
+              className="gap-2 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+              asChild
+            >
+              <Link href="/register">Create Free Account <ArrowRight className="h-4 w-4" /></Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="border-primary/40 text-primary hover:bg-primary/5"
+              asChild
+            >
+              <Link href="/pricing">Compare Plans</Link>
             </Link>
           </div>
         </div>
