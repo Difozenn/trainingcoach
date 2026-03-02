@@ -28,7 +28,7 @@ export function getDb() {
 // Backwards-compatible export — lazy proxy that defers connection to first use
 export const db = new Proxy({} as ReturnType<typeof drizzle>, {
   get(_target, prop) {
-    return (getDb() as Record<string | symbol, unknown>)[prop];
+    return (getDb() as unknown as Record<string | symbol, unknown>)[prop];
   },
 });
 
