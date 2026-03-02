@@ -274,18 +274,17 @@ export const backfillStravaActivities = inngest.createFunction(
       });
     }
 
-    // Fetch all activities from Jan 1 2025 onwards
+    // Fetch full activity history for accurate CTL/ATL/TSB calculation
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const allStravaActivities: StravaActivity[] = [];
     const perPage = 200;
-    const maxPages = 10;
-    const after = Math.floor(new Date("2025-01-01T00:00:00Z").getTime() / 1000);
+    const maxPages = 50; // 50 × 200 = 10,000 activities max
 
     for (let page = 1; page <= maxPages; page++) {
       const pageActivities = await step.run(
         `fetch-page-${page}`,
         async () => {
-          return fetchActivities(accessToken, page, perPage, after);
+          return fetchActivities(accessToken, page, perPage);
         }
       );
 
