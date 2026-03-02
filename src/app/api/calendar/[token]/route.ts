@@ -70,7 +70,7 @@ export async function GET(
       if (!w.scheduledDate) continue;
 
       events.push({
-        uid: `workout-${w.id}@trainingcoach.app`,
+        uid: `workout-${w.id}@paincave.app`,
         title: w.title,
         description: [
           w.description,
@@ -89,13 +89,13 @@ export async function GET(
 
   const ics = generateICSCalendar(
     events,
-    `TrainingCoach — ${user.name ?? "Workouts"}`
+    `PainCave — ${user.name ?? "Workouts"}`
   );
 
   return new NextResponse(ics, {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'inline; filename="trainingcoach.ics"',
+      "Content-Disposition": 'inline; filename="paincave.ics"',
       "Cache-Control": "no-cache, no-store, must-revalidate",
     },
   });

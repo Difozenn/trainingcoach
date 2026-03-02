@@ -1,19 +1,19 @@
 services:
   db:
     image: timescale/timescaledb:latest-pg16
-    container_name: trainingcoach-db
+    container_name: paincave-db
     restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: trainingcoach
-      POSTGRES_PASSWORD: trainingcoach_dev
-      POSTGRES_DB: trainingcoach
+      POSTGRES_USER: paincave
+      POSTGRES_PASSWORD: paincave_dev
+      POSTGRES_DB: paincave
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U trainingcoach"]
+      test: ["CMD-SHELL", "pg_isready -U paincave"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -13,7 +13,7 @@ export default function MarketingLayout({
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
             <Bike className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">TrainingCoach</span>
+            <span className="text-xl font-bold">PainCave</span>
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <Link href="/pricing" className="text-sm text-muted-foreground hover:text-foreground">Pricing</Link>
@@ -30,7 +30,7 @@ export default function MarketingLayout({
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <Bike className="h-5 w-5 text-primary" />
-                <span className="font-bold">TrainingCoach</span>
+                <span className="font-bold">PainCave</span>
               </div>
               <p className="text-sm text-muted-foreground">Science-backed endurance training for cyclists, runners, and swimmers.</p>
             </div>

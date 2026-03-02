@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Terms of Service",
-  description: "Terms of Service for TrainingCoach endurance training platform.",
+  description: "Terms of Service for PainCave endurance training platform.",
 };
 
 export default function TermsPage() {
@@ -13,11 +13,11 @@ export default function TermsPage() {
         <p className="lead">Last updated: March 2026</p>
 
         <h2>Service Description</h2>
-        <p>TrainingCoach is a SaaS platform for endurance athletes (cycling, running, swimming). We provide training metrics, workout recommendations, and nutrition targets based on your synced activity data.</p>
+        <p>PainCave is a SaaS platform for endurance athletes (cycling, running, swimming). We provide training metrics, workout recommendations, and nutrition targets based on your synced activity data.</p>
 
         <h2>Important Disclaimers</h2>
         <ul>
-          <li><strong>Not medical advice.</strong> TrainingCoach does not provide medical, health, or diagnostic advice. Always consult a healthcare professional before starting or modifying any training program.</li>
+          <li><strong>Not medical advice.</strong> PainCave does not provide medical, health, or diagnostic advice. Always consult a healthcare professional before starting or modifying any training program.</li>
           <li><strong>Not dietary advice.</strong> Nutrition targets are general guidelines based on published sports science research. They do not constitute personalized dietary advice. Consult a registered dietitian for individual nutrition planning.</li>
           <li><strong>Training at your own risk.</strong> You are responsible for assessing your own fitness and health before performing any recommended workout.</li>
         </ul>
@@ -43,13 +43,13 @@ export default function TermsPage() {
         <p>Training metrics formulas are based on published research (Coggan, Banister, Seiler, et al.) and are implemented independently. Your activity data remains yours. You grant us a limited license to process it for service delivery.</p>
 
         <h2>Limitation of Liability</h2>
-        <p>TrainingCoach is provided &quot;as is&quot; without warranty. We are not liable for injuries, health issues, or performance outcomes resulting from following any recommendations provided by the platform.</p>
+        <p>PainCave is provided &quot;as is&quot; without warranty. We are not liable for injuries, health issues, or performance outcomes resulting from following any recommendations provided by the platform.</p>
 
         <h2>Changes</h2>
         <p>We may update these terms. Material changes will be communicated via email 30 days in advance.</p>
 
         <h2>Contact</h2>
-        <p>Questions: legal@trainingcoach.dev</p>
+        <p>Questions: legal@paincave.dev</p>
       </div>
     </main>
   );

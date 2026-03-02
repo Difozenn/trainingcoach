@@ -25,7 +25,7 @@ export function generateICSEvent(event: CalendarEvent): string {
 
   return `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//TrainingCoach//Workout//EN
+PRODID:-//PainCave//Workout//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 BEGIN:VEVENT
@@ -45,7 +45,7 @@ END:VCALENDAR`;
  */
 export function generateICSCalendar(
   events: CalendarEvent[],
-  calendarName = "TrainingCoach"
+  calendarName = "PainCave"
 ): string {
   const eventBlocks = events
     .map(
@@ -69,7 +69,7 @@ END:VEVENT`;
 
   return `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//TrainingCoach//Workout//EN
+PRODID:-//PainCave//Workout//EN
 CALSCALE:GREGORIAN
 METHOD:PUBLISH
 X-WR-CALNAME:${calendarName}

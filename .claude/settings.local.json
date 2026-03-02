@@ -15,7 +15,9 @@
       "Bash(wc:*)",
       "Bash(python3:*)",
       "Bash(npm ls:*)",
-      "Bash(netstat:*)"
+      "Bash(netstat:*)",
+      "WebFetch(domain:instantdomainsearch.com)",
+      "Bash(sed:*)"
     ]
   }
 }

@@ -30,7 +30,7 @@ export function generateZWO(
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <workout_file>
-    <author>TrainingCoach</author>
+    <author>PainCave</author>
     <name>${escapeXml(name)}</name>
     <description>${escapeXml(description)}</description>
     <sportType>bike</sportType>

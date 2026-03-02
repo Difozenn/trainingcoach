@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy",
   description:
-    "How TrainingCoach collects, uses, and protects your data. GDPR compliant.",
+    "How PainCave collects, uses, and protects your data. GDPR compliant.",
 };
 
 export default function PrivacyPage() {
@@ -56,7 +56,7 @@ export default function PrivacyPage() {
         </ul>
 
         <h2>Contact</h2>
-        <p>For privacy questions: privacy@trainingcoach.dev</p>
+        <p>For privacy questions: privacy@paincave.dev</p>
       </div>
     </main>
   );

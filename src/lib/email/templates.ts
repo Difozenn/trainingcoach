@@ -1,7 +1,7 @@
 /**
  * Email Templates — Plain HTML
  *
- * Transactional emails for TrainingCoach:
+ * Transactional emails for PainCave:
  * - Welcome (on registration)
  * - Weekly training summary (Monday morning)
  * - Overtraining alert (TSB < -30 + declining HRV)
@@ -11,13 +11,13 @@
 
 export function welcomeEmail(name: string): { subject: string; html: string } {
   return {
-    subject: "Welcome to TrainingCoach",
+    subject: "Welcome to PainCave",
     html: `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1a1a1a;">
-  <h1 style="font-size: 24px; margin-bottom: 16px;">Welcome to TrainingCoach${name ? `, ${name}` : ""}</h1>
+  <h1 style="font-size: 24px; margin-bottom: 16px;">Welcome to PainCave${name ? `, ${name}` : ""}</h1>
   <p style="font-size: 16px; line-height: 1.6; color: #444;">
     Your training coach is ready. Here's how to get started:
   </p>
@@ -29,12 +29,12 @@ export function welcomeEmail(name: string): { subject: string; html: string } {
   <p style="font-size: 15px; line-height: 1.6; color: #444;">
     Every recommendation is backed by peer-reviewed research. We'll explain the <em>why</em> behind every workout.
   </p>
-  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.trainingcoach.app"}"
+  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}"
      style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; margin-top: 12px;">
     Go to Dashboard
   </a>
   <p style="font-size: 13px; color: #888; margin-top: 32px;">
-    TrainingCoach provides training and nutrition recommendations based on exercise science research.
+    PainCave provides training and nutrition recommendations based on exercise science research.
     This is not medical or dietary advice.
   </p>
 </body>
@@ -137,13 +137,13 @@ export function weeklySummaryEmail(data: WeeklySummaryData): {
     ${data.upcomingWorkouts.map((w) => `<li>${w}</li>`).join("")}
   </ul>` : ""}
 
-  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.trainingcoach.app"}"
+  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}"
      style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
     Open Dashboard
   </a>
 
   <p style="font-size: 12px; color: #888; margin-top: 32px;">
-    TrainingCoach · <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.trainingcoach.app"}/settings" style="color: #888;">Manage email preferences</a>
+    PainCave · <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}/settings" style="color: #888;">Manage email preferences</a>
   </p>
 </body>
 </html>`,
@@ -188,13 +188,13 @@ export function overtrainingAlertEmail(
     A few easy days now will help you come back stronger.
   </p>
 
-  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.trainingcoach.app"}/fitness"
+  <a href="${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.paincave.io"}/fitness"
      style="display: inline-block; padding: 10px 20px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
     View Fitness Timeline
   </a>
 
   <p style="font-size: 12px; color: #888; margin-top: 32px;">
-    TrainingCoach · This is not medical advice. If you feel unwell, consult a healthcare professional.
+    PainCave · This is not medical advice. If you feel unwell, consult a healthcare professional.
   </p>
 </body>
 </html>`,

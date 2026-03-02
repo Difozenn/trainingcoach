@@ -6,4 +6,4 @@ export const resend: Resend = process.env.RESEND_API_KEY
   : (null as unknown as Resend);
 
 export const FROM_EMAIL =
-  process.env.EMAIL_FROM ?? "TrainingCoach <noreply@trainingcoach.app>";
+  process.env.EMAIL_FROM ?? "PainCave <noreply@paincave.io>";

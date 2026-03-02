@@ -14,10 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://trainingcoach.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://paincave.io"),
   title: {
-    default: "TrainingCoach — Endurance Training Intelligence",
-    template: "%s | TrainingCoach",
+    default: "PainCave — Endurance Training Intelligence",
+    template: "%s | PainCave",
   },
   description:
     "AI-free endurance training coach for cycling, running, and swimming. Science-backed workouts, nutrition targets, and fitness tracking.",
@@ -38,14 +38,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "TrainingCoach",
-    title: "TrainingCoach — Endurance Training Intelligence",
+    siteName: "PainCave",
+    title: "PainCave — Endurance Training Intelligence",
     description:
       "Science-backed training plans for cycling, running, and swimming. No AI hype — just peer-reviewed research and proven coaching principles.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "TrainingCoach — Endurance Training Intelligence",
+    title: "PainCave — Endurance Training Intelligence",
     description:
       "Science-backed training plans for cycling, running, and swimming.",
   },
