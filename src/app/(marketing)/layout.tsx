@@ -20,7 +20,10 @@ export default function MarketingLayout({
             <Button variant="outline" size="sm" asChild><Link href="/login">Sign in</Link></Button>
             <Button size="sm" asChild><Link href="/register">Get Started</Link></Button>
           </nav>
-          <Button size="sm" asChild className="md:hidden"><Link href="/register">Get Started</Link></Button>
+          <div className="flex items-center gap-2 md:hidden">
+            <Button variant="ghost" size="sm" asChild><Link href="/login">Sign in</Link></Button>
+            <Button size="sm" asChild><Link href="/register">Get Started</Link></Button>
+          </div>
         </div>
       </header>
       {children}
