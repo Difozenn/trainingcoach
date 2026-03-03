@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { verifyPassword } from "./password";
+import { checkRateLimit, RATE_LIMITS, getClientIp } from "@/lib/security/rate-limit";
 import { z } from "zod/v4";
 
 const loginSchema = z.object({
@@ -46,7 +47,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
+        const ip = request ? getClientIp(request) : "unknown";
+        const rl = checkRateLimit(`login:${ip}`, RATE_LIMITS.login);
+        if (!rl.allowed) return null;
+
         const parsed = loginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 

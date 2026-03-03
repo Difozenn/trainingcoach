@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { inngest } from "@/lib/inngest/client";
+import { db } from "@/lib/db";
+import { platformConnections } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
 import type { StravaWebhookEvent } from "@/lib/integrations/strava/types";
 
 /**
@@ -34,6 +37,23 @@ export async function POST(request: Request) {
     // Only process activity events
     if (event.object_type !== "activity") {
       return NextResponse.json({ received: true });
+    }
+
+    // Validate owner_id belongs to a known user before dispatching
+    const [connection] = await db
+      .select({ id: platformConnections.id })
+      .from(platformConnections)
+      .where(
+        and(
+          eq(platformConnections.platformUserId, String(event.owner_id)),
+          eq(platformConnections.platform, "strava"),
+          eq(platformConnections.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (!connection) {
+      return NextResponse.json({ received: true }); // Silently ignore unknown owners
     }
 
     // Send to Inngest for async processing
