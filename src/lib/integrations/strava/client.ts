@@ -16,6 +16,23 @@ export type StravaTokens = {
   expiresAt: number; // Unix timestamp
 };
 
+/** Thrown on 429 — includes Retry-After so callers can back off. */
+export class StravaRateLimitError extends Error {
+  retryAfterSeconds: number;
+  fifteenMinUsage: number;
+  dailyUsage: number;
+
+  constructor(retryAfter: number, fifteenMin: number, daily: number) {
+    super(
+      `Strava rate limit exceeded (15min: ${fifteenMin}/200, daily: ${daily}/2000). Retry after ${retryAfter}s`
+    );
+    this.name = "StravaRateLimitError";
+    this.retryAfterSeconds = retryAfter;
+    this.fifteenMinUsage = fifteenMin;
+    this.dailyUsage = daily;
+  }
+}
+
 /**
  * Exchange authorization code for tokens.
  */
@@ -119,6 +136,7 @@ export function encryptTokens(tokens: StravaTokens) {
 
 /**
  * Make an authenticated Strava API request.
+ * Throws StravaRateLimitError on 429 so callers can handle backoff.
  */
 export async function stravaFetch<T>(
   accessToken: string,
@@ -133,20 +151,22 @@ export async function stravaFetch<T>(
     },
   });
 
-  // Handle rate limiting
+  // Parse rate limit headers
   const rateLimitUsage = res.headers.get("X-RateLimit-Usage");
+  let fifteenMin = 0;
+  let daily = 0;
   if (rateLimitUsage) {
-    const [fifteenMin, daily] = rateLimitUsage.split(",").map(Number);
-    // Strava limits: 200/15min, 2000/day
+    [fifteenMin, daily] = rateLimitUsage.split(",").map(Number);
     if (fifteenMin > 180 || daily > 1800) {
       console.warn(
-        `Strava rate limit warning: ${fifteenMin}/200 (15min), ${daily}/2000 (daily)`
+        `[strava] Rate limit warning: ${fifteenMin}/200 (15min), ${daily}/2000 (daily)`
       );
     }
   }
 
   if (res.status === 429) {
-    throw new Error("Strava rate limit exceeded");
+    const retryAfter = Number(res.headers.get("Retry-After")) || 900; // default 15min
+    throw new StravaRateLimitError(retryAfter, fifteenMin, daily);
   }
 
   if (!res.ok) {
