@@ -27,7 +27,7 @@ export const fetchSingleStream = inngest.createFunction(
   {
     id: "fetch-single-stream",
     retries: 3,
-    rateLimit: {
+    throttle: {
       limit: 80,
       period: "15m",
       key: "event.data.platform",
