@@ -3,10 +3,10 @@ import { db } from "@/lib/db";
 import {
   platformConnections,
   activities,
-  activityStreams,
   dailyMetrics,
   sportProfiles,
 } from "@/lib/db/schema";
+import type { StreamDataBlob } from "@/lib/db/schema/activities";
 import { eq, and, desc } from "drizzle-orm";
 import {
   getValidToken,
@@ -628,39 +628,26 @@ function calculateActivityMetrics(
 
 async function storeActivityStreams(
   activityId: string,
-  activity: { start_date: string },
+  _activity: { start_date: string },
   streams: StravaStreamSet
 ) {
   const timeData = streams.time?.data;
   if (!timeData || timeData.length === 0) return;
 
-  const startTime = new Date(activity.start_date);
-  const rows = timeData.map((secondOffset, i) => ({
-    activityId,
-    timestamp: new Date(startTime.getTime() + secondOffset * 1000),
-    secondOffset,
-    powerWatts: streams.watts?.data?.[i] ?? null,
-    heartRate: streams.heartrate?.data?.[i] ?? null,
-    cadenceRpm: streams.cadence?.data?.[i] ?? null,
-    speedMps: streams.velocity_smooth?.data?.[i] ?? null,
-    paceSecPerKm:
-      streams.velocity_smooth?.data?.[i] && streams.velocity_smooth.data[i] > 0
-        ? Math.round((1000 / streams.velocity_smooth.data[i]) * 10) / 10
-        : null,
-    altitudeMeters: streams.altitude?.data?.[i] ?? null,
-    distanceMeters: streams.distance?.data?.[i] ?? null,
-    latitudeDeg: streams.latlng?.data?.[i]?.[0] ?? null,
-    longitudeDeg: streams.latlng?.data?.[i]?.[1] ?? null,
-    gradePercent: streams.grade_smooth?.data?.[i] ?? null,
-    strokeCount: null,
-    swolf: null,
-  }));
+  const blob: StreamDataBlob = { time: timeData };
+  if (streams.watts?.data) blob.watts = streams.watts.data;
+  if (streams.heartrate?.data) blob.heartrate = streams.heartrate.data;
+  if (streams.cadence?.data) blob.cadence = streams.cadence.data;
+  if (streams.velocity_smooth?.data) blob.velocity_smooth = streams.velocity_smooth.data;
+  if (streams.altitude?.data) blob.altitude = streams.altitude.data;
+  if (streams.distance?.data) blob.distance = streams.distance.data;
+  if (streams.latlng?.data) blob.latlng = streams.latlng.data;
+  if (streams.grade_smooth?.data) blob.grade_smooth = streams.grade_smooth.data;
 
-  // Insert in batches of 1000
-  for (let i = 0; i < rows.length; i += 1000) {
-    const batch = rows.slice(i, i + 1000);
-    await db.insert(activityStreams).values(batch);
-  }
+  await db
+    .update(activities)
+    .set({ streamData: blob })
+    .where(eq(activities.id, activityId));
 }
 
 /**

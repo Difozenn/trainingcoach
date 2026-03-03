@@ -10,6 +10,19 @@ import {
 import { users } from "./users";
 import { sportEnum, platformEnum } from "./athlete";
 
+/** JSONB blob for second-by-second stream data. TOAST-compressed by PostgreSQL. */
+export type StreamDataBlob = {
+  time: number[];
+  watts?: number[];
+  heartrate?: number[];
+  cadence?: number[];
+  velocity_smooth?: number[];
+  altitude?: number[];
+  distance?: number[];
+  latlng?: [number, number][];
+  grade_smooth?: number[];
+};
+
 export const activities = pgTable(
   "activities",
   {
@@ -61,6 +74,9 @@ export const activities = pgTable(
     // FTP used for this activity's TSS calculation (cycling only)
     ftpUsed: integer("ftp_used"),
 
+    // Stream data — stored as compressed JSONB blob instead of rows
+    streamData: jsonb("stream_data").$type<StreamDataBlob>(),
+
     // Metadata
     gearId: text("gear_id"),
     sourceData: jsonb("source_data"), // Raw API response subset
@@ -69,38 +85,6 @@ export const activities = pgTable(
   (table) => [
     index("activities_user_date_idx").on(table.userId, table.startedAt),
     index("activities_external_idx").on(table.externalId, table.platform),
-  ]
-);
-
-// Second-by-second data — designed for TimescaleDB hypertable
-export const activityStreams = pgTable(
-  "activity_streams",
-  {
-    activityId: text("activity_id")
-      .notNull()
-      .references(() => activities.id, { onDelete: "cascade" }),
-    timestamp: timestamp("timestamp", { mode: "date" }).notNull(),
-    secondOffset: integer("second_offset").notNull(),
-
-    // Data channels (nullable — not all present for all sports)
-    powerWatts: integer("power_watts"),
-    heartRate: integer("heart_rate"),
-    cadenceRpm: real("cadence_rpm"),
-    speedMps: real("speed_mps"),
-    paceSecPerKm: real("pace_sec_per_km"),
-    altitudeMeters: real("altitude_meters"),
-    distanceMeters: real("distance_meters"),
-    latitudeDeg: real("latitude_deg"),
-    longitudeDeg: real("longitude_deg"),
-    gradePercent: real("grade_percent"),
-
-    // Swimming
-    strokeCount: integer("stroke_count"),
-    swolf: real("swolf"),
-  },
-  (table) => [
-    index("streams_activity_idx").on(table.activityId),
-    index("streams_time_idx").on(table.timestamp),
   ]
 );
 

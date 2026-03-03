@@ -6,7 +6,6 @@
 import { db } from "@/lib/db";
 import {
   activities,
-  activityStreams,
   dailyMetrics,
   dailyNutritionTargets,
   rideFuelingPlans,
@@ -364,21 +363,27 @@ export async function getPlannedWorkoutsForRange(
 // ── Activity Streams ────────────────────────────────────────────────
 
 export async function getActivityStreams(activityId: string) {
-  return db
-    .select({
-      secondOffset: activityStreams.secondOffset,
-      powerWatts: activityStreams.powerWatts,
-      heartRate: activityStreams.heartRate,
-      cadenceRpm: activityStreams.cadenceRpm,
-      speedMps: activityStreams.speedMps,
-      altitudeMeters: activityStreams.altitudeMeters,
-      distanceMeters: activityStreams.distanceMeters,
-      latitudeDeg: activityStreams.latitudeDeg,
-      longitudeDeg: activityStreams.longitudeDeg,
-    })
-    .from(activityStreams)
-    .where(eq(activityStreams.activityId, activityId))
-    .orderBy(activityStreams.secondOffset);
+  const [row] = await db
+    .select({ streamData: activities.streamData })
+    .from(activities)
+    .where(eq(activities.id, activityId))
+    .limit(1);
+
+  const blob = row?.streamData;
+  if (!blob?.time) return [];
+
+  // Transform JSONB blob back to the row-like format the UI expects
+  return blob.time.map((secondOffset, i) => ({
+    secondOffset,
+    powerWatts: blob.watts?.[i] ?? null,
+    heartRate: blob.heartrate?.[i] ?? null,
+    cadenceRpm: blob.cadence?.[i] ?? null,
+    speedMps: blob.velocity_smooth?.[i] ?? null,
+    altitudeMeters: blob.altitude?.[i] ?? null,
+    distanceMeters: blob.distance?.[i] ?? null,
+    latitudeDeg: blob.latlng?.[i]?.[0] ?? null,
+    longitudeDeg: blob.latlng?.[i]?.[1] ?? null,
+  }));
 }
 
 export async function getDailyMetricsForDate(userId: string, date: Date) {
