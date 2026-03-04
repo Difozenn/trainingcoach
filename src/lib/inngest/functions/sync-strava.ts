@@ -500,6 +500,16 @@ export const backfillStravaActivities = inngest.createFunction(
         .where(eq(platformConnections.id, connectionId));
     });
 
+    // Auto-trigger stream backfill so new users get streams without admin action
+    if (totalImported > 0) {
+      await step.run("trigger-stream-backfill", async () => {
+        await inngest.send({
+          name: "streams/backfill.requested",
+          data: { userId, platform: "strava" },
+        });
+      });
+    }
+
     return { status: "completed", totalImported };
   }
 );
