@@ -35,10 +35,15 @@ import Link from "next/link";
 import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
 import { ActivityStreamCharts, BreakthroughChart } from "@/components/dashboard/stream-charts";
 import type { StreamData } from "@/components/dashboard/stream-charts";
-import { calculateWbal, downsampleWbal } from "@/lib/engine/cycling/wbal";
+import { calculateWbal, calculateBreakthroughFtp, downsampleWbal } from "@/lib/engine/cycling/wbal";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";
 import { getSwimmingZones } from "@/lib/engine/swimming/zones";
+import { BreakthroughPrompt } from "@/components/dashboard/breakthrough-prompt";
+import { db } from "@/lib/db";
+import { sportProfiles, thresholdHistory } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 const sportIcons = {
   cycling: Bike,
@@ -324,6 +329,64 @@ export default async function ActivityDetailPage({
   if (avgSpeed && activity.sport === "running")
     summaryParts.push(formatPace(1000 / avgSpeed));
 
+  // ── Breakthrough detection ────────────────────────────────────────
+  let breakthroughData: {
+    newFtp: number;
+    delta: number;
+    time: string;
+  } | null = null;
+
+  if (activity.sport === "cycling" && ftp && hasPower) {
+    const powerStream = streams.map((s) => s.powerWatts ?? 0);
+    const wbalOpts = {
+      pMax: recentPeaks?.peaks["5s"] ?? undefined,
+      peak5m: recentPeaks?.peaks["5m"] ?? undefined,
+    };
+    const wbalResult = calculateWbal(powerStream, ftp, wbalOpts);
+    const btPoint = wbalResult.find((p) => p.isBreakthrough);
+
+    if (btPoint) {
+      const impliedFtp = calculateBreakthroughFtp(powerStream, ftp, wbalOpts);
+      if (impliedFtp && impliedFtp > ftp) {
+        const mins = Math.floor(btPoint.time / 60);
+        const secs = btPoint.time % 60;
+        breakthroughData = {
+          newFtp: impliedFtp,
+          delta: Math.round(btPoint.power - btPoint.mpa),
+          time: `${mins}:${secs.toString().padStart(2, "0")}`,
+        };
+      }
+    }
+  }
+
+  // Server action: update FTP from breakthrough
+  async function updateFtpAction(newFtp: number) {
+    "use server";
+    const session2 = await auth();
+    if (!session2?.user?.id) throw new Error("Unauthorized");
+
+    await db
+      .update(sportProfiles)
+      .set({ ftp: newFtp, updatedAt: new Date() })
+      .where(
+        and(
+          eq(sportProfiles.userId, session2.user.id),
+          eq(sportProfiles.sport, "cycling")
+        )
+      );
+
+    await db.insert(thresholdHistory).values({
+      userId: session2.user.id,
+      sport: "cycling",
+      metricName: "ftp",
+      value: newFtp,
+      source: "auto_detect",
+      activityId: id,
+    });
+
+    revalidatePath(`/activities/${id}`);
+  }
+
   return (
     <>
       <DashboardHeader title="Activity Detail" />
@@ -388,6 +451,18 @@ export default async function ActivityDetailPage({
                   />
                 </CardContent>
               </Card>
+            )}
+
+            {/* Breakthrough prompt */}
+            {breakthroughData && ftp && (
+              <BreakthroughPrompt
+                currentFtp={ftp}
+                newFtp={breakthroughData.newFtp}
+                breakthroughWatts={breakthroughData.delta}
+                breakthroughTime={breakthroughData.time}
+                activityId={id}
+                updateAction={updateFtpAction}
+              />
             )}
 
             {/* W'bal / MPA Breakthrough chart for cycling with power */}

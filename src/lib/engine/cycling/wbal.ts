@@ -165,6 +165,42 @@ export function calculateWbal(
 }
 
 /**
+ * Binary-search for the lowest CP (FTP) where the ride produces 0 breakthroughs.
+ * Searches from currentFtp upward in 1W steps (max +50W).
+ * Returns the new FTP or null if no breakthrough at current FTP.
+ */
+export function calculateBreakthroughFtp(
+  powerStream: number[],
+  currentFtp: number,
+  opts?: { pMax?: number; peak5m?: number; wPrime?: number }
+): number | null {
+  // First check: does current FTP even produce a breakthrough?
+  const baseline = calculateWbal(powerStream, currentFtp, opts);
+  if (!baseline.some((p) => p.isBreakthrough)) return null;
+
+  // Binary search: find lowest CP in [currentFtp+1, currentFtp+50] with 0 breakthroughs
+  let lo = currentFtp + 1;
+  let hi = currentFtp + 50;
+  let result = hi; // fallback to max if nothing clears it
+
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    const run = calculateWbal(powerStream, mid, opts);
+    const hasBreakthrough = run.some((p) => p.isBreakthrough);
+
+    if (!hasBreakthrough) {
+      result = mid;
+      hi = mid - 1;
+    } else {
+      lo = mid + 1;
+    }
+  }
+
+  // If even +50W still has breakthrough, return the cap
+  return result;
+}
+
+/**
  * Downsample W'bal results for chart rendering.
  * Uses max-power-preserving downsampling to keep peaks visible.
  */

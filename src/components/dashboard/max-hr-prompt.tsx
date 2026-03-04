@@ -18,15 +18,16 @@ export function MaxHrPrompt({
   const [dismissed, setDismissed] = useState(true);
   const [updating, setUpdating] = useState(false);
 
+  const storageKey = `dismissed_max_hr_${currentMaxHr}_${recordedMaxHr}`;
+
   useEffect(() => {
-    const key = `dismissed_max_hr_${recordedMaxHr}`;
-    setDismissed(localStorage.getItem(key) === "true");
-  }, [recordedMaxHr]);
+    setDismissed(localStorage.getItem(storageKey) === "true");
+  }, [storageKey]);
 
   if (dismissed || recordedMaxHr <= currentMaxHr) return null;
 
   function handleDismiss() {
-    localStorage.setItem(`dismissed_max_hr_${recordedMaxHr}`, "true");
+    localStorage.setItem(storageKey, "true");
     setDismissed(true);
   }
 
