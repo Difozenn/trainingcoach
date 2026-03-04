@@ -40,25 +40,25 @@ const DURATION_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS = [
-  "text-muted-foreground",
-  "text-slate-500",
-  "text-blue-500",
-  "text-green-500",
-  "text-emerald-500",
-  "text-orange-500",
-  "text-red-500",
-  "text-purple-500",
+  "text-muted-foreground",  // Beginner
+  "text-slate-500",         // Recreational
+  "text-blue-500",          // Fitness
+  "text-green-500",         // Sportive
+  "text-emerald-500",       // Competitive
+  "text-orange-500",        // Elite
+  "text-red-500",           // Semi-Pro
+  "text-purple-500",        // World Tour
 ];
 
 const CATEGORY_BG_COLORS = [
-  "bg-muted",
-  "bg-slate-500/10",
-  "bg-blue-500/10",
-  "bg-green-500/10",
-  "bg-emerald-500/10",
-  "bg-orange-500/10",
-  "bg-red-500/10",
-  "bg-purple-500/10",
+  "bg-muted",               // Beginner
+  "bg-slate-500/10",        // Recreational
+  "bg-blue-500/10",         // Fitness
+  "bg-green-500/10",        // Sportive
+  "bg-emerald-500/10",      // Competitive
+  "bg-orange-500/10",       // Elite
+  "bg-red-500/10",          // Semi-Pro
+  "bg-purple-500/10",       // World Tour
 ];
 
 const CURVE_RANGES = [

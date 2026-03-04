@@ -1,8 +1,10 @@
 /**
- * Power Profile — MMP calculation, Coggan classification, rider type determination
+ * Power Profile — MMP calculation, percentile classification, rider type
  *
  * Peak powers are calculated via sliding-window max-average at standard durations.
- * Classification uses Coggan's published W/kg table for male riders.
+ * Classification uses dual thresholds: absolute watts AND W/kg, taking the higher
+ * level. This ensures heavy riders get credit for raw power while light riders
+ * benefit from W/kg. Thresholds approximate Strava/intervals.icu percentile ranks.
  * Rider type is determined by comparing relative category levels across durations.
  */
 
@@ -20,7 +22,7 @@ export type PeakPowers = {
 };
 
 export type PowerCategory = {
-  level: number; // 0-7 (Untrained → World Class)
+  level: number; // 0-7 (Beginner → World Tour)
   label: string;
   percentile: number; // 0-100 within category
   wPerKg: number;
@@ -46,64 +48,47 @@ const DURATIONS_SECONDS = [5, 15, 30, 60, 300, 600, 1200, 3600] as const;
 const DURATION_KEYS = ["5s", "15s", "30s", "1m", "5m", "10m", "20m", "60m"] as const;
 
 const CATEGORY_LABELS = [
-  "Untrained",
-  "Fair",
-  "Moderate",
-  "Good",
-  "Very Good",
-  "Excellent",
-  "Exceptional",
-  "World Class",
+  "Beginner",
+  "Recreational",
+  "Fitness",
+  "Sportive",
+  "Competitive",
+  "Elite",
+  "Semi-Pro",
+  "World Tour",
 ] as const;
 
 /**
- * Coggan male W/kg classification at 4 anchor durations.
- * Each entry: [minWkg, maxWkg] for that category level.
- * Categories 0-7: Untrained → World Class.
- *
- * Source: Coggan, A.R. & Allen, H. "Training and Racing with a Power Meter"
+ * Absolute watt thresholds for male riders.
+ * 7 thresholds per duration → maps to levels 1-7.
+ * Below threshold[0] = level 0 (Beginner), above threshold[6] = level 7 (World Tour).
+ * Derived from cycling analytics population percentile data.
  */
-const COGGAN_MALE: Record<string, [number, number][]> = {
-  "5s": [
-    [6.0, 10.07],
-    [10.08, 12.73],
-    [12.74, 14.51],
-    [14.52, 16.58],
-    [16.59, 18.65],
-    [18.66, 20.43],
-    [20.44, 22.21],
-    [22.22, 25.18],
-  ],
-  "1m": [
-    [3.0, 5.63],
-    [5.64, 6.43],
-    [6.44, 7.12],
-    [7.13, 8.16],
-    [8.17, 8.96],
-    [8.97, 9.65],
-    [9.66, 10.34],
-    [10.35, 11.50],
-  ],
-  "5m": [
-    [1.5, 2.32],
-    [2.33, 2.94],
-    [2.95, 3.66],
-    [3.67, 4.59],
-    [4.60, 5.32],
-    [5.33, 5.94],
-    [5.95, 6.56],
-    [6.57, 7.60],
-  ],
-  "ftp": [
-    [1.2, 1.85],
-    [1.86, 2.12],
-    [2.13, 2.92],
-    [2.93, 3.81],
-    [3.82, 4.43],
-    [4.44, 4.97],
-    [4.98, 5.50],
-    [5.51, 6.40],
-  ],
+const WATTS_THRESHOLDS_MALE: Record<string, number[]> = {
+  "5s":  [500,  700,  950,  1200, 1400, 1600, 1900],
+  "15s": [350,  500,  700,  900,  1100, 1300, 1550],
+  "30s": [275,  400,  575,  750,  900,  1050, 1250],
+  "1m":  [200,  300,  420,  540,  660,  780,  950],
+  "5m":  [150,  215,  280,  340,  400,  460,  530],
+  "10m": [130,  190,  250,  310,  365,  420,  490],
+  "20m": [120,  175,  230,  285,  330,  385,  450],
+  "60m": [100,  150,  200,  250,  290,  340,  420],
+};
+
+/**
+ * W/kg thresholds for male riders.
+ * Same structure as watts thresholds.
+ * Benefits lighter riders whose absolute watts don't reflect their W/kg dominance.
+ */
+const WKG_THRESHOLDS_MALE: Record<string, number[]> = {
+  "5s":  [8.0,  10.0, 12.5, 15.0, 17.5, 20.0, 23.0],
+  "15s": [6.0,  7.5,  9.5,  12.0, 14.5, 17.0, 20.0],
+  "30s": [4.5,  6.0,  7.5,  9.5,  11.5, 13.5, 16.0],
+  "1m":  [3.0,  4.0,  5.5,  7.0,  8.5,  10.0, 12.0],
+  "5m":  [2.0,  2.8,  3.5,  4.3,  5.0,  5.7,  6.5],
+  "10m": [1.8,  2.5,  3.2,  4.0,  4.7,  5.4,  6.2],
+  "20m": [1.6,  2.3,  3.0,  3.7,  4.3,  5.0,  5.8],
+  "60m": [1.4,  2.0,  2.6,  3.2,  3.8,  4.4,  5.2],
 };
 
 // ── Peak Power Calculation ─────────────────────────────────────────
@@ -163,61 +148,39 @@ export function calculatePeakPowers(powerStream: number[]): PeakPowers {
 // ── Classification ─────────────────────────────────────────────────
 
 /**
- * Interpolate Coggan table for intermediate durations.
- * Uses log-linear interpolation between the 4 anchor durations (5s, 1m, 5m, FTP/60m).
+ * Classify a value against a threshold array.
+ * Returns { level, percentile } where level is 0-7 and percentile is 0-100 within that level.
  */
-function getTableForDuration(durationKey: string): [number, number][] {
-  // Direct match
-  if (COGGAN_MALE[durationKey]) return COGGAN_MALE[durationKey];
+function classifyAgainstThresholds(
+  value: number,
+  thresholds: number[]
+): { level: number; percentile: number } {
+  // Above all thresholds → top level
+  if (value >= thresholds[thresholds.length - 1]) {
+    const lastThreshold = thresholds[thresholds.length - 1];
+    const headroom = lastThreshold * 0.2; // 20% above last threshold = 100%
+    const pct = Math.min(100, Math.round(((value - lastThreshold) / headroom) * 100));
+    return { level: thresholds.length, percentile: pct };
+  }
 
-  // Map duration key to seconds for interpolation
-  const durationMap: Record<string, number> = {
-    "5s": 5,
-    "15s": 15,
-    "30s": 30,
-    "1m": 60,
-    "5m": 300,
-    "10m": 600,
-    "20m": 1200,
-    "60m": 3600,
-  };
-  const secs = durationMap[durationKey];
-  if (!secs) return COGGAN_MALE["ftp"]; // fallback
-
-  // Anchor points in seconds
-  const anchors = [
-    { secs: 5, key: "5s" },
-    { secs: 60, key: "1m" },
-    { secs: 300, key: "5m" },
-    { secs: 3600, key: "ftp" },
-  ];
-
-  // Find bounding anchors
-  let lower = anchors[0];
-  let upper = anchors[anchors.length - 1];
-  for (let i = 0; i < anchors.length - 1; i++) {
-    if (secs >= anchors[i].secs && secs <= anchors[i + 1].secs) {
-      lower = anchors[i];
-      upper = anchors[i + 1];
-      break;
+  // Find which level
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (value >= thresholds[i]) {
+      const lower = thresholds[i];
+      const upper = i < thresholds.length - 1 ? thresholds[i + 1] : lower * 1.2;
+      const pct = Math.round(((value - lower) / (upper - lower)) * 100);
+      return { level: i + 1, percentile: Math.min(99, Math.max(0, pct)) };
     }
   }
 
-  // Log-linear interpolation factor
-  const t =
-    Math.log(secs / lower.secs) / Math.log(upper.secs / lower.secs);
-
-  const lowerTable = COGGAN_MALE[lower.key];
-  const upperTable = COGGAN_MALE[upper.key];
-
-  return lowerTable.map((_, i) => [
-    lowerTable[i][0] + t * (upperTable[i][0] - lowerTable[i][0]),
-    lowerTable[i][1] + t * (upperTable[i][1] - lowerTable[i][1]),
-  ]) as [number, number][];
+  // Below all thresholds → level 0
+  const pct = Math.round((value / thresholds[0]) * 100);
+  return { level: 0, percentile: Math.min(99, Math.max(0, pct)) };
 }
 
 /**
- * Classify a power value into a Coggan category.
+ * Classify power using dual thresholds (absolute watts + W/kg).
+ * Takes the higher classification of the two.
  */
 export function classifyPower(
   watts: number,
@@ -225,29 +188,31 @@ export function classifyPower(
   durationKey: string
 ): PowerCategory {
   const wPerKg = watts / weightKg;
-  const table = getTableForDuration(durationKey);
 
-  // Find which category this W/kg falls into
-  for (let i = table.length - 1; i >= 0; i--) {
-    const [min, max] = table[i];
-    if (wPerKg >= min) {
-      const percentile = Math.min(100, Math.max(0, ((wPerKg - min) / (max - min)) * 100));
-      return {
-        level: i,
-        label: CATEGORY_LABELS[i],
-        percentile: Math.round(percentile),
-        wPerKg: Math.round(wPerKg * 100) / 100,
-      };
-    }
+  const wattsTable = WATTS_THRESHOLDS_MALE[durationKey];
+  const wkgTable = WKG_THRESHOLDS_MALE[durationKey];
+
+  if (!wattsTable || !wkgTable) {
+    return { level: 0, label: CATEGORY_LABELS[0], percentile: 0, wPerKg: Math.round(wPerKg * 100) / 100 };
   }
 
-  // Below untrained
-  const [min, max] = table[0];
-  const percentile = Math.max(0, ((wPerKg - min) / (max - min)) * 100);
+  const wattsResult = classifyAgainstThresholds(watts, wattsTable);
+  const wkgResult = classifyAgainstThresholds(wPerKg, wkgTable);
+
+  // Take the higher classification
+  const best =
+    wattsResult.level > wkgResult.level
+      ? wattsResult
+      : wkgResult.level > wattsResult.level
+        ? wkgResult
+        : wattsResult.percentile >= wkgResult.percentile
+          ? wattsResult
+          : wkgResult;
+
   return {
-    level: 0,
-    label: CATEGORY_LABELS[0],
-    percentile: Math.max(0, Math.round(percentile)),
+    level: best.level,
+    label: CATEGORY_LABELS[best.level],
+    percentile: best.percentile,
     wPerKg: Math.round(wPerKg * 100) / 100,
   };
 }
@@ -256,7 +221,6 @@ export function classifyPower(
 
 /**
  * Determine rider type by comparing relative strengths at key durations.
- * Uses intervals.icu-style approach.
  */
 export function determineRiderType(
   categories: Record<string, PowerCategory>
@@ -290,28 +254,6 @@ export function determineRiderType(
   if (levels.ftp === maxLevel) return "Time Trialist";
 
   return "All-Rounder";
-}
-
-// ── Decay ──────────────────────────────────────────────────────────
-
-const PEAK_TAU = 90; // days
-const PEAK_FLOOR_RATIO = 0.6;
-
-/**
- * Apply decay to a peak power value (same model as FTP decay).
- */
-export function getEffectivePeakPower(
-  lastPeak: number,
-  lastDate: Date,
-  currentDate: Date
-): number {
-  const daysSince =
-    (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-  if (daysSince <= 0) return lastPeak;
-
-  const decayed = lastPeak * Math.exp(-daysSince / PEAK_TAU);
-  const floor = lastPeak * PEAK_FLOOR_RATIO;
-  return Math.round(Math.max(decayed, floor));
 }
 
 // ── Full Profile Builder ───────────────────────────────────────────
