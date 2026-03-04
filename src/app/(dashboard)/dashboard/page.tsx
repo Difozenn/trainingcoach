@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,15 +20,16 @@ import {
   getTodayNutrition,
   getCurrentWeeklyPlan,
   getWeeklyWorkouts,
+  getUserPeakPowers,
+  getAthleteProfile,
 } from "@/lib/data/queries";
 import {
   formatDuration,
   formatDistance,
   formatDate,
-  tsbInsight,
-  tsbColor,
 } from "@/lib/data/helpers";
 import Link from "next/link";
+import { PowerProfileTab } from "../profile/power-profile-tab";
 
 const sportIcons = {
   cycling: Bike,
@@ -35,7 +37,13 @@ const sportIcons = {
   swimming: Waves,
 };
 
-export default async function DashboardPage() {
+const PROFILE_WINDOW_DAYS = 42; // 6 weeks — fixed window for rider profile
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pp?: string }>;
+}) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
@@ -51,18 +59,66 @@ export default async function DashboardPage() {
     .limit(1);
   if (!profile?.onboardingCompleted) redirect("/onboarding");
 
-  const [metrics, weeklyTss, recentActivities, nutrition, weeklyPlan] =
-    await Promise.all([
-      getLatestMetrics(userId),
-      getWeeklyTSS(userId),
-      getRecentActivities(userId, 5),
-      getTodayNutrition(userId),
-      getCurrentWeeklyPlan(userId),
-    ]);
+  const params = await searchParams;
+  const curveDays = Number(params.pp) || 90;
+
+  const [
+    metrics,
+    weeklyTss,
+    recentActivities,
+    nutrition,
+    weeklyPlan,
+    profilePeaks,
+    allTimePeaks,
+    curvePeaks,
+    athleteProfile,
+  ] = await Promise.all([
+    getLatestMetrics(userId),
+    getWeeklyTSS(userId),
+    getRecentActivities(userId, 5),
+    getTodayNutrition(userId),
+    getCurrentWeeklyPlan(userId),
+    getUserPeakPowers(userId, PROFILE_WINDOW_DAYS),
+    getUserPeakPowers(userId),
+    getUserPeakPowers(userId, curveDays),
+    getAthleteProfile(userId),
+  ]);
 
   const workouts = weeklyPlan
     ? await getWeeklyWorkouts(weeklyPlan.id)
     : [];
+
+  // Form as percentage (TSB/CTL × 100)
+  const formPct =
+    metrics?.ctl && metrics.ctl > 0 && metrics?.tsb != null
+      ? Math.round((metrics.tsb / metrics.ctl) * 100)
+      : null;
+
+  const formLabel =
+    formPct != null
+      ? formPct < -30
+        ? "High Risk"
+        : formPct < -10
+          ? "Optimal"
+          : formPct < 5
+            ? "Grey Zone"
+            : formPct < 20
+              ? "Fresh"
+              : "Detraining"
+      : null;
+
+  const formColor =
+    formPct != null
+      ? formPct < -30
+        ? "text-red-500"
+        : formPct < -10
+          ? "text-green-500"
+          : formPct < 5
+            ? "text-muted-foreground"
+            : formPct < 20
+              ? "text-blue-500"
+              : "text-orange-500"
+      : "";
 
   return (
     <>
@@ -108,19 +164,17 @@ export default async function DashboardPage() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Form (TSB)</CardTitle>
+              <CardTitle className="text-sm font-medium">Form</CardTitle>
               <TrendingDown className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div
-                className={`text-2xl font-bold ${metrics?.tsb != null ? tsbColor(metrics.tsb) : ""}`}
-              >
-                {metrics?.tsb != null ? Math.round(metrics.tsb) : "--"}
+              <div className={`text-2xl font-bold ${formColor}`}>
+                {formPct != null
+                  ? `${formPct > 0 ? "+" : ""}${formPct}%`
+                  : "--"}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {metrics?.tsb != null
-                  ? tsbInsight(metrics.tsb)
-                  : "Fitness - Fatigue balance"}
+              <p className={`text-xs ${formLabel ? `font-medium ${formColor}` : "text-muted-foreground"}`}>
+                {formLabel ?? "Fitness - Fatigue balance"}
               </p>
             </CardContent>
           </Card>
@@ -157,6 +211,17 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Power Profile */}
+        <Suspense>
+          <PowerProfileTab
+            profilePeaks={profilePeaks}
+            allTimePeaks={allTimePeaks}
+            curvePeaks={curvePeaks}
+            curveDays={curveDays}
+            weightKg={athleteProfile?.weightKg ?? null}
+          />
+        </Suspense>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Recent Activities */}
