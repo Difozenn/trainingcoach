@@ -179,8 +179,8 @@ function classifyAgainstThresholds(
 }
 
 /**
- * Classify power using dual thresholds (absolute watts + W/kg).
- * Takes the higher classification of the two.
+ * Classify power using absolute watt thresholds (like Strava).
+ * W/kg is shown as supplementary info but doesn't affect the level.
  */
 export function classifyPower(
   watts: number,
@@ -190,29 +190,16 @@ export function classifyPower(
   const wPerKg = watts / weightKg;
 
   const wattsTable = WATTS_THRESHOLDS_MALE[durationKey];
-  const wkgTable = WKG_THRESHOLDS_MALE[durationKey];
-
-  if (!wattsTable || !wkgTable) {
+  if (!wattsTable) {
     return { level: 0, label: CATEGORY_LABELS[0], percentile: 0, wPerKg: Math.round(wPerKg * 100) / 100 };
   }
 
-  const wattsResult = classifyAgainstThresholds(watts, wattsTable);
-  const wkgResult = classifyAgainstThresholds(wPerKg, wkgTable);
-
-  // Take the higher classification
-  const best =
-    wattsResult.level > wkgResult.level
-      ? wattsResult
-      : wkgResult.level > wattsResult.level
-        ? wkgResult
-        : wattsResult.percentile >= wkgResult.percentile
-          ? wattsResult
-          : wkgResult;
+  const result = classifyAgainstThresholds(watts, wattsTable);
 
   return {
-    level: best.level,
-    label: CATEGORY_LABELS[best.level],
-    percentile: best.percentile,
+    level: result.level,
+    label: CATEGORY_LABELS[result.level],
+    percentile: result.percentile,
     wPerKg: Math.round(wPerKg * 100) / 100,
   };
 }
