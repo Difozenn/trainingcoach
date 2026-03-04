@@ -27,7 +27,7 @@ export default async function FitnessPage({
     tsb: d.tsb,
     formPct:
       d.ctl && d.ctl > 0 && d.tsb != null
-        ? Math.round((d.tsb / d.ctl) * 100)
+        ? Math.max(-100, Math.min(100, Math.round((d.tsb / d.ctl) * 100)))
         : null,
     cyclingTss: d.cyclingTss ?? 0,
     runningTss: d.runningTss ?? 0,
@@ -44,7 +44,7 @@ export default async function FitnessPage({
   const lastTsb = timeline.at(-1)?.tsb;
   const formPct =
     lastCtl && lastCtl > 0 && lastTsb != null
-      ? Math.round((lastTsb / lastCtl) * 100)
+      ? Math.max(-100, Math.min(100, Math.round((lastTsb / lastCtl) * 100)))
       : null;
 
   const trainingDays = timeline.filter((d) => (d.totalTss ?? 0) > 0).length;

@@ -91,7 +91,7 @@ export default async function DashboardPage({
   // Form as percentage (TSB/CTL × 100)
   const formPct =
     metrics?.ctl && metrics.ctl > 0 && metrics?.tsb != null
-      ? Math.round((metrics.tsb / metrics.ctl) * 100)
+      ? Math.max(-100, Math.min(100, Math.round((metrics.tsb / metrics.ctl) * 100)))
       : null;
 
   const formLabel =

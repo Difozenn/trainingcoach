@@ -54,7 +54,7 @@ export function ProfileTabs({
     tsb: d.tsb,
     formPct:
       d.ctl && d.ctl > 0 && d.tsb != null
-        ? Math.round((d.tsb / d.ctl) * 100)
+        ? Math.max(-100, Math.min(100, Math.round((d.tsb / d.ctl) * 100)))
         : null,
     cyclingTss: d.cyclingTss ?? 0,
     runningTss: d.runningTss ?? 0,
@@ -116,7 +116,7 @@ export function ProfileTabs({
                   const lastTsb = timeline.at(-1)?.tsb;
                   if (lastCtl == null || lastTsb == null || lastCtl === 0)
                     return <p className="text-2xl font-bold">--</p>;
-                  const formPct = Math.round((lastTsb / lastCtl) * 100);
+                  const formPct = Math.max(-100, Math.min(100, Math.round((lastTsb / lastCtl) * 100)));
                   const label =
                     formPct < -30 ? "High Risk" :
                     formPct < -10 ? "Optimal" :

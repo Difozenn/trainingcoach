@@ -150,63 +150,47 @@ function MainTooltip({
   );
 }
 
-// ── Zone-segmented Form data ────────────────────────────────────────
+// ── Chart data builder ──────────────────────────────────────────────
 
 type ChartRow = TimelinePoint & {
   _zonePad: number | null;
   _zoneGreen: number | null;
-  _form0: number | null;
-  _form1: number | null;
-  _form2: number | null;
-  _form3: number | null;
-  _form4: number | null;
 };
 
-function isInZone(
-  formPct: number | null,
-  zone: (typeof FORM_ZONES)[number]
-): boolean {
-  if (formPct == null) return false;
-  return formPct >= zone.min && (zone.max >= 100 || formPct < zone.max);
-}
-
 function buildChartData(data: TimelinePoint[]): ChartRow[] {
-  const rows: ChartRow[] = data.map((d) => ({
+  return data.map((d) => ({
     ...d,
     cyclingTss: d.cyclingTss ?? 0,
     runningTss: d.runningTss ?? 0,
     swimmingTss: d.swimmingTss ?? 0,
     _zonePad: d.ctl != null ? d.ctl : null,
     _zoneGreen: d.ctl != null ? 20 : null,
-    _form0: null,
-    _form1: null,
-    _form2: null,
-    _form3: null,
-    _form4: null,
   }));
+}
 
-  // Assign formPct to per-zone keys with adjacent overlap for line continuity
-  const keys = ["_form0", "_form1", "_form2", "_form3", "_form4"] as const;
-  for (let zi = 0; zi < FORM_ZONES.length; zi++) {
-    const zone = FORM_ZONES[zi];
-    const key = keys[zi];
-    for (let i = 0; i < rows.length; i++) {
-      const formPct = rows[i].formPct;
-      if (formPct == null) continue;
-      if (isInZone(formPct, zone)) {
-        rows[i][key] = formPct;
-        continue;
-      }
-      // Include boundary points so line segments connect seamlessly
-      const prev = i > 0 ? rows[i - 1].formPct : null;
-      const next = i < rows.length - 1 ? rows[i + 1].formPct : null;
-      if (isInZone(prev, zone) || isInZone(next, zone)) {
-        rows[i][key] = formPct;
-      }
-    }
-  }
+/**
+ * Build gradient stops for the form line stroke.
+ * Maps zone boundaries to vertical gradient offsets so the line
+ * color matches the zone it passes through.
+ */
+function buildFormGradientStops(lower: number, upper: number) {
+  const range = upper - lower;
+  if (range <= 0) return [];
+  const toOff = (y: number) =>
+    `${(((upper - Math.max(lower, Math.min(upper, y))) / range) * 100).toFixed(1)}%`;
 
-  return rows;
+  return [
+    { offset: "0%", color: "#f97316" },
+    { offset: toOff(20), color: "#f97316" },
+    { offset: toOff(20), color: "#3b82f6" },
+    { offset: toOff(5), color: "#3b82f6" },
+    { offset: toOff(5), color: "#6b7280" },
+    { offset: toOff(-10), color: "#6b7280" },
+    { offset: toOff(-10), color: "#22c55e" },
+    { offset: toOff(-30), color: "#22c55e" },
+    { offset: toOff(-30), color: "#ef4444" },
+    { offset: "100%", color: "#ef4444" },
+  ];
 }
 
 // ── Main component ──────────────────────────────────────────────────
@@ -236,11 +220,16 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
   const upperDomain =
     Math.ceil((Math.max(maxFitnessZone, maxTss) * 1.1) / 10) * 10 || 50;
 
-  // Form chart domain (percentage-based)
-  const minForm = Math.min(...data.map((d) => d.formPct ?? 0), -30);
-  const maxForm = Math.max(...data.map((d) => d.formPct ?? 0), 25);
-  const formLower = Math.floor((minForm - 5) / 10) * 10;
-  const formUpper = Math.ceil((maxForm + 5) / 10) * 10;
+  // Form chart domain (percentage-based, clamped to [-100, 100])
+  const formValues = data.map((d) => d.formPct).filter((v): v is number => v != null);
+  const minForm = Math.max(-100, Math.min(...formValues, -30));
+  const maxForm = Math.min(100, Math.max(...formValues, 25));
+  const formLower = Math.max(-100, Math.floor((minForm - 5) / 10) * 10);
+  const formUpper = Math.min(100, Math.ceil((maxForm + 5) / 10) * 10);
+  // Gradient maps to the Line's SVG bounding box (actual data range)
+  const dataMin = formValues.length > 0 ? Math.min(...formValues) : formLower;
+  const dataMax = formValues.length > 0 ? Math.max(...formValues) : formUpper;
+  const formGradientStops = buildFormGradientStops(dataMin, dataMax);
 
   return (
     <div>
@@ -416,13 +405,18 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
 
           <defs>
             <linearGradient id="formFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f97316" stopOpacity={0.20} />
-              <stop offset="40%" stopColor="#6b7280" stopOpacity={0.05} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.20} />
+              {formGradientStops.map((s, i) => (
+                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.12} />
+              ))}
+            </linearGradient>
+            <linearGradient id="formStroke" x1="0" y1="0" x2="0" y2="1">
+              {formGradientStops.map((s, i) => (
+                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={1} />
+              ))}
             </linearGradient>
           </defs>
 
-          {/* Form area fill (neutral, behind the colored lines) */}
+          {/* Form area fill */}
           <Area
             type="monotone"
             dataKey="formPct"
@@ -434,21 +428,17 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             legendType="none"
           />
 
-          {/* Zone-colored Form line segments */}
-          {FORM_ZONES.map((zone, zi) => (
-            <Line
-              key={zi}
-              type="monotone"
-              dataKey={`_form${zi}`}
-              stroke={zone.color}
-              strokeWidth={2}
-              dot={false}
-              connectNulls={false}
-              activeDot={false}
-              isAnimationActive={false}
-              legendType="none"
-            />
-          ))}
+          {/* Single form line with zone-colored gradient */}
+          <Line
+            type="monotone"
+            dataKey="formPct"
+            stroke="url(#formStroke)"
+            strokeWidth={2}
+            dot={false}
+            activeDot={false}
+            isAnimationActive={false}
+            legendType="none"
+          />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
