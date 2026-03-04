@@ -312,99 +312,110 @@ export const backfillStravaActivities = inngest.createFunction(
         new Date(b.start_date as string).getTime()
     );
 
-    // Process all activities chronologically — FTP evolves as we go
-    const totalImported = await step.run("process-activities", async () => {
-      let imported = 0;
+    // Process activities in batches (avoid serverless timeout)
+    const BATCH = 50;
+    let totalImported = 0;
 
-      for (const stravaActivity of allStravaActivities) {
-        const processed = processStravaActivity(stravaActivity);
-        if (!processed) continue;
+    for (let b = 0; b < allStravaActivities.length; b += BATCH) {
+      const batch = allStravaActivities.slice(b, b + BATCH);
+      const batchImported = await step.run(
+        `process-batch-${Math.floor(b / BATCH)}`,
+        async () => {
+          let imported = 0;
 
-        // Skip duplicates
-        const [existing] = await db
-          .select({ id: activities.id })
-          .from(activities)
-          .where(
-            and(
-              eq(activities.externalId, String(stravaActivity.id)),
-              eq(activities.platform, "strava")
-            )
-          )
-          .limit(1);
-        if (existing) continue;
+          for (const stravaActivity of batch) {
+            const processed = processStravaActivity(stravaActivity);
+            if (!processed) continue;
 
-        // Auto-detect FTP from this activity's NP (with decay model)
-        let effectiveFtp = 0;
-        if (processed.sport === "cycling") {
-          const np =
-            (stravaActivity as { weighted_average_watts?: number })
-              .weighted_average_watts;
-          if (np) {
-            const [currentProfile] = await db
+            // Skip duplicates
+            const [existing] = await db
+              .select({ id: activities.id })
+              .from(activities)
+              .where(
+                and(
+                  eq(activities.externalId, String(stravaActivity.id)),
+                  eq(activities.platform, "strava")
+                )
+              )
+              .limit(1);
+            if (existing) continue;
+
+            // Auto-detect FTP from this activity's NP (with decay model)
+            let effectiveFtp = 0;
+            if (processed.sport === "cycling") {
+              const np =
+                (stravaActivity as { weighted_average_watts?: number })
+                  .weighted_average_watts;
+              if (np) {
+                const [currentProfile] = await db
+                  .select()
+                  .from(sportProfiles)
+                  .where(
+                    and(
+                      eq(sportProfiles.userId, userId),
+                      eq(sportProfiles.sport, "cycling")
+                    )
+                  )
+                  .limit(1);
+                const result = await autoDetectCyclingFTP(
+                  userId,
+                  np,
+                  currentProfile,
+                  new Date(stravaActivity.start_date as string),
+                  String(stravaActivity.id)
+                );
+                effectiveFtp = result.effectiveFtp;
+              }
+            }
+
+            // Fetch fresh profile (may have just been updated)
+            const [profile] = await db
               .select()
               .from(sportProfiles)
               .where(
                 and(
                   eq(sportProfiles.userId, userId),
-                  eq(sportProfiles.sport, "cycling")
+                  eq(sportProfiles.sport, processed.sport)
                 )
               )
               .limit(1);
-            const result = await autoDetectCyclingFTP(
-              userId,
-              np,
-              currentProfile,
-              new Date(stravaActivity.start_date as string),
-              String(stravaActivity.id)
+
+            // Use the time-appropriate FTP for metrics
+            const profileForMetrics =
+              processed.sport === "cycling" && effectiveFtp > 0
+                ? ({ ...profile, ftp: effectiveFtp } as SportProfileRow)
+                : profile;
+
+            const metrics = calculateActivityMetrics(
+              processed.sport,
+              stravaActivity,
+              null,
+              profileForMetrics
             );
-            effectiveFtp = result.effectiveFtp;
+
+            await db.insert(activities).values({
+              ...processed,
+              userId,
+              normalizedPower: metrics.normalizedPower,
+              normalizedGradedPace: metrics.normalizedGradedPace,
+              intensityFactor: metrics.intensityFactor,
+              tss: metrics.tss,
+              trimp: metrics.trimp,
+              ftpUsed:
+                processed.sport === "cycling" ? effectiveFtp || null : null,
+            });
+
+            imported++;
           }
+          return imported;
         }
-
-        // Fetch fresh profile (may have just been updated)
-        const [profile] = await db
-          .select()
-          .from(sportProfiles)
-          .where(
-            and(
-              eq(sportProfiles.userId, userId),
-              eq(sportProfiles.sport, processed.sport)
-            )
-          )
-          .limit(1);
-
-        // Use the time-appropriate FTP for metrics
-        const profileForMetrics = processed.sport === "cycling" && effectiveFtp > 0
-          ? { ...profile, ftp: effectiveFtp } as SportProfileRow
-          : profile;
-
-        const metrics = calculateActivityMetrics(
-          processed.sport,
-          stravaActivity,
-          null,
-          profileForMetrics
-        );
-
-        await db.insert(activities).values({
-          ...processed,
-          userId,
-          normalizedPower: metrics.normalizedPower,
-          normalizedGradedPace: metrics.normalizedGradedPace,
-          intensityFactor: metrics.intensityFactor,
-          tss: metrics.tss,
-          trimp: metrics.trimp,
-          ftpUsed: processed.sport === "cycling" ? effectiveFtp || null : null,
-        });
-
-        imported++;
-      }
-      return imported;
-    });
+      );
+      totalImported += batchImported;
+    }
 
     // Build daily_metrics chronologically from all imported activities
-    await step.run("build-daily-metrics", async () => {
-      // Aggregate TSS by day
-      const dailyTss = await db.execute<{
+    const dailyTss = await step.run("aggregate-daily-tss", async () => {
+      return db.execute<{
         day: string;
         cycling_tss: number;
         running_tss: number;
@@ -419,13 +430,12 @@ export const backfillStravaActivities = inngest.createFunction(
         FROM activities WHERE user_id = '${userId}' AND tss IS NOT NULL
         GROUP BY DATE(started_at) ORDER BY day ASC
       `);
+    });
 
-      if (dailyTss.length === 0) return;
-
-      // Delete any existing daily_metrics for clean rebuild
-      await db
-        .delete(dailyMetrics)
-        .where(eq(dailyMetrics.userId, userId));
+    if (dailyTss.length > 0) {
+      await step.run("clear-old-metrics", async () => {
+        await db.delete(dailyMetrics).where(eq(dailyMetrics.userId, userId));
+      });
 
       const tssMap = new Map<string, { c: number; r: number; s: number; t: number }>();
       for (const row of dailyTss) {
@@ -438,7 +448,7 @@ export const backfillStravaActivities = inngest.createFunction(
         });
       }
 
-      // Walk from first activity to today, calculating CTL/ATL/TSB
+      // Build all rows in memory, then batch-insert
       const firstDay = new Date(dailyTss[0].day);
       const today = new Date();
       today.setUTCHours(0, 0, 0, 0);
@@ -446,16 +456,19 @@ export const backfillStravaActivities = inngest.createFunction(
       let ctl = 0;
       let atl = 0;
       const current = new Date(firstDay);
+      const allRows: Array<{
+        userId: string; date: Date;
+        totalTss: number; cyclingTss: number; runningTss: number; swimmingTss: number;
+        ctl: number; atl: number; tsb: number;
+      }> = [];
 
       while (current <= today) {
         const key = current.toISOString().split("T")[0];
         const d = tssMap.get(key) ?? { c: 0, r: 0, s: 0, t: 0 };
-
         ctl = ctl + (d.t - ctl) / 42;
         atl = atl + (d.t - atl) / 7;
         const tsb = ctl - atl;
-
-        await db.insert(dailyMetrics).values({
+        allRows.push({
           userId,
           date: new Date(current),
           totalTss: Math.round(d.t * 10) / 10,
@@ -466,10 +479,18 @@ export const backfillStravaActivities = inngest.createFunction(
           atl: Math.round(atl * 10) / 10,
           tsb: Math.round(tsb * 10) / 10,
         });
-
         current.setUTCDate(current.getUTCDate() + 1);
       }
-    });
+
+      // Insert in batches of 500
+      const METRICS_BATCH = 500;
+      for (let i = 0; i < allRows.length; i += METRICS_BATCH) {
+        const chunk = allRows.slice(i, i + METRICS_BATCH);
+        await step.run(`insert-metrics-${Math.floor(i / METRICS_BATCH)}`, async () => {
+          await db.insert(dailyMetrics).values(chunk);
+        });
+      }
+    }
 
     // Update last sync time
     await step.run("update-sync-time", async () => {
