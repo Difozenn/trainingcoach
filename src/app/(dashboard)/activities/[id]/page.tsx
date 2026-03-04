@@ -364,19 +364,49 @@ export default async function ActivityDetailPage({
           </p>
         </div>
 
-        {/* Map + Stats grid */}
+        {/* Map + Charts + Stats grid */}
         <div
-          className={`grid gap-6 ${hasGps ? "lg:grid-cols-[1fr_320px]" : "lg:grid-cols-1 max-w-3xl"}`}
+          className={`grid gap-6 ${hasGps || hasStreams ? "lg:grid-cols-[1fr_320px]" : "lg:grid-cols-1 max-w-3xl"}`}
         >
-          {/* Left: Map */}
-          {hasGps ? (
-            <Card className="overflow-hidden p-0">
-              <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
-            </Card>
-          ) : null}
+          {/* Left column: Map + Charts */}
+          <div className="space-y-6 min-w-0">
+            {hasGps && (
+              <Card className="overflow-hidden p-0">
+                <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
+              </Card>
+            )}
+
+            {hasStreams && (
+              <Card className="p-4 sm:p-5">
+                <CardContent className="p-0">
+                  <ActivityStreamCharts
+                    streams={streamData}
+                    ftp={ftp}
+                    sport={activity.sport}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* W'bal / MPA Breakthrough chart for cycling with power */}
+            {activity.sport === "cycling" && ftp && hasPower && (() => {
+              const powerStream = streams.map((s) => s.powerWatts ?? 0);
+              const pMax = activity.peak5s ?? undefined;
+              const wbalData = calculateWbal(powerStream, ftp, pMax);
+              const downsampled = downsampleWbal(wbalData);
+              if (downsampled.length === 0) return null;
+              return (
+                <Card className="p-4 sm:p-5">
+                  <CardContent className="p-0">
+                    <BreakthroughChart data={downsampled} ftp={ftp} />
+                  </CardContent>
+                </Card>
+              );
+            })()}
+          </div>
 
           {/* Right: Stats sidebar */}
-          <Card className="p-4 sm:p-5">
+          <Card className="p-4 sm:p-5 lg:sticky lg:top-6 lg:self-start">
             <CardContent className="space-y-5 p-0">
               {/* Power section */}
               {activity.sport === "cycling" &&
@@ -570,36 +600,6 @@ export default async function ActivityDetailPage({
             </CardContent>
           </Card>
         </div>
-
-        {/* Stream timeline charts */}
-        {hasStreams ? (
-          <>
-            <Card className="p-4 sm:p-5">
-              <CardContent className="p-0">
-                <ActivityStreamCharts
-                  streams={streamData}
-                  ftp={ftp}
-                  sport={activity.sport}
-                />
-              </CardContent>
-            </Card>
-            {/* W'bal / MPA Breakthrough chart for cycling with power */}
-            {activity.sport === "cycling" && ftp && hasPower && (() => {
-              const powerStream = streams
-                .map((s) => s.powerWatts ?? 0);
-              const wbalData = calculateWbal(powerStream, ftp);
-              const downsampled = downsampleWbal(wbalData);
-              if (downsampled.length === 0) return null;
-              return (
-                <Card className="p-4 sm:p-5">
-                  <CardContent className="p-0">
-                    <BreakthroughChart data={downsampled} ftp={ftp} />
-                  </CardContent>
-                </Card>
-              );
-            })()}
-          </>
-        ) : null}
 
         {/* Zone distribution */}
         {zoneDetails && zoneDetails.some((z) => z.pct > 0) && (

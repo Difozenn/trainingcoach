@@ -7,15 +7,15 @@
  * Depletion: when P > CP, W'bal decreases by (P - CP) per second
  * Recovery:  when P < CP, W'bal recovers proportionally to remaining deficit
  *
- * MPA (Maximal Power Available) = CP + W'bal / τ_mpa
- * Breakthrough = power exceeds MPA with W'bal < 5% of W'max
+ * MPA (Maximal Power Available) = CP + (PP - CP) × (W'bal / W'max)
+ *   where PP = Peak Power (highest instantaneous power the rider can produce)
+ * Breakthrough = power exceeds MPA (suggests fitness signature underestimated)
  *
  * Reference: Skiba PF, et al. "Modeling the expenditure and reconstitution
  * of work capacity above critical power." Med Sci Sports Exerc. 2012.
  */
 
 const W_PRIME_RECOVERY_TAU = 546; // seconds — recovery time constant (Skiba)
-const MPA_TAU = 20; // seconds — MPA smoothing window
 
 export type WbalPoint = {
   time: number; // seconds from start
@@ -27,16 +27,37 @@ export type WbalPoint = {
 
 /**
  * Estimate W' (anaerobic work capacity) from FTP.
- * Typical range: 15-25 kJ for trained cyclists.
- *
- * Uses the relationship: W' ≈ 2.5 × (FTP)^0.535 × 1000
- * Clamped to 10-30 kJ range.
+ * Typical range: 12-26 kJ for trained cyclists.
+ * Uses a linear approximation clamped to a reasonable range.
  */
 export function estimateWPrime(ftp: number): number {
-  // Empirical approximation
-  const wPrimeKJ = 2.5 * Math.pow(ftp, 0.535);
-  const clamped = Math.max(10, Math.min(30, wPrimeKJ));
-  return Math.round(clamped * 1000); // return in joules
+  // Linear approximation: higher FTP → higher W'
+  const wPrimeJ = 7500 + ftp * 45;
+  return Math.max(12000, Math.min(26000, Math.round(wPrimeJ)));
+}
+
+/**
+ * Calculate peak 5-second average power from a power stream.
+ * Used as PP (Peak Power) for the MPA model when no profile data is available.
+ */
+export function peakPowerFromStream(
+  powerStream: number[],
+  windowSeconds: number = 5
+): number {
+  if (powerStream.length < windowSeconds) {
+    return Math.max(...powerStream, 0);
+  }
+  let sum = 0;
+  let maxAvg = 0;
+  for (let i = 0; i < powerStream.length; i++) {
+    sum += powerStream[i];
+    if (i >= windowSeconds) sum -= powerStream[i - windowSeconds];
+    if (i >= windowSeconds - 1) {
+      const avg = sum / windowSeconds;
+      if (avg > maxAvg) maxAvg = avg;
+    }
+  }
+  return Math.round(maxAvg);
 }
 
 /**
@@ -44,20 +65,26 @@ export function estimateWPrime(ftp: number): number {
  *
  * @param powerStream - Second-by-second power in watts
  * @param ftp - Functional Threshold Power (used as CP approximation)
+ * @param pMax - Peak Power in watts (used for MPA calculation; estimated from stream if not provided)
  * @param wPrime - W' in joules (optional, estimated from FTP if not provided)
  * @returns Array of WbalPoint with time, power, W'bal, MPA, and breakthrough flags
  */
 export function calculateWbal(
   powerStream: number[],
   ftp: number,
+  pMax?: number,
   wPrime?: number
 ): WbalPoint[] {
   if (powerStream.length === 0 || ftp <= 0) return [];
 
-  const cp = ftp; // CP ≈ FTP for practical purposes
+  const cp = ftp;
   const wMax = wPrime ?? estimateWPrime(ftp);
-  let wbal = wMax;
+  const pp = pMax ?? peakPowerFromStream(powerStream, 5);
 
+  // Ensure PP > CP (at minimum CP + 100W as fallback)
+  const effectivePP = Math.max(pp, cp + 100);
+
+  let wbal = wMax;
   const results: WbalPoint[] = [];
 
   for (let i = 0; i < powerStream.length; i++) {
@@ -68,7 +95,7 @@ export function calculateWbal(
       wbal -= (power - cp);
     } else {
       // Recovery: Skiba differential model
-      // dW'/dt = (CP - P) × (W'max - W'bal) / W'max × (1/τ)
+      // dW'/dt = (CP - P) × (W'max - W'bal) / (W'max × τ)
       const recovery =
         ((cp - power) * (wMax - wbal)) / (wMax * W_PRIME_RECOVERY_TAU);
       wbal += recovery;
@@ -77,12 +104,13 @@ export function calculateWbal(
     // Clamp W'bal
     wbal = Math.max(0, Math.min(wMax, wbal));
 
-    // MPA = CP + W'bal / τ_mpa
-    // This represents the maximum power that could be sustained RIGHT NOW
-    const mpa = cp + wbal / MPA_TAU;
+    // MPA = CP + (PP - CP) × (W'bal / W'max)
+    // At full W'bal: MPA = PP (peak power)
+    // At empty W'bal: MPA = CP (threshold)
+    const mpa = cp + (effectivePP - cp) * (wbal / wMax);
 
-    // Breakthrough: power exceeds MPA AND W'bal is critically low
-    const isBreakthrough = power > mpa && wbal < wMax * 0.05;
+    // Breakthrough: power exceeds MPA — suggests fitness signature is too low
+    const isBreakthrough = power > mpa;
 
     results.push({
       time: i,

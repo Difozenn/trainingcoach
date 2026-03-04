@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
               `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://js.stripe.com`,
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
-              "img-src 'self' data: blob: https://*.strava.com https://lh3.googleusercontent.com",
+              "img-src 'self' data: blob: https://*.strava.com https://lh3.googleusercontent.com https://*.basemaps.cartocdn.com",
               `connect-src 'self'${isDev ? " ws://localhost:* http://localhost:*" : ""} https://api.stripe.com https://www.strava.com https://connect.garmin.com`,
               "frame-src 'self' https://js.stripe.com",
               "object-src 'none'",
