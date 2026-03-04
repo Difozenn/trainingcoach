@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Star } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   buildPowerProfile,
@@ -235,6 +236,23 @@ export function PowerProfileTab({
                   <p className="text-sm text-muted-foreground mt-1">
                     Average across all durations ({weightKg} kg)
                   </p>
+                  <div className="mt-3 flex items-center gap-0.5">
+                    {Array.from({ length: 7 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < Math.floor(riderProfile.overallLevel)
+                            ? "fill-primary text-primary"
+                            : i < riderProfile.overallLevel
+                              ? "fill-primary/40 text-primary/40"
+                              : "fill-muted text-muted"
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {Math.floor(riderProfile.overallLevel)}/7
+                    </span>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -258,12 +276,23 @@ export function PowerProfileTab({
                         {entry.watts}W
                       </span>
                     </div>
-                    <Badge
-                      variant="secondary"
-                      className={`${CATEGORY_BG_COLORS[catLevel]} ${CATEGORY_COLORS[catLevel]} border-0 text-[11px]`}
-                    >
-                      {entry.category.label}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex gap-px">
+                        {Array.from({ length: 7 }, (_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-2.5 w-2.5 ${
+                              i < catLevel
+                                ? `fill-current ${CATEGORY_COLORS[catLevel]}`
+                                : "fill-muted text-muted"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className={`text-[11px] font-medium ${CATEGORY_COLORS[catLevel]}`}>
+                        {entry.category.label}
+                      </span>
+                    </div>
                   </div>
                 );
               })}
