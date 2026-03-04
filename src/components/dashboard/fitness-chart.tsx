@@ -19,24 +19,25 @@ type TimelinePoint = {
   ctl: number | null;
   atl: number | null;
   tsb: number | null;
+  formPct: number | null;
   cyclingTss: number;
   runningTss: number;
   swimmingTss: number;
 };
 
-// ── Form zones (intervals.icu-style) ───────────────────────────────
+// ── Form zones (intervals.icu-style, percentage-based: TSB/CTL × 100) ──
 
 const FORM_ZONES = [
-  { min: 25, max: 60, label: "Race Ready", color: "#22c55e", opacity: 0.12 },
-  { min: 5, max: 25, label: "Fresh", color: "#4ade80", opacity: 0.06 },
+  { min: 20, max: 100, label: "Detraining", color: "#f97316", opacity: 0.10 },
+  { min: 5, max: 20, label: "Fresh", color: "#3b82f6", opacity: 0.06 },
   { min: -10, max: 5, label: "Grey Zone", color: "#6b7280", opacity: 0.06 },
-  { min: -30, max: -10, label: "Optimal", color: "#3b82f6", opacity: 0.08 },
-  { min: -60, max: -30, label: "High Risk", color: "#ef4444", opacity: 0.10 },
+  { min: -30, max: -10, label: "Optimal", color: "#22c55e", opacity: 0.08 },
+  { min: -100, max: -30, label: "High Risk", color: "#ef4444", opacity: 0.10 },
 ] as const;
 
-function getFormZoneColor(tsb: number): string {
+function getFormZoneColor(formPct: number): string {
   return (
-    FORM_ZONES.find((z) => tsb >= z.min && tsb < z.max)?.color ?? "#ef4444"
+    FORM_ZONES.find((z) => formPct >= z.min && formPct < z.max)?.color ?? "#ef4444"
   );
 }
 
@@ -98,7 +99,7 @@ function MainTooltip({
 
   const ctl = point.ctl;
   const atl = point.atl;
-  const tsb = point.tsb;
+  const formPct = point.formPct;
   const totalTss =
     (point.cyclingTss ?? 0) +
     (point.runningTss ?? 0) +
@@ -123,14 +124,16 @@ function MainTooltip({
             <span className="font-semibold">{Math.round(atl)}</span>
           </span>
         )}
-        {tsb != null && (
+        {formPct != null && (
           <span className="flex items-center gap-1">
             <span
               className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: getFormZoneColor(tsb) }}
+              style={{ backgroundColor: getFormZoneColor(formPct) }}
             />
             <span className="text-muted-foreground">Form</span>
-            <span className="font-semibold">{Math.round(tsb)}</span>
+            <span className="font-semibold">
+              {formPct > 0 ? "+" : ""}{formPct}%
+            </span>
           </span>
         )}
         {totalTss > 0 && (
@@ -147,24 +150,24 @@ function MainTooltip({
   );
 }
 
-// ── Zone-segmented TSB data ─────────────────────────────────────────
+// ── Zone-segmented Form data ────────────────────────────────────────
 
 type ChartRow = TimelinePoint & {
   _zonePad: number | null;
   _zoneGreen: number | null;
-  _tsb0: number | null;
-  _tsb1: number | null;
-  _tsb2: number | null;
-  _tsb3: number | null;
-  _tsb4: number | null;
+  _form0: number | null;
+  _form1: number | null;
+  _form2: number | null;
+  _form3: number | null;
+  _form4: number | null;
 };
 
 function isInZone(
-  tsb: number | null,
+  formPct: number | null,
   zone: (typeof FORM_ZONES)[number]
 ): boolean {
-  if (tsb == null) return false;
-  return tsb >= zone.min && (zone.max >= 60 || tsb < zone.max);
+  if (formPct == null) return false;
+  return formPct >= zone.min && (zone.max >= 100 || formPct < zone.max);
 }
 
 function buildChartData(data: TimelinePoint[]): ChartRow[] {
@@ -175,30 +178,30 @@ function buildChartData(data: TimelinePoint[]): ChartRow[] {
     swimmingTss: d.swimmingTss ?? 0,
     _zonePad: d.ctl != null ? d.ctl : null,
     _zoneGreen: d.ctl != null ? 20 : null,
-    _tsb0: null,
-    _tsb1: null,
-    _tsb2: null,
-    _tsb3: null,
-    _tsb4: null,
+    _form0: null,
+    _form1: null,
+    _form2: null,
+    _form3: null,
+    _form4: null,
   }));
 
-  // Assign TSB to per-zone keys with adjacent overlap for line continuity
-  const keys = ["_tsb0", "_tsb1", "_tsb2", "_tsb3", "_tsb4"] as const;
+  // Assign formPct to per-zone keys with adjacent overlap for line continuity
+  const keys = ["_form0", "_form1", "_form2", "_form3", "_form4"] as const;
   for (let zi = 0; zi < FORM_ZONES.length; zi++) {
     const zone = FORM_ZONES[zi];
     const key = keys[zi];
     for (let i = 0; i < rows.length; i++) {
-      const tsb = rows[i].tsb;
-      if (tsb == null) continue;
-      if (isInZone(tsb, zone)) {
-        rows[i][key] = tsb;
+      const formPct = rows[i].formPct;
+      if (formPct == null) continue;
+      if (isInZone(formPct, zone)) {
+        rows[i][key] = formPct;
         continue;
       }
       // Include boundary points so line segments connect seamlessly
-      const prev = i > 0 ? rows[i - 1].tsb : null;
-      const next = i < rows.length - 1 ? rows[i + 1].tsb : null;
+      const prev = i > 0 ? rows[i - 1].formPct : null;
+      const next = i < rows.length - 1 ? rows[i + 1].formPct : null;
       if (isInZone(prev, zone) || isInZone(next, zone)) {
-        rows[i][key] = tsb;
+        rows[i][key] = formPct;
       }
     }
   }
@@ -233,11 +236,11 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
   const upperDomain =
     Math.ceil((Math.max(maxFitnessZone, maxTss) * 1.1) / 10) * 10 || 50;
 
-  // Form chart domain
-  const minTsb = Math.min(...data.map((d) => d.tsb ?? 0), -30);
-  const maxTsb = Math.max(...data.map((d) => d.tsb ?? 0), 25);
-  const formLower = Math.floor((minTsb - 5) / 10) * 10;
-  const formUpper = Math.ceil((maxTsb + 5) / 10) * 10;
+  // Form chart domain (percentage-based)
+  const minForm = Math.min(...data.map((d) => d.formPct ?? 0), -30);
+  const maxForm = Math.max(...data.map((d) => d.formPct ?? 0), 25);
+  const formLower = Math.floor((minForm - 5) / 10) * 10;
+  const formUpper = Math.ceil((maxForm + 5) / 10) * 10;
 
   return (
     <div>
@@ -352,10 +355,10 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* ── Form (TSB) chart ───────────────────────────────────────── */}
+      {/* ── Form chart (percentage-based) ────────────────────────────── */}
       <div className="mt-2 px-1">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Form
+          Form (TSB/CTL %)
         </span>
       </div>
 
@@ -394,6 +397,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             tickLine={false}
             axisLine={false}
             className="text-muted-foreground"
+            tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip
             content={() => null}
@@ -411,18 +415,18 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           />
 
           <defs>
-            <linearGradient id="tsbFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity={0.25} />
-              <stop offset="45%" stopColor="#6b7280" stopOpacity={0.05} />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.25} />
+            <linearGradient id="formFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#f97316" stopOpacity={0.20} />
+              <stop offset="40%" stopColor="#6b7280" stopOpacity={0.05} />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity={0.20} />
             </linearGradient>
           </defs>
 
-          {/* TSB area fill (neutral, behind the colored lines) */}
+          {/* Form area fill (neutral, behind the colored lines) */}
           <Area
             type="monotone"
-            dataKey="tsb"
-            fill="url(#tsbFill)"
+            dataKey="formPct"
+            fill="url(#formFill)"
             stroke="none"
             dot={false}
             activeDot={false}
@@ -430,12 +434,12 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             legendType="none"
           />
 
-          {/* Zone-colored TSB line segments */}
+          {/* Zone-colored Form line segments */}
           {FORM_ZONES.map((zone, zi) => (
             <Line
               key={zi}
               type="monotone"
-              dataKey={`_tsb${zi}`}
+              dataKey={`_form${zi}`}
               stroke={zone.color}
               strokeWidth={2}
               dot={false}

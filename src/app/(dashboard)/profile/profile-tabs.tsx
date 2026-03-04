@@ -52,6 +52,10 @@ export function ProfileTabs({
     ctl: d.ctl,
     atl: d.atl,
     tsb: d.tsb,
+    formPct:
+      d.ctl && d.ctl > 0 && d.tsb != null
+        ? Math.round((d.tsb / d.ctl) * 100)
+        : null,
     cyclingTss: d.cyclingTss ?? 0,
     runningTss: d.runningTss ?? 0,
     swimmingTss: d.swimmingTss ?? 0,
