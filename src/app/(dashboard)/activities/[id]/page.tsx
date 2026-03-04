@@ -217,7 +217,7 @@ export default async function ActivityDetailPage({
     getActivityById(userId, id),
     getActivityStreams(id),
     getSportProfiles(userId),
-    getUserPeakPowers(userId, 90),
+    getUserPeakPowers(userId),
   ]);
 
   if (!activity) notFound();

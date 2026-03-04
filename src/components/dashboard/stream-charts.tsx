@@ -6,6 +6,7 @@ import {
   ComposedChart,
   LineChart,
   Line,
+  Scatter,
   XAxis,
   YAxis,
   Tooltip,
@@ -319,6 +320,11 @@ export function BreakthroughChart({
 }) {
   if (data.length === 0) return null;
 
+  // Add breakthroughPower field for scatter dots (only where breakthrough occurs)
+  const chartData = data.map((d) => ({
+    ...d,
+    breakthroughPower: d.isBreakthrough ? d.power : null,
+  }));
   const hasBreakthrough = data.some((d) => d.isBreakthrough);
 
   return (
@@ -342,7 +348,7 @@ export function BreakthroughChart({
         </div>
       </div>
       <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="power-bt-grad" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
@@ -396,6 +402,14 @@ export function BreakthroughChart({
             dot={false}
             isAnimationActive={false}
           />
+          {hasBreakthrough && (
+            <Scatter
+              dataKey="breakthroughPower"
+              fill="#ef4444"
+              r={3}
+              isAnimationActive={false}
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
     </div>
