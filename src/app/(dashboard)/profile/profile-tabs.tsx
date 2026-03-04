@@ -107,14 +107,31 @@ export function ProfileTabs({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">
-                  {timeline.at(-1)?.tsb != null
-                    ? Math.round(timeline.at(-1)!.tsb!)
-                    : "--"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Today&apos;s TSB
-                </p>
+                {(() => {
+                  const lastCtl = timeline.at(-1)?.ctl;
+                  const lastTsb = timeline.at(-1)?.tsb;
+                  if (lastCtl == null || lastTsb == null || lastCtl === 0)
+                    return <p className="text-2xl font-bold">--</p>;
+                  const formPct = Math.round((lastTsb / lastCtl) * 100);
+                  const label =
+                    formPct < -30 ? "High Risk" :
+                    formPct < -10 ? "Optimal" :
+                    formPct < 5 ? "Grey Zone" :
+                    formPct < 20 ? "Fresh" : "Detraining";
+                  const color =
+                    formPct < -30 ? "text-red-500" :
+                    formPct < -10 ? "text-green-500" :
+                    formPct < 5 ? "text-muted-foreground" :
+                    formPct < 20 ? "text-blue-500" : "text-orange-500";
+                  return (
+                    <>
+                      <p className={`text-2xl font-bold ${color}`}>
+                        {formPct > 0 ? "+" : ""}{formPct}%
+                      </p>
+                      <p className={`text-xs font-medium ${color}`}>{label}</p>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
             <Card>
