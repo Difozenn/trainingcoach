@@ -94,6 +94,8 @@ export function calculateWbal(
   const pp = opts?.pMax ?? peakPowerFromStream(powerStream, 5);
   const effectivePP = Math.max(pp, cp + 100);
 
+  const MIN_BREACH_SECONDS = 5; // Xert-style: must sustain power > MPA for 5s+
+
   let wbal = wMax;
   const results: WbalPoint[] = [];
 
@@ -117,16 +119,46 @@ export function calculateWbal(
     // MPA = CP + (PP - CP) × (W'bal / W'max)
     const mpa = cp + (effectivePP - cp) * (wbal / wMax);
 
-    // Breakthrough: power exceeds MPA
-    const isBreakthrough = power > mpa;
-
     results.push({
       time: i,
       power,
       wbal: Math.round(wbal),
       mpa: Math.round(mpa),
-      isBreakthrough,
+      isBreakthrough: false,
     });
+  }
+
+  // Find breach zones: continuous periods where power > MPA
+  // Only mark as breakthrough if sustained for MIN_BREACH_SECONDS+
+  let bestZonePeakIdx = -1;
+  let bestZonePeakDelta = 0;
+  let zoneStart = -1;
+
+  for (let i = 0; i <= results.length; i++) {
+    const breaching = i < results.length && results[i].power > results[i].mpa;
+
+    if (breaching && zoneStart < 0) {
+      zoneStart = i; // start of a new breach zone
+    } else if (!breaching && zoneStart >= 0) {
+      // End of breach zone — check if it lasted long enough
+      const zoneDuration = i - zoneStart;
+      if (zoneDuration >= MIN_BREACH_SECONDS) {
+        // Find peak delta within this zone
+        for (let j = zoneStart; j < i; j++) {
+          const delta = results[j].power - results[j].mpa;
+          if (delta > bestZonePeakDelta) {
+            bestZonePeakDelta = delta;
+            bestZonePeakIdx = j;
+          }
+        }
+      }
+      zoneStart = -1;
+    }
+  }
+
+  // Mark only the single most significant breakthrough point
+  if (bestZonePeakIdx >= 0) {
+    results[bestZonePeakIdx].isBreakthrough = true;
   }
 
   return results;
