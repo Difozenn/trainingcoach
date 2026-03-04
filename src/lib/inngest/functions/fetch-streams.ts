@@ -16,9 +16,7 @@ import {
 import { StravaRateLimitError } from "@/lib/integrations/strava/client";
 import type { StravaStreamSet } from "@/lib/integrations/strava";
 import { calculateNormalizedPower } from "@/lib/engine/cycling/normalized-power";
-import { calculateTSS } from "@/lib/engine/cycling/tss";
-import { estimateFTPFrom20Min } from "@/lib/engine/cycling/tss";
-import { getEffectiveFTP } from "@/lib/engine/cycling/ftp-model";
+import { calculateTSS, estimateFTPFrom20MinWithHR } from "@/lib/engine/cycling/tss";
 import { calculatePeakPowers } from "@/lib/engine/cycling/power-profile";
 
 /**
@@ -162,7 +160,7 @@ export const fetchSingleStream = inngest.createFunction(
       return { status: "activity_gone", activityId };
     }
 
-    // Store stream blob + recalculate cycling metrics
+    // Store stream blob + recalculate cycling metrics (stable FTP — no decay)
     const metricsUpdate = await step.run("store-and-calculate", async () => {
       const update: Record<string, unknown> = { streamData: streamBlob };
 
@@ -170,28 +168,33 @@ export const fetchSingleStream = inngest.createFunction(
           const powerStream = streamBlob.watts;
           const np = calculateNormalizedPower(powerStream);
 
-          const [lastThreshold] = await db
-            .select({ value: thresholdHistory.value, detectedAt: thresholdHistory.detectedAt })
-            .from(thresholdHistory)
+          // Get current stable FTP from sport profile
+          const [profile] = await db
+            .select({ ftp: sportProfiles.ftp })
+            .from(sportProfiles)
             .where(
               and(
-                eq(thresholdHistory.userId, userId),
-                eq(thresholdHistory.sport, "cycling"),
-                eq(thresholdHistory.metricName, "ftp")
+                eq(sportProfiles.userId, userId),
+                eq(sportProfiles.sport, "cycling")
               )
             )
-            .orderBy(desc(thresholdHistory.detectedAt))
             .limit(1);
 
-          const activityDate = new Date(activity.startedAt);
-          const effectiveFtp = lastThreshold
-            ? getEffectiveFTP(lastThreshold.value, lastThreshold.detectedAt, activityDate)
-            : 0;
+          let currentFtp = profile?.ftp ?? 0;
 
-          const ftpFrom20 = estimateFTPFrom20Min(powerStream);
-          let ftpForTss = effectiveFtp;
-
-          if (ftpFrom20 && ftpFrom20 > effectiveFtp) {
+          // Check for FTP breakthrough from best 20-min power (HR-adjusted)
+          const [athleteProfile] = await db
+            .select({ maxHr: sql<number | null>`(SELECT max_hr FROM athlete_profiles WHERE user_id = ${userId})` })
+            .from(sportProfiles)
+            .where(and(eq(sportProfiles.userId, userId), eq(sportProfiles.sport, "cycling")))
+            .limit(1);
+          const hrResult = estimateFTPFrom20MinWithHR(
+            powerStream,
+            streamBlob.heartrate,
+            athleteProfile?.maxHr,
+          );
+          const ftpFrom20 = hrResult?.ftpHrAdjusted ?? hrResult?.ftp ?? null;
+          if (ftpFrom20 && ftpFrom20 > currentFtp) {
             await db.insert(thresholdHistory).values({
               userId,
               sport: "cycling",
@@ -199,9 +202,8 @@ export const fetchSingleStream = inngest.createFunction(
               value: ftpFrom20,
               source: "auto_detect",
               activityId: externalId,
-              detectedAt: activityDate,
+              detectedAt: new Date(activity.startedAt),
             });
-            ftpForTss = ftpFrom20;
 
             await db
               .update(sportProfiles)
@@ -215,18 +217,19 @@ export const fetchSingleStream = inngest.createFunction(
 
             logger.info("FTP breakthrough detected", {
               activityId,
-              oldFtp: effectiveFtp,
+              oldFtp: currentFtp,
               newFtp: ftpFrom20,
             });
+            currentFtp = ftpFrom20;
           }
 
-          if (np && ftpForTss > 0) {
-            const tssResult = calculateTSS(powerStream, ftpForTss);
+          if (np && currentFtp > 0) {
+            const tssResult = calculateTSS(powerStream, currentFtp);
             Object.assign(update, {
               normalizedPower: np,
               intensityFactor: tssResult?.intensityFactor ?? null,
               tss: tssResult?.tss ?? null,
-              ftpUsed: ftpForTss,
+              ftpUsed: currentFtp,
             });
           } else if (np) {
             update.normalizedPower = np;
@@ -247,6 +250,55 @@ export const fetchSingleStream = inngest.createFunction(
         await db.update(activities).set(update).where(eq(activities.id, activityId));
         return Object.keys(update);
     });
+
+    // After storing peak powers, recalculate rolling 90-day FTP
+    // This allows FTP to naturally decrease as old peaks expire
+    if (activity.sport === "cycling") {
+      await step.run("update-rolling-ftp", async () => {
+        const [best] = await db
+          .select({ maxPeak: sql<number>`MAX(${activities.peak20m})` })
+          .from(activities)
+          .where(
+            and(
+              eq(activities.userId, userId),
+              eq(activities.sport, "cycling"),
+              sql`${activities.peak20m} IS NOT NULL`,
+              sql`${activities.startedAt} > NOW() - INTERVAL '90 days'`
+            )
+          );
+
+        if (!best?.maxPeak) return;
+
+        const rollingFtp = Math.round(best.maxPeak * 0.95);
+        const [profile] = await db
+          .select({ ftp: sportProfiles.ftp })
+          .from(sportProfiles)
+          .where(
+            and(
+              eq(sportProfiles.userId, userId),
+              eq(sportProfiles.sport, "cycling")
+            )
+          )
+          .limit(1);
+
+        if (profile && profile.ftp !== rollingFtp) {
+          await db
+            .update(sportProfiles)
+            .set({ ftp: rollingFtp, updatedAt: new Date() })
+            .where(
+              and(
+                eq(sportProfiles.userId, userId),
+                eq(sportProfiles.sport, "cycling")
+              )
+            );
+          logger.info("Rolling FTP updated", {
+            oldFtp: profile.ftp,
+            newFtp: rollingFtp,
+            bestPeak20m: best.maxPeak,
+          });
+        }
+      });
+    }
 
     logger.info("Stream fetch complete", {
       activityId,

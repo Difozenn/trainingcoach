@@ -76,11 +76,32 @@ export function estimateTSSFromAvgPower(
  * @returns Estimated FTP in watts
  */
 export function estimateFTPFrom20Min(powerStream: number[]): number | null {
+  const result = estimateFTPFrom20MinWithHR(powerStream);
+  return result?.ftp ?? null;
+}
+
+/**
+ * Estimate FTP from a maximal 20-minute effort, with optional HR adjustment.
+ *
+ * Base: FTP = best 20-min average power × 0.95
+ *
+ * HR adjustment: if the athlete's avg HR during the best 20-min window was
+ * below LTHR, the effort wasn't truly maximal. Scale up proportionally:
+ *   adjustedFTP = baseFTP × (LTHR / avgHR_during_window)
+ *
+ * LTHR defaults to 92% of max HR (well-trained athlete reference).
+ */
+export function estimateFTPFrom20MinWithHR(
+  powerStream: number[],
+  hrStream?: number[],
+  maxHr?: number | null,
+  lthr?: number | null,
+): { ftp: number; ftpHrAdjusted: number | null; avgHrWindow: number | null; bestStart: number } | null {
   if (powerStream.length < 20 * 60) return null;
 
-  // Find best 20-minute window
   const windowSize = 20 * 60;
   let maxAvg = 0;
+  let bestStart = 0;
   let windowSum = 0;
 
   for (let i = 0; i < powerStream.length; i++) {
@@ -90,12 +111,43 @@ export function estimateFTPFrom20Min(powerStream: number[]): number | null {
     }
     if (i >= windowSize - 1) {
       const avg = windowSum / windowSize;
-      if (avg > maxAvg) maxAvg = avg;
+      if (avg > maxAvg) {
+        maxAvg = avg;
+        bestStart = i - windowSize + 1;
+      }
     }
   }
 
   if (maxAvg === 0) return null;
 
-  // FTP = 95% of 20-minute power
-  return Math.round(maxAvg * 0.95);
+  const ftp = Math.round(maxAvg * 0.95);
+
+  // HR adjustment
+  if (!hrStream || hrStream.length < bestStart + windowSize || !maxHr || maxHr <= 0) {
+    return { ftp, ftpHrAdjusted: null, avgHrWindow: null, bestStart };
+  }
+
+  const estimatedLthr = lthr ?? Math.round(maxHr * 0.92);
+
+  let hrSum = 0;
+  let hrCount = 0;
+  for (let i = bestStart; i < bestStart + windowSize; i++) {
+    if (hrStream[i] > 0) { hrSum += hrStream[i]; hrCount++; }
+  }
+
+  if (hrCount === 0) {
+    return { ftp, ftpHrAdjusted: null, avgHrWindow: null, bestStart };
+  }
+
+  const avgHrWindow = hrSum / hrCount;
+
+  // Only adjust upward when effort was sub-threshold
+  if (avgHrWindow >= estimatedLthr) {
+    return { ftp, ftpHrAdjusted: ftp, avgHrWindow: Math.round(avgHrWindow), bestStart };
+  }
+
+  const scaleFactor = Math.min(1.15, estimatedLthr / avgHrWindow); // cap at 15% adjustment
+  const ftpHrAdjusted = Math.round(maxAvg * 0.95 * scaleFactor);
+
+  return { ftp, ftpHrAdjusted, avgHrWindow: Math.round(avgHrWindow), bestStart };
 }
