@@ -5,17 +5,17 @@
  * W' = total work capacity above CP (Critical Power ≈ FTP).
  *
  * Depletion: when P > CP, W'bal decreases by (P - CP) per second
- * Recovery:  when P < CP, W'bal recovers proportionally to remaining deficit
+ * Recovery:  when P < CP, W'bal recovers exponentially toward W'max
+ *            dW'bal = (W'max - W'bal) × (1 - e^(-1/tau))
+ *            tau = 546 × e^(-0.01 × (CP - P)) + 316.18  (Skiba 2012)
  *
  * MPA (Maximal Power Available) = CP + (PP - CP) × (W'bal / W'max)
- *   where PP = Peak Power (highest instantaneous power the rider can produce)
+ *   where PP = Peak Power (highest ~5s power the rider can produce)
  * Breakthrough = power exceeds MPA (suggests fitness signature underestimated)
  *
  * Reference: Skiba PF, et al. "Modeling the expenditure and reconstitution
  * of work capacity above critical power." Med Sci Sports Exerc. 2012.
  */
-
-const W_PRIME_RECOVERY_TAU = 546; // seconds — recovery time constant (Skiba)
 
 export type WbalPoint = {
   time: number; // seconds from start
@@ -26,19 +26,20 @@ export type WbalPoint = {
 };
 
 /**
- * Estimate W' (anaerobic work capacity) from FTP.
- * Typical range: 12-26 kJ for trained cyclists.
- * Uses a linear approximation clamped to a reasonable range.
+ * Estimate W' (anaerobic work capacity) from FTP alone.
+ * Fallback when no peak 5-min data is available.
+ * Typical range: 15-30 kJ for trained cyclists.
  */
-export function estimateWPrime(ftp: number): number {
-  // Linear approximation: higher FTP → higher W'
-  const wPrimeJ = 7500 + ftp * 45;
-  return Math.max(12000, Math.min(26000, Math.round(wPrimeJ)));
+function estimateWPrimeFromFtp(ftp: number): number {
+  // Rough approximation: W' ~ 200 * FTP^0.5
+  // At FTP=250 → ~19.9kJ, FTP=330 → ~22.9kJ
+  const wPrime = 200 * Math.sqrt(ftp);
+  return Math.max(10000, Math.min(35000, Math.round(wPrime)));
 }
 
 /**
- * Calculate peak 5-second average power from a power stream.
- * Used as PP (Peak Power) for the MPA model when no profile data is available.
+ * Calculate peak N-second average power from a power stream.
+ * Used as PP (Peak Power) fallback when no profile data is available.
  */
 export function peakPowerFromStream(
   powerStream: number[],
@@ -64,24 +65,33 @@ export function peakPowerFromStream(
  * Calculate W'bal for an entire power stream using the differential model.
  *
  * @param powerStream - Second-by-second power in watts
- * @param ftp - Functional Threshold Power (used as CP approximation)
- * @param pMax - Peak Power in watts (used for MPA calculation; estimated from stream if not provided)
- * @param wPrime - W' in joules (optional, estimated from FTP if not provided)
- * @returns Array of WbalPoint with time, power, W'bal, MPA, and breakthrough flags
+ * @param ftp - Functional Threshold Power (used as CP)
+ * @param opts.pMax - Peak 5s power (for MPA ceiling); falls back to stream peak
+ * @param opts.peak5m - Peak 5-min power (for W' derivation via CP model)
+ * @param opts.wPrime - Explicit W' in joules (overrides peak5m derivation)
  */
 export function calculateWbal(
   powerStream: number[],
   ftp: number,
-  pMax?: number,
-  wPrime?: number
+  opts?: { pMax?: number; peak5m?: number; wPrime?: number }
 ): WbalPoint[] {
   if (powerStream.length === 0 || ftp <= 0) return [];
 
   const cp = ftp;
-  const wMax = wPrime ?? estimateWPrime(ftp);
-  const pp = pMax ?? peakPowerFromStream(powerStream, 5);
 
-  // Ensure PP > CP (at minimum CP + 100W as fallback)
+  // W' priority: explicit > derived from peak 5min > generic estimate
+  let wMax: number;
+  if (opts?.wPrime != null && opts.wPrime > 0) {
+    wMax = opts.wPrime;
+  } else if (opts?.peak5m != null && opts.peak5m > cp) {
+    // P(t) = CP + W'/t → W' = (P5min - CP) × 300
+    wMax = (opts.peak5m - cp) * 300;
+  } else {
+    wMax = estimateWPrimeFromFtp(ftp);
+  }
+
+  // PP (peak power for MPA ceiling)
+  const pp = opts?.pMax ?? peakPowerFromStream(powerStream, 5);
   const effectivePP = Math.max(pp, cp + 100);
 
   let wbal = wMax;
@@ -91,25 +101,23 @@ export function calculateWbal(
     const power = powerStream[i];
 
     if (power > cp) {
-      // Depletion: W'bal decreases by power above CP
+      // Depletion: linear, 1 joule per watt above CP per second
       wbal -= (power - cp);
     } else {
-      // Recovery: Skiba differential model
-      // dW'/dt = (CP - P) × (W'max - W'bal) / (W'max × τ)
-      const recovery =
-        ((cp - power) * (wMax - wbal)) / (wMax * W_PRIME_RECOVERY_TAU);
+      // Recovery: Skiba exponential model with power-dependent tau
+      // tau = 546 × e^(-0.01 × (CP - P)) + 316.18
+      const tau = 546 * Math.exp(-0.01 * (cp - power)) + 316.18;
+      const recovery = (wMax - wbal) * (1 - Math.exp(-1 / tau));
       wbal += recovery;
     }
 
-    // Clamp W'bal
+    // Clamp W'bal to [0, W'max]
     wbal = Math.max(0, Math.min(wMax, wbal));
 
     // MPA = CP + (PP - CP) × (W'bal / W'max)
-    // At full W'bal: MPA = PP (peak power)
-    // At empty W'bal: MPA = CP (threshold)
     const mpa = cp + (effectivePP - cp) * (wbal / wMax);
 
-    // Breakthrough: power exceeds MPA — suggests fitness signature is too low
+    // Breakthrough: power exceeds MPA
     const isBreakthrough = power > mpa;
 
     results.push({

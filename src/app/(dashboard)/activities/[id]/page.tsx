@@ -20,6 +20,7 @@ import {
   getActivityStreams,
   getDailyMetricsForDate,
   getSportProfiles,
+  getUserPeakPowers,
 } from "@/lib/data/queries";
 import {
   formatDuration,
@@ -212,10 +213,11 @@ export default async function ActivityDetailPage({
   const userId = session.user.id;
 
   // Parallel data fetch
-  const [activity, streams, profiles] = await Promise.all([
+  const [activity, streams, profiles, recentPeaks] = await Promise.all([
     getActivityById(userId, id),
     getActivityStreams(id),
     getSportProfiles(userId),
+    getUserPeakPowers(userId, 90),
   ]);
 
   if (!activity) notFound();
@@ -391,8 +393,10 @@ export default async function ActivityDetailPage({
             {/* W'bal / MPA Breakthrough chart for cycling with power */}
             {activity.sport === "cycling" && ftp && hasPower && (() => {
               const powerStream = streams.map((s) => s.powerWatts ?? 0);
-              const pMax = activity.peak5s ?? undefined;
-              const wbalData = calculateWbal(powerStream, ftp, pMax);
+              const wbalData = calculateWbal(powerStream, ftp, {
+                pMax: recentPeaks?.peaks["5s"] ?? undefined,
+                peak5m: recentPeaks?.peaks["5m"] ?? undefined,
+              });
               const downsampled = downsampleWbal(wbalData);
               if (downsampled.length === 0) return null;
               return (
