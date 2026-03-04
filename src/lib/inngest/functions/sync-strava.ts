@@ -26,6 +26,7 @@ import { calculateNGP } from "@/lib/engine/running/normalized-graded-pace";
 import { calculateSTSS } from "@/lib/engine/swimming/stss";
 import { calculateHrTSS } from "@/lib/engine/shared/trimp";
 import { updateDailyMetrics as computeDailyUpdate } from "@/lib/engine/shared/fatigue-model";
+import { calculatePeakPowers } from "@/lib/engine/cycling/power-profile";
 
 /**
  * Process a Strava webhook event.
@@ -675,9 +676,24 @@ async function storeActivityStreams(
   if (streams.latlng?.data) blob.latlng = streams.latlng.data;
   if (streams.grade_smooth?.data) blob.grade_smooth = streams.grade_smooth.data;
 
+  const update: Record<string, unknown> = { streamData: blob };
+
+  // Calculate peak powers if this is a cycling activity with power data
+  if (blob.watts?.length) {
+    const peaks = calculatePeakPowers(blob.watts);
+    if (peaks.peak5s != null) update.peak5s = peaks.peak5s;
+    if (peaks.peak15s != null) update.peak15s = peaks.peak15s;
+    if (peaks.peak30s != null) update.peak30s = peaks.peak30s;
+    if (peaks.peak1m != null) update.peak1m = peaks.peak1m;
+    if (peaks.peak5m != null) update.peak5m = peaks.peak5m;
+    if (peaks.peak10m != null) update.peak10m = peaks.peak10m;
+    if (peaks.peak20m != null) update.peak20m = peaks.peak20m;
+    if (peaks.peak60m != null) update.peak60m = peaks.peak60m;
+  }
+
   await db
     .update(activities)
-    .set({ streamData: blob })
+    .set(update)
     .where(eq(activities.id, activityId));
 }
 

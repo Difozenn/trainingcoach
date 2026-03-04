@@ -19,6 +19,7 @@ import { calculateNormalizedPower } from "@/lib/engine/cycling/normalized-power"
 import { calculateTSS } from "@/lib/engine/cycling/tss";
 import { estimateFTPFrom20Min } from "@/lib/engine/cycling/tss";
 import { getEffectiveFTP } from "@/lib/engine/cycling/ftp-model";
+import { calculatePeakPowers } from "@/lib/engine/cycling/power-profile";
 
 /**
  * Fetch streams for a single activity from Strava.
@@ -230,6 +231,17 @@ export const fetchSingleStream = inngest.createFunction(
           } else if (np) {
             update.normalizedPower = np;
           }
+
+          // Calculate peak powers (MMP) at standard durations
+          const peaks = calculatePeakPowers(powerStream);
+          if (peaks.peak5s != null) update.peak5s = peaks.peak5s;
+          if (peaks.peak15s != null) update.peak15s = peaks.peak15s;
+          if (peaks.peak30s != null) update.peak30s = peaks.peak30s;
+          if (peaks.peak1m != null) update.peak1m = peaks.peak1m;
+          if (peaks.peak5m != null) update.peak5m = peaks.peak5m;
+          if (peaks.peak10m != null) update.peak10m = peaks.peak10m;
+          if (peaks.peak20m != null) update.peak20m = peaks.peak20m;
+          if (peaks.peak60m != null) update.peak60m = peaks.peak60m;
         }
 
         await db.update(activities).set(update).where(eq(activities.id, activityId));

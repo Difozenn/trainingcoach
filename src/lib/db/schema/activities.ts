@@ -74,6 +74,16 @@ export const activities = pgTable(
     // FTP used for this activity's TSS calculation (cycling only)
     ftpUsed: integer("ftp_used"),
 
+    // Peak power (MMP) at standard durations (cycling only, watts)
+    peak5s: integer("peak_5s"),
+    peak15s: integer("peak_15s"),
+    peak30s: integer("peak_30s"),
+    peak1m: integer("peak_1m"),
+    peak5m: integer("peak_5m"),
+    peak10m: integer("peak_10m"),
+    peak20m: integer("peak_20m"),
+    peak60m: integer("peak_60m"),
+
     // Stream data — stored as compressed JSONB blob instead of rows
     streamData: jsonb("stream_data").$type<StreamDataBlob>(),
 

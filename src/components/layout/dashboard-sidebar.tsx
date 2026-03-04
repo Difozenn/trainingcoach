@@ -32,7 +32,7 @@ import { signOut } from "next-auth/react";
 
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Fitness", href: "/fitness", icon: TrendingUp },
+  { label: "Profile", href: "/profile", icon: TrendingUp },
   { label: "Calendar", href: "/calendar", icon: Calendar },
   { label: "Activities", href: "/activities", icon: Activity },
   { label: "Zones", href: "/zones", icon: Target },

@@ -386,6 +386,84 @@ export async function getActivityStreams(activityId: string) {
   }));
 }
 
+// ── Power Profile ──────────────────────────────────────────────────
+
+export async function getUserPeakPowers(userId: string, days?: number) {
+  // Build conditions: user + cycling + optional time range
+  const conditions = [
+    eq(activities.userId, userId),
+    eq(activities.sport, "cycling"),
+  ];
+  if (days && days < 9999) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    conditions.push(gte(activities.startedAt, startDate));
+  }
+
+  const [row] = await db
+    .select({
+      peak5s: sql<number | null>`max(${activities.peak5s})`,
+      peak15s: sql<number | null>`max(${activities.peak15s})`,
+      peak30s: sql<number | null>`max(${activities.peak30s})`,
+      peak1m: sql<number | null>`max(${activities.peak1m})`,
+      peak5m: sql<number | null>`max(${activities.peak5m})`,
+      peak10m: sql<number | null>`max(${activities.peak10m})`,
+      peak20m: sql<number | null>`max(${activities.peak20m})`,
+      peak60m: sql<number | null>`max(${activities.peak60m})`,
+    })
+    .from(activities)
+    .where(and(...conditions));
+
+  if (!row) return null;
+
+  // For each peak, find the date of the activity with that peak
+  const peakDates: Record<string, Date | null> = {};
+  const peakColumns = [
+    { key: "5s", col: activities.peak5s, val: row.peak5s },
+    { key: "15s", col: activities.peak15s, val: row.peak15s },
+    { key: "30s", col: activities.peak30s, val: row.peak30s },
+    { key: "1m", col: activities.peak1m, val: row.peak1m },
+    { key: "5m", col: activities.peak5m, val: row.peak5m },
+    { key: "10m", col: activities.peak10m, val: row.peak10m },
+    { key: "20m", col: activities.peak20m, val: row.peak20m },
+    { key: "60m", col: activities.peak60m, val: row.peak60m },
+  ] as const;
+
+  for (const { key, col, val } of peakColumns) {
+    if (val == null) {
+      peakDates[key] = null;
+      continue;
+    }
+    const [dateRow] = await db
+      .select({ startedAt: activities.startedAt })
+      .from(activities)
+      .where(
+        and(
+          eq(activities.userId, userId),
+          eq(activities.sport, "cycling"),
+          eq(col, val)
+        )
+      )
+      .orderBy(desc(activities.startedAt))
+      .limit(1);
+    peakDates[key] = dateRow?.startedAt ?? null;
+  }
+
+  return {
+    peaks: {
+      "5s": row.peak5s ? Number(row.peak5s) : null,
+      "15s": row.peak15s ? Number(row.peak15s) : null,
+      "30s": row.peak30s ? Number(row.peak30s) : null,
+      "1m": row.peak1m ? Number(row.peak1m) : null,
+      "5m": row.peak5m ? Number(row.peak5m) : null,
+      "10m": row.peak10m ? Number(row.peak10m) : null,
+      "20m": row.peak20m ? Number(row.peak20m) : null,
+      "60m": row.peak60m ? Number(row.peak60m) : null,
+    },
+    dates: peakDates,
+  };
+}
+
 export async function getDailyMetricsForDate(userId: string, date: Date) {
   const dayStart = new Date(date);
   dayStart.setHours(0, 0, 0, 0);
