@@ -99,10 +99,10 @@ export default async function FitnessPage({
                 Form
               </p>
               <p className={`mt-1 text-2xl font-semibold tabular-nums ${formColor}`}>
-                {lastTsb != null ? `${lastTsb > 0 ? "+" : ""}${Math.round(lastTsb)}` : "--"}
+                {formPct != null ? `${formPct > 0 ? "+" : ""}${formPct}%` : "--"}
               </p>
               <p className={`text-[10px] ${formColor || "text-muted-foreground"}`}>
-                {formLabel ?? "TSB"}
+                {formLabel ?? "TSB / CTL"}
               </p>
             </div>
           </div>
