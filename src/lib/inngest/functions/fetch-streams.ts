@@ -281,7 +281,7 @@ export const fetchSingleStream = inngest.createFunction(
           )
           .limit(1);
 
-        if (profile && profile.ftp !== rollingFtp) {
+        if (profile && rollingFtp > (profile.ftp ?? 0)) {
           await db
             .update(sportProfiles)
             .set({ ftp: rollingFtp, updatedAt: new Date() })
