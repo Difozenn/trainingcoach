@@ -7,13 +7,25 @@ export type { AthleteState, SafetyDecision } from "./decision-engine";
 export {
   generateEventPeriodization,
   generateAutoProgressivePlan,
+  detectSubPhase,
+  getRecoveryPattern,
+  isRecoveryWeek,
 } from "./periodization";
-export type { Phase, PhaseConfig } from "./periodization";
+export type { Phase, SubPhase, PhaseConfig } from "./periodization";
 export {
   generateCyclingWorkout,
   generateRunningWorkout,
   generateSwimmingWorkout,
+  calculateWorkoutTss,
 } from "./workout-generator";
 export type { WorkoutTemplate } from "./workout-generator";
 export { generateWeeklyPlan } from "./weekly-planner";
 export type { WeeklyPlanInput, WeeklyPlanOutput } from "./weekly-planner";
+export type { AthleteLevel } from "./progression";
+export {
+  getProgression,
+  getProgressionIndex,
+  SWEET_SPOT_LADDER,
+  THRESHOLD_LADDER,
+  VO2MAX_LADDER,
+} from "./progression";

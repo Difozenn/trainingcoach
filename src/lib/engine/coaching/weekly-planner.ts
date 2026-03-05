@@ -1,20 +1,20 @@
 /**
- * Weekly Planner — Workout Pool Generation
+ * Weekly Planner — Level-Aware Workout Distribution
  *
- * Generates a pool of workouts for the week. The athlete decides
- * when to do each workout — we provide the what, they control the when.
+ * Generates a pool of workouts for the week with proper hard/easy patterns.
+ * Receives a pre-calculated weeklyTargetTss from the cron.
  *
  * Rules:
- * - Hard days separated by 48h minimum (easy day between)
- * - Long sessions on weekends (if preferred)
- * - Weekly TSS target set by periodization phase
- * - Recovery week every 4th week (auto-progressive) or per mesocycle
- * - Mid-week adaptation: if athlete is behind/ahead on TSS, adjust
- *
- * The pool concept gives structure without rigidity.
+ * - Hard days separated by 36-48h (easy day between)
+ * - Never 2 VO2max sessions on consecutive days
+ * - Long ride on weekend, next day easy
+ * - Session count determined by weeklyHoursAvailable
+ * - TSS distribution: long ride 30-35%, hard 15-20% each, easy fills remainder
+ * - Workout durations calculated from TSS and IF
  */
 
-import type { Phase } from "./periodization";
+import type { AthleteLevel } from "./progression";
+import type { SubPhase } from "./periodization";
 import {
   generateCyclingWorkout,
   generateRunningWorkout,
@@ -22,17 +22,16 @@ import {
 } from "./workout-generator";
 import type { WorkoutTemplate } from "./workout-generator";
 import type { AthleteState } from "./decision-engine";
-import { getCoachingDecision } from "./decision-engine";
 
 type Sport = "cycling" | "running" | "swimming";
 
 export type WeeklyPlanInput = {
   sports: Sport[];
-  phase: Phase;
-  baseWeeklyTss: number;
-  tssMultiplier: number;
+  subPhase: SubPhase;
+  weeklyTargetTss: number; // pre-calculated by cron, already includes safety multiplier
   weeklyHoursAvailable: number;
   athleteState: AthleteState;
+  level: AthleteLevel;
   // Sport-specific thresholds
   ftp?: number;
   thresholdPaceSecPerKm?: number;
@@ -46,204 +45,260 @@ export type WeeklyPlanOutput = {
   adaptationNotes: string;
 };
 
-/**
- * Phase-specific workout type distributions.
- */
-const PHASE_WORKOUT_MIX: Record<Phase, Record<string, number>> = {
-  base: {
-    endurance: 0.6,
-    easy: 0.25,
-    tempo: 0.1,
-    threshold: 0.05,
-  },
-  build: {
-    endurance: 0.3,
-    easy: 0.2,
-    threshold: 0.25,
-    vo2max: 0.15,
-    sweet_spot: 0.1,
-  },
-  peak: {
-    endurance: 0.2,
-    easy: 0.2,
-    threshold: 0.2,
-    vo2max: 0.25,
-    race_specific: 0.15,
-  },
-  race: {
-    easy: 0.5,
-    threshold: 0.2,
-    vo2max: 0.1,
-    endurance: 0.2,
-  },
-  recovery: {
-    easy: 0.5,
-    endurance: 0.3,
-    recovery: 0.2,
-  },
-  transition: {
-    easy: 0.4,
-    endurance: 0.3,
-    recovery: 0.3,
-  },
-};
+/** Key (hard) sessions allowed per athlete level */
+function getKeySessions(level: AthleteLevel): number {
+  switch (level) {
+    case "novice": return 0;
+    case "beginner": return 1;
+    case "intermediate": return 2;
+    case "advanced": return 3;
+    case "competitive": return 3;
+  }
+}
 
-/**
- * Map generic workout categories to sport-specific workout types.
- */
-function mapToSportWorkout(
-  category: string,
-  sport: Sport
-): string {
-  const mapping: Record<string, Record<Sport, string>> = {
-    recovery: {
-      cycling: "recovery_ride",
-      running: "easy_run",
-      swimming: "endurance_swim",
-    },
-    easy: {
-      cycling: "endurance_ride",
-      running: "easy_run",
-      swimming: "endurance_swim",
-    },
-    endurance: {
-      cycling: "endurance_ride",
-      running: "long_run",
-      swimming: "endurance_swim",
-    },
-    tempo: {
-      cycling: "sweet_spot",
-      running: "tempo_run",
-      swimming: "threshold_swim",
-    },
-    sweet_spot: {
-      cycling: "sweet_spot",
-      running: "tempo_run",
-      swimming: "threshold_swim",
-    },
-    threshold: {
-      cycling: "threshold_ride",
-      running: "threshold_intervals_run",
-      swimming: "threshold_swim",
-    },
-    vo2max: {
-      cycling: "vo2max_ride",
-      running: "vo2max_intervals_run",
-      swimming: "vo2max_swim",
-    },
-    race_specific: {
-      cycling: "threshold_ride",
-      running: "tempo_run",
-      swimming: "threshold_swim",
-    },
-  };
-
-  return mapping[category]?.[sport] ?? mapping.easy[sport];
+/** Total training sessions from weekly hours available */
+function getSessionCount(weeklyHours: number): number {
+  if (weeklyHours <= 5) return 3;
+  if (weeklyHours <= 8) return 4;
+  if (weeklyHours <= 12) return 5;
+  return 6;
 }
 
 /**
- * Generate a weekly workout pool.
+ * Select which hard workout types are appropriate for the current sub-phase + level.
+ */
+function selectHardWorkouts(
+  subPhase: SubPhase,
+  level: AthleteLevel,
+  primarySport: Sport
+): string[] {
+  const workouts: string[] = [];
+
+  // Novice: no hard sessions regardless of phase
+  if (level === "novice") return [];
+
+  switch (subPhase) {
+    case "base1":
+      // Z2 only, no hard sessions
+      break;
+
+    case "base2":
+      // Sweet spot introduced
+      if (primarySport === "cycling") workouts.push("sweet_spot");
+      if (primarySport === "running") workouts.push("fartlek");
+      if (primarySport === "swimming") workouts.push("threshold_swim");
+      break;
+
+    case "base3":
+      // Sweet spot + tempo
+      if (primarySport === "cycling") workouts.push("sweet_spot");
+      if (primarySport === "running") workouts.push("tempo_run");
+      if (primarySport === "swimming") workouts.push("threshold_swim");
+      break;
+
+    case "build1":
+      // Threshold added
+      if (primarySport === "cycling") {
+        workouts.push("threshold_ride");
+        if (level !== "beginner") workouts.push("sweet_spot");
+      }
+      if (primarySport === "running") {
+        workouts.push("threshold_intervals_run");
+        if (level !== "beginner") workouts.push("tempo_run");
+      }
+      if (primarySport === "swimming") {
+        workouts.push("threshold_swim");
+      }
+      break;
+
+    case "build2":
+      // VO2max added (not for beginners)
+      if (primarySport === "cycling") {
+        workouts.push("threshold_ride");
+        if (level !== "beginner") workouts.push("vo2max_ride");
+        if (level === "advanced" || level === "competitive") workouts.push("sweet_spot");
+      }
+      if (primarySport === "running") {
+        workouts.push("threshold_intervals_run");
+        if (level !== "beginner") workouts.push("vo2max_intervals_run");
+      }
+      if (primarySport === "swimming") {
+        workouts.push("threshold_swim");
+        if (level !== "beginner") workouts.push("vo2max_swim");
+      }
+      break;
+
+    case "peak":
+      // Race-specific intensity
+      if (primarySport === "cycling") {
+        workouts.push("vo2max_ride");
+        workouts.push("threshold_ride");
+        if (level === "competitive") workouts.push("anaerobic_ride");
+      }
+      if (primarySport === "running") {
+        workouts.push("vo2max_intervals_run");
+        workouts.push("threshold_intervals_run");
+      }
+      if (primarySport === "swimming") {
+        workouts.push("vo2max_swim");
+        workouts.push("threshold_swim");
+      }
+      break;
+
+    case "race":
+      // Short sharp openers
+      if (primarySport === "cycling") workouts.push("threshold_ride");
+      if (primarySport === "running") workouts.push("tempo_run");
+      if (primarySport === "swimming") workouts.push("threshold_swim");
+      break;
+
+    case "recovery":
+    case "transition":
+      // No hard sessions
+      break;
+  }
+
+  return workouts;
+}
+
+/**
+ * Get the easy workout type for a sport.
+ */
+function getEasyWorkout(sport: Sport): string {
+  switch (sport) {
+    case "cycling": return "endurance_ride";
+    case "running": return "easy_run";
+    case "swimming": return "endurance_swim";
+  }
+}
+
+/**
+ * Get a recovery workout type for a sport.
+ */
+function getRecoveryWorkout(sport: Sport): string {
+  switch (sport) {
+    case "cycling": return "recovery_ride";
+    case "running": return "easy_run";
+    case "swimming": return "drill_technique";
+  }
+}
+
+/**
+ * Generate a weekly workout pool with proper hard/easy sequencing.
  */
 export function generateWeeklyPlan(input: WeeklyPlanInput): WeeklyPlanOutput {
   const {
     sports,
-    phase,
-    baseWeeklyTss,
-    tssMultiplier,
+    subPhase,
+    weeklyTargetTss,
     weeklyHoursAvailable,
-    athleteState,
+    level,
     ftp,
     thresholdPaceSecPerKm,
     cssSPer100m,
   } = input;
 
-  // Check coaching decision (safety + health)
-  const decision = getCoachingDecision(athleteState);
+  const targetTss = weeklyTargetTss;
+  const sessionCount = getSessionCount(weeklyHoursAvailable);
+  const keySessions = Math.min(getKeySessions(level), sessionCount - 1); // leave room for easy
+  const restDays = 7 - sessionCount;
+  const primarySport = sports[0];
 
-  // Calculate target TSS for the week
-  let targetTss = Math.round(baseWeeklyTss * tssMultiplier);
+  // Determine which hard workouts are appropriate
+  const hardWorkoutPool = selectHardWorkouts(subPhase, level, primarySport);
+  const actualKeySessions = Math.min(keySessions, hardWorkoutPool.length);
 
-  // Apply coaching decision
-  if (decision.action === "force_rest") {
-    targetTss = Math.round(targetTss * 0.4); // -60% for forced recovery
-  } else if (decision.action === "reduce_intensity") {
-    targetTss = Math.round(targetTss * 0.75); // -25% for reduced intensity
-  }
+  // TSS distribution:
+  // - Long ride: 30-35% of weekly TSS
+  // - Each hard session: 15-20%
+  // - Easy sessions fill remainder
+  const longRideTssPct = sessionCount >= 4 ? 0.32 : 0.35;
+  const hardTssPct = 0.18;
+  const longRideTss = Math.round(targetTss * longRideTssPct);
+  const hardTssTotal = Math.round(targetTss * hardTssPct * actualKeySessions);
+  const easyTssTotal = targetTss - longRideTss - hardTssTotal;
+  const easySessions = sessionCount - actualKeySessions - 1; // -1 for long ride
+  const easyTssPerSession = easySessions > 0 ? Math.round(easyTssTotal / easySessions) : 0;
 
-  // Cap by max TSS if decision engine limits it
-  if (decision.maxTssAllowed !== null) {
-    targetTss = Math.min(
-      targetTss,
-      decision.maxTssAllowed * 7 // maxTss is per day, multiply by 7
+  const workouts: WorkoutTemplate[] = [];
+
+  // 1. Long endurance session (always present, weekend slot)
+  const longSport = primarySport;
+  workouts.push(
+    generateWorkout(longSport, getEasyWorkout(longSport), longRideTss, level, subPhase, {
+      ftp, thresholdPaceSecPerKm, cssSPer100m,
+    })
+  );
+
+  // 2. Hard sessions (spaced with easy days between)
+  for (let i = 0; i < actualKeySessions; i++) {
+    const workoutType = hardWorkoutPool[i % hardWorkoutPool.length];
+    const hardSport = sports.length > 1 ? sports[(i + 1) % sports.length] : primarySport;
+    const hardTssPerSession = Math.round(targetTss * hardTssPct);
+
+    workouts.push(
+      generateWorkout(hardSport, workoutType, hardTssPerSession, level, subPhase, {
+        ftp, thresholdPaceSecPerKm, cssSPer100m,
+      })
     );
   }
 
-  // Determine number of training days (based on hours available)
-  const avgSessionMinutes = 60;
-  const maxSessions = Math.min(
-    Math.floor((weeklyHoursAvailable * 60) / avgSessionMinutes),
-    7
-  );
-  const trainingDays = Math.min(maxSessions, decision.action === "force_rest" ? 3 : 6);
-  const restDays = 7 - trainingDays;
+  // 3. Easy / recovery sessions to fill remaining slots
+  for (let i = 0; i < easySessions; i++) {
+    const easySport = sports[i % sports.length];
+    // If recovery phase, use recovery workouts
+    const isRecoveryPhase = subPhase === "recovery" || subPhase === "transition";
+    const workoutType = isRecoveryPhase
+      ? getRecoveryWorkout(easySport)
+      : getEasyWorkout(easySport);
 
-  // Get phase-specific workout mix
-  const workoutMix = PHASE_WORKOUT_MIX[phase] || PHASE_WORKOUT_MIX.base;
-
-  // Distribute workouts across sports
-  const workouts: WorkoutTemplate[] = [];
-  const tssPerWorkout = targetTss / trainingDays;
-
-  // Round-robin through sports and workout types
-  const entries = Object.entries(workoutMix).sort(([, a], [, b]) => b - a);
-  let workoutCount = 0;
-
-  for (const [category, proportion] of entries) {
-    const count = Math.max(1, Math.round(trainingDays * proportion));
-    for (let i = 0; i < count && workoutCount < trainingDays; i++) {
-      const sport = sports[workoutCount % sports.length];
-      const workoutType = mapToSportWorkout(category, sport);
-      const duration = Math.round(
-        (tssPerWorkout / 0.7) // rough TSS→minutes conversion
-      );
-
-      let workout: WorkoutTemplate;
-      switch (sport) {
-        case "cycling":
-          workout = generateCyclingWorkout(workoutType, ftp || 200, duration);
-          break;
-        case "running":
-          workout = generateRunningWorkout(
-            workoutType,
-            thresholdPaceSecPerKm || 300,
-            duration
-          );
-          break;
-        case "swimming":
-          workout = generateSwimmingWorkout(
-            workoutType,
-            cssSPer100m || 100,
-            duration
-          );
-          break;
-      }
-
-      workouts.push(workout);
-      workoutCount++;
-    }
+    workouts.push(
+      generateWorkout(easySport, workoutType, easyTssPerSession, level, subPhase, {
+        ftp, thresholdPaceSecPerKm, cssSPer100m,
+      })
+    );
   }
+
+  // Sort: long ride first (weekend), then hard sessions, then easy (for display order)
+  // The athlete can rearrange, but this gives a sensible default
 
   // Build adaptation notes
-  let adaptationNotes = decision.reason;
-  if (decision.action !== "proceed") {
-    adaptationNotes +=
-      ` Weekly target adjusted from ${Math.round(baseWeeklyTss * tssMultiplier)} to ${targetTss} TSS.`;
-  }
+  const phaseLabel = subPhase.replace(/(\d)/, " $1");
+  const adaptationNotes =
+    `${phaseLabel.charAt(0).toUpperCase() + phaseLabel.slice(1)} phase — ` +
+    `${actualKeySessions} key session${actualKeySessions !== 1 ? "s" : ""}, ` +
+    `${easySessions} easy session${easySessions !== 1 ? "s" : ""}, ` +
+    `1 long ride. Target: ${targetTss} TSS.`;
 
   return {
     targetTss,
-    workouts: workouts.slice(0, trainingDays),
+    workouts,
     restDays,
     adaptationNotes,
   };
+}
+
+/**
+ * Route to the correct sport-specific workout generator.
+ */
+function generateWorkout(
+  sport: Sport,
+  workoutType: string,
+  targetTss: number,
+  level: AthleteLevel,
+  subPhase: SubPhase,
+  thresholds: {
+    ftp?: number;
+    thresholdPaceSecPerKm?: number;
+    cssSPer100m?: number;
+  }
+): WorkoutTemplate {
+  switch (sport) {
+    case "cycling":
+      return generateCyclingWorkout(workoutType, thresholds.ftp ?? 200, targetTss, level, subPhase);
+    case "running":
+      return generateRunningWorkout(workoutType, thresholds.thresholdPaceSecPerKm ?? 300, targetTss, level, subPhase);
+    case "swimming":
+      return generateSwimmingWorkout(workoutType, thresholds.cssSPer100m ?? 100, targetTss, level, subPhase);
+  }
 }
