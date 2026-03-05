@@ -34,20 +34,12 @@ export default async function FitnessPage({
     swimmingTss: d.swimmingTss ?? 0,
   }));
 
-  // Stats
-  const peakCtl =
-    timeline.length > 0
-      ? Math.round(Math.max(...timeline.map((d) => d.ctl ?? 0)))
-      : null;
-
   const lastCtl = timeline.at(-1)?.ctl;
   const lastTsb = timeline.at(-1)?.tsb;
   const formPct =
     lastCtl && lastCtl > 0 && lastTsb != null
       ? Math.max(-100, Math.min(100, Math.round((lastTsb / lastCtl) * 100)))
       : null;
-
-  const trainingDays = timeline.filter((d) => (d.totalTss ?? 0) > 0).length;
 
   const formLabel =
     formPct != null
@@ -75,10 +67,47 @@ export default async function FitnessPage({
               : "text-orange-500"
       : "";
 
+  const lastAtl = timeline.at(-1)?.atl;
+
   return (
     <>
       <DashboardHeader title="Fitness" />
       <div className="flex-1 space-y-6 p-6">
+        {/* Current-day stats */}
+        {timeline.length > 0 && (
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg border bg-card px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Fitness
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-[#3b82f6]">
+                {lastCtl != null ? Math.round(lastCtl) : "--"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">CTL</p>
+            </div>
+            <div className="rounded-lg border bg-card px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Fatigue
+              </p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-[#ec4899]">
+                {lastAtl != null ? Math.round(lastAtl) : "--"}
+              </p>
+              <p className="text-[10px] text-muted-foreground">ATL</p>
+            </div>
+            <div className="rounded-lg border bg-card px-4 py-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                Form
+              </p>
+              <p className={`mt-1 text-2xl font-semibold tabular-nums ${formColor}`}>
+                {lastTsb != null ? `${lastTsb > 0 ? "+" : ""}${Math.round(lastTsb)}` : "--"}
+              </p>
+              <p className={`text-[10px] ${formColor || "text-muted-foreground"}`}>
+                {formLabel ?? "TSB"}
+              </p>
+            </div>
+          </div>
+        )}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Performance Management Chart</CardTitle>
@@ -90,59 +119,6 @@ export default async function FitnessPage({
             <FitnessChart data={chartData} />
           </CardContent>
         </Card>
-
-        {timeline.length > 0 && (
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Peak Fitness
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{peakCtl ?? "--"}</p>
-                <p className="text-xs text-muted-foreground">
-                  Highest CTL in period
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Current Form
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {formPct != null ? (
-                  <>
-                    <p className={`text-2xl font-bold ${formColor}`}>
-                      {formPct > 0 ? "+" : ""}
-                      {formPct}%
-                    </p>
-                    <p className={`text-xs font-medium ${formColor}`}>
-                      {formLabel}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-2xl font-bold">--</p>
-                )}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Training Days
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">{trainingDays}</p>
-                <p className="text-xs text-muted-foreground">
-                  Days with activity
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     </>
   );
