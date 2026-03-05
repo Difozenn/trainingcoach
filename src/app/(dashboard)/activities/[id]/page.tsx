@@ -522,7 +522,6 @@ export default async function ActivityDetailPage({
                       />
                     )}
                     {vi && <Stat label="Variability Index" value={vi.toFixed(2)} />}
-                    {ftp && <Stat label="FTP" value={ftp} unit="W" />}
                     {workKJ && (
                       <Stat
                         label="Work"
