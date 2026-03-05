@@ -9,6 +9,7 @@ import {
   getCurrentWeeklyPlan,
   getWeeklyWorkouts,
   getUpcomingEvents,
+  getActualWeeklyTss,
 } from "@/lib/data/queries";
 import { formatDuration, formatDate } from "@/lib/data/helpers";
 import { getUserPlan } from "@/lib/subscription";
@@ -37,8 +38,11 @@ export default async function PlanPage() {
   ]);
 
   const workouts = weeklyPlan ? await getWeeklyWorkouts(weeklyPlan.id) : [];
-  const completed = workouts.filter((w) => w.isCompleted).length;
-  const progress = workouts.length > 0 ? (completed / workouts.length) * 100 : 0;
+  const weeklyActuals = weeklyPlan
+    ? await getActualWeeklyTss(userId, weeklyPlan.weekStartDate, weeklyPlan.weekEndDate)
+    : { totalTss: 0, activityCount: 0 };
+  const completed = weeklyActuals.activityCount;
+  const progress = workouts.length > 0 ? Math.min(100, (completed / workouts.length) * 100) : 0;
 
   return (
     <>
@@ -73,9 +77,7 @@ export default async function PlanPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Actual TSS</p>
                   <p className="text-2xl font-bold">
-                    {weeklyPlan.actualTss
-                      ? Math.round(weeklyPlan.actualTss)
-                      : "0"}
+                    {weeklyActuals.totalTss || "0"}
                   </p>
                 </div>
                 <div>

@@ -379,6 +379,33 @@ export async function getWeeklyWorkouts(weeklyPlanId: string) {
     .orderBy(plannedWorkouts.sortOrder);
 }
 
+/**
+ * Sum actual TSS from activities within a date range.
+ */
+export async function getActualWeeklyTss(
+  userId: string,
+  weekStart: Date,
+  weekEnd: Date
+): Promise<{ totalTss: number; activityCount: number }> {
+  const [result] = await db
+    .select({
+      totalTss: sql<number>`coalesce(sum(${activities.tss}), 0)`,
+      activityCount: sql<number>`count(*)::int`,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        gte(activities.startedAt, weekStart),
+        lte(activities.startedAt, weekEnd)
+      )
+    );
+  return {
+    totalTss: Math.round(result?.totalTss ?? 0),
+    activityCount: result?.activityCount ?? 0,
+  };
+}
+
 export async function getUpcomingEvents(userId: string) {
   const now = new Date();
   return db
