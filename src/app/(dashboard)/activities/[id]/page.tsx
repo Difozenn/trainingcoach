@@ -21,6 +21,7 @@ import {
   getDailyMetricsForDate,
   getSportProfiles,
   getUserPeakPowers,
+  getCyclingFtpAtDate,
 } from "@/lib/data/queries";
 import {
   formatDuration,
@@ -243,6 +244,13 @@ export default async function ActivityDetailPage({
   const thresholdPace = sportProfile?.thresholdPaceSPerKm;
   const css = sportProfile?.cssSPer100m;
 
+  // Historical FTP for W'bal/MPA: use FTP that was in effect before this ride
+  const historicalFtp =
+    activity.sport === "cycling"
+      ? await getCyclingFtpAtDate(userId, activity.startedAt)
+      : null;
+  const wbalFtp = historicalFtp ?? ftp;
+
   // GPS points
   const gpsPoints = streams
     .filter((s) => s.latitudeDeg != null && s.longitudeDeg != null)
@@ -336,18 +344,18 @@ export default async function ActivityDetailPage({
     time: string;
   } | null = null;
 
-  if (activity.sport === "cycling" && ftp && hasPower) {
+  if (activity.sport === "cycling" && wbalFtp && hasPower) {
     const powerStream = streams.map((s) => s.powerWatts ?? 0);
     const wbalOpts = {
       pMax: recentPeaks?.peaks["5s"] ?? undefined,
       peak5m: recentPeaks?.peaks["5m"] ?? undefined,
     };
-    const wbalResult = calculateWbal(powerStream, ftp, wbalOpts);
+    const wbalResult = calculateWbal(powerStream, wbalFtp, wbalOpts);
     const btPoint = wbalResult.find((p) => p.isBreakthrough);
 
     if (btPoint) {
-      const impliedFtp = calculateBreakthroughFtp(powerStream, ftp, wbalOpts);
-      if (impliedFtp && impliedFtp > ftp) {
+      const impliedFtp = calculateBreakthroughFtp(powerStream, wbalFtp, wbalOpts);
+      if (impliedFtp && impliedFtp > wbalFtp) {
         const mins = Math.floor(btPoint.time / 60);
         const secs = btPoint.time % 60;
         breakthroughData = {
@@ -454,9 +462,9 @@ export default async function ActivityDetailPage({
             )}
 
             {/* Breakthrough prompt */}
-            {breakthroughData && ftp && (
+            {breakthroughData && wbalFtp && (
               <BreakthroughPrompt
-                currentFtp={ftp}
+                currentFtp={wbalFtp}
                 newFtp={breakthroughData.newFtp}
                 breakthroughWatts={breakthroughData.delta}
                 breakthroughTime={breakthroughData.time}
@@ -466,9 +474,9 @@ export default async function ActivityDetailPage({
             )}
 
             {/* W'bal / MPA Breakthrough chart for cycling with power */}
-            {activity.sport === "cycling" && ftp && hasPower && (() => {
+            {activity.sport === "cycling" && wbalFtp && hasPower && (() => {
               const powerStream = streams.map((s) => s.powerWatts ?? 0);
-              const wbalData = calculateWbal(powerStream, ftp, {
+              const wbalData = calculateWbal(powerStream, wbalFtp, {
                 pMax: recentPeaks?.peaks["5s"] ?? undefined,
                 peak5m: recentPeaks?.peaks["5m"] ?? undefined,
               });
@@ -477,7 +485,7 @@ export default async function ActivityDetailPage({
               return (
                 <Card className="p-4 sm:p-5">
                   <CardContent className="p-0">
-                    <BreakthroughChart data={downsampled} ftp={ftp} />
+                    <BreakthroughChart data={downsampled} ftp={wbalFtp} />
                   </CardContent>
                 </Card>
               );

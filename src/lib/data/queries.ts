@@ -16,6 +16,7 @@ import {
   weeklyPlans,
   plannedWorkouts,
   targetEvents,
+  thresholdHistory,
 } from "@/lib/db/schema";
 import { eq, and, desc, gte, lte, lt, sql } from "drizzle-orm";
 
@@ -487,4 +488,29 @@ export async function getDailyMetricsForDate(userId: string, date: Date) {
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Get the FTP that was in effect just before a given date.
+ * Looks up the most recent threshold_history entry for cycling FTP
+ * with detectedAt < date. Returns null if no history exists.
+ */
+export async function getCyclingFtpAtDate(
+  userId: string,
+  date: Date
+): Promise<number | null> {
+  const [row] = await db
+    .select({ value: thresholdHistory.value })
+    .from(thresholdHistory)
+    .where(
+      and(
+        eq(thresholdHistory.userId, userId),
+        eq(thresholdHistory.sport, "cycling"),
+        eq(thresholdHistory.metricName, "ftp"),
+        lt(thresholdHistory.detectedAt, date)
+      )
+    )
+    .orderBy(desc(thresholdHistory.detectedAt))
+    .limit(1);
+  return row ? Math.round(row.value) : null;
 }
