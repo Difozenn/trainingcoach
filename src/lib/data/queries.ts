@@ -29,7 +29,33 @@ export async function getLatestMetrics(userId: string) {
     .where(eq(dailyMetrics.userId, userId))
     .orderBy(desc(dailyMetrics.date))
     .limit(1);
-  return latest ?? null;
+  if (!latest) return null;
+
+  // Decay CTL/ATL forward to today if the latest row is stale
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const rowDate = new Date(latest.date);
+  rowDate.setUTCHours(0, 0, 0, 0);
+  const daysGap = Math.round(
+    (today.getTime() - rowDate.getTime()) / 86_400_000
+  );
+
+  if (daysGap <= 0) return latest;
+
+  let ctl = latest.ctl ?? 0;
+  let atl = latest.atl ?? 0;
+  for (let i = 0; i < daysGap; i++) {
+    ctl += (0 - ctl) / 42;
+    atl += (0 - atl) / 7;
+  }
+  const tsb = ctl - atl;
+
+  return {
+    ...latest,
+    ctl: Math.round(ctl * 10) / 10,
+    atl: Math.round(atl * 10) / 10,
+    tsb: Math.round(tsb * 10) / 10,
+  };
 }
 
 export async function getWeeklyTSS(userId: string) {
