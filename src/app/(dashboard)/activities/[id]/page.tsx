@@ -297,7 +297,8 @@ export default async function ActivityDetailPage({
       ? (activity.averagePowerWatts * activity.durationSeconds) / 1000
       : null;
 
-  const calories = workKJ ? Math.round(workKJ / 4.184) : null;
+  // Metabolic calories ≈ mechanical work / efficiency (~24%)
+  const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
 
   // Coasting % from streams
   const coastingPct =
