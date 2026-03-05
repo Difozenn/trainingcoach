@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { athleteProfiles } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { athleteProfiles, weeklyPlans } from "@/lib/db/schema";
+import { eq, and, lte, gte } from "drizzle-orm";
 import { getUserPlan } from "@/lib/subscription";
 import { generatePlanForUser } from "@/lib/inngest/functions/weekly-plan-cron";
 
 /**
  * Manually trigger weekly plan generation for the current user.
+ * Deletes any existing plan for the current week first to avoid duplicates.
  */
 export async function POST() {
   const session = await auth();
@@ -47,6 +48,24 @@ export async function POST() {
   }
 
   try {
+    // Delete existing plan for this week to avoid duplicates
+    const now = new Date();
+    const existingPlans = await db
+      .select({ id: weeklyPlans.id })
+      .from(weeklyPlans)
+      .where(
+        and(
+          eq(weeklyPlans.userId, userId),
+          lte(weeklyPlans.weekStartDate, now),
+          gte(weeklyPlans.weekEndDate, now)
+        )
+      );
+
+    for (const existing of existingPlans) {
+      // Cascade delete removes planned_workouts + daily_nutrition_targets
+      await db.delete(weeklyPlans).where(eq(weeklyPlans.id, existing.id));
+    }
+
     await generatePlanForUser(profile);
     return NextResponse.json({ status: "generated" });
   } catch (err) {
