@@ -314,10 +314,12 @@ export async function generatePlanForUser(user: {
     cssSPer100m: swimmingProfile?.cssSPer100m ?? undefined,
   });
 
-  // Calculate week dates
+  // Calculate week dates (Monday–Sunday containing today)
   const now = new Date();
   const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() + 1); // Monday
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  weekStart.setDate(now.getDate() + daysToMonday);
   weekStart.setHours(0, 0, 0, 0);
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
