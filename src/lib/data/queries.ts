@@ -71,7 +71,7 @@ export async function getFitnessTimeline(
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
 
-  return db
+  const rows = await db
     .select({
       date: dailyMetrics.date,
       totalTss: dailyMetrics.totalTss,
@@ -91,6 +91,59 @@ export async function getFitnessTimeline(
       )
     )
     .orderBy(dailyMetrics.date);
+
+  if (rows.length === 0) return rows;
+
+  // Forward-fill gaps (rest days) and extend to today with CTL/ATL decay
+  const filled: typeof rows = [];
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  // Build a map of existing rows by date string
+  const rowMap = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    const key = new Date(r.date).toISOString().split("T")[0];
+    rowMap.set(key, r);
+  }
+
+  // Walk from first row date to today
+  const cursor = new Date(rows[0].date);
+  cursor.setUTCHours(0, 0, 0, 0);
+  let prevCtl = 0;
+  let prevAtl = 0;
+
+  while (cursor <= today) {
+    const key = cursor.toISOString().split("T")[0];
+    const existing = rowMap.get(key);
+
+    if (existing) {
+      prevCtl = existing.ctl ?? 0;
+      prevAtl = existing.atl ?? 0;
+      filled.push(existing);
+    } else {
+      // Rest day: TSS=0, decay CTL/ATL
+      const ctl = prevCtl + (0 - prevCtl) / 42;
+      const atl = prevAtl + (0 - prevAtl) / 7;
+      const tsb = ctl - atl;
+      prevCtl = ctl;
+      prevAtl = atl;
+      filled.push({
+        date: new Date(cursor),
+        totalTss: 0,
+        cyclingTss: 0,
+        runningTss: 0,
+        swimmingTss: 0,
+        ctl: Math.round(ctl * 10) / 10,
+        atl: Math.round(atl * 10) / 10,
+        tsb: Math.round(tsb * 10) / 10,
+        rampRate: null,
+      });
+    }
+
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return filled;
 }
 
 // ── Activities ──────────────────────────────────────────────────────

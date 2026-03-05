@@ -4,6 +4,7 @@ import { isAdminEmail } from "@/lib/auth/admin";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/layout/dashboard-sidebar";
 import { MaxHrPrompt } from "@/components/dashboard/max-hr-prompt";
+import { TimezoneSync } from "@/components/dashboard/timezone-sync";
 import { db } from "@/lib/db";
 import { athleteProfiles, activities } from "@/lib/db/schema";
 import { eq, and, sql, isNotNull } from "drizzle-orm";
@@ -50,7 +51,15 @@ export default async function DashboardLayout({
   const admin = isAdminEmail(session.user.email);
   const userId = session.user.id!;
 
-  const hrMismatch = await getMaxHrMismatch(userId);
+  const [hrMismatch, profile] = await Promise.all([
+    getMaxHrMismatch(userId),
+    db
+      .select({ timezone: athleteProfiles.timezone })
+      .from(athleteProfiles)
+      .where(eq(athleteProfiles.userId, userId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+  ]);
 
   async function updateMaxHr(newMaxHr: number) {
     "use server";
@@ -60,10 +69,22 @@ export default async function DashboardLayout({
       .where(eq(athleteProfiles.userId, userId));
   }
 
+  async function updateTimezone(tz: string) {
+    "use server";
+    await db
+      .update(athleteProfiles)
+      .set({ timezone: tz, updatedAt: new Date() })
+      .where(eq(athleteProfiles.userId, userId));
+  }
+
   return (
     <SidebarProvider>
       <DashboardSidebar isAdmin={admin} />
       <SidebarInset>
+        <TimezoneSync
+          currentTimezone={profile?.timezone ?? null}
+          updateAction={updateTimezone}
+        />
         {hrMismatch && (
           <MaxHrPrompt
             currentMaxHr={hrMismatch.currentMaxHr}
