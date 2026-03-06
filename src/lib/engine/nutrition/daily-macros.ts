@@ -46,11 +46,11 @@ const MACRO_SPLITS: Record<TrainingDayType, [number, number, number]> = {
 };
 
 const DAY_TYPE_LABELS: Record<TrainingDayType, string> = {
-  rest: "Rest day",
-  easy: "Easy / recovery",
-  endurance: "Endurance session",
-  hard: "Hard intervals",
-  race: "Race / 4hr+",
+  rest: "Rest",
+  easy: "Low load",
+  endurance: "Moderate load",
+  hard: "High load",
+  race: "Very high load",
   carb_load: "Carb loading",
 };
 
