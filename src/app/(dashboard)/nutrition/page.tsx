@@ -10,7 +10,6 @@ import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 import {
   calculateDailyMacros,
   getTrainingDayType,
-  getIdealWeight,
 } from "@/lib/engine/nutrition/daily-macros";
 
 function formatDay(date: Date): string {
@@ -130,28 +129,12 @@ export default async function NutritionPage() {
   }
 
   const todayRow = days.find((d) => d.isToday) ?? days[0];
-  const idealWeight = heightCm ? getIdealWeight(heightCm) : null;
-  const overWeight = idealWeight ? Math.max(0, weightKg - idealWeight) : 0;
 
   return (
     <>
       <DashboardHeader title="Nutrition" />
       <div className="flex-1 space-y-6 p-6">
-        {/* Weight status */}
-        {overWeight > 0 && (
-          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm">
-            <span className="text-amber-600 dark:text-amber-400 font-medium">
-              {weightKg}kg
-            </span>
-            <span className="text-muted-foreground">
-              is {overWeight.toFixed(1)}kg above {idealWeight}kg target
-            </span>
-            <span className="text-muted-foreground">&middot;</span>
-            <span className="text-muted-foreground">
-              250kcal deficit on rest/easy days
-            </span>
-          </div>
-        )}
+        {/* Weight status removed — deficit is applied silently */}
 
         {/* Today's macros */}
         <Card>
@@ -166,11 +149,6 @@ export default async function NutritionPage() {
               {todayRow.tss > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {todayRow.tss} TSS
-                </Badge>
-              )}
-              {todayRow.deficit > 0 && (
-                <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400">
-                  -{todayRow.deficit}kcal
                 </Badge>
               )}
             </div>
@@ -269,11 +247,6 @@ export default async function NutritionPage() {
                       </td>
                       <td className="px-2 py-2.5 capitalize whitespace-nowrap">
                         {(d.isPast || d.isToday || d.tss > 0) ? d.dayType : ""}
-                        {d.deficit > 0 && (
-                          <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400">
-                            -{d.deficit}
-                          </span>
-                        )}
                       </td>
                       <td className="px-2 py-2.5 text-right tabular-nums">
                         {(d.isPast || d.isToday) ? d.calories.toLocaleString() : ""}

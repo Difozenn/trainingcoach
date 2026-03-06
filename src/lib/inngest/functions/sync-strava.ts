@@ -26,6 +26,7 @@ import { calculateSTSS } from "@/lib/engine/swimming/stss";
 import { calculateHrTSS } from "@/lib/engine/shared/trimp";
 import { updateDailyMetrics as computeDailyUpdate } from "@/lib/engine/shared/fatigue-model";
 import { calculatePeakPowers } from "@/lib/engine/cycling/power-profile";
+import { findCrossPlatformDuplicate } from "@/lib/engine/shared/activity-dedup";
 
 /**
  * Process a Strava webhook event.
@@ -198,6 +199,15 @@ export const processStravaWebhook = inngest.createFunction(
           .where(eq(activities.id, existing.id));
         return existing.id;
       } else {
+        // Cross-platform dedup: skip if same ride already synced from Garmin/Wahoo
+        const crossDupe = await findCrossPlatformDuplicate(
+          connection.userId,
+          "strava",
+          activityData.startedAt,
+          activityData.durationSeconds
+        );
+        if (crossDupe) return crossDupe;
+
         const [inserted] = await db
           .insert(activities)
           .values(activityData)
@@ -339,6 +349,15 @@ export const backfillStravaActivities = inngest.createFunction(
               )
               .limit(1);
             if (existing) continue;
+
+            // Cross-platform dedup
+            const crossDupe = await findCrossPlatformDuplicate(
+              userId,
+              "strava",
+              processed.startedAt,
+              processed.durationSeconds
+            );
+            if (crossDupe) continue;
 
             // Auto-detect FTP from this activity's NP (stable — no decay)
             let effectiveFtp = 0;

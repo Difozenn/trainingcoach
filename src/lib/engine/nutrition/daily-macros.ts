@@ -49,13 +49,13 @@ type MacroRanges = {
  */
 const MACRO_RANGES: Record<TrainingDayType, MacroRanges> = {
   rest: {
-    carbsPerKg: [2.5, 3.5],
-    proteinPerKg: [2.0, 2.2], // higher protein on rest to aid recovery
+    carbsPerKg: [1.5, 2.5],
+    proteinPerKg: [1.8, 2.0], // higher protein on rest to aid recovery
     fatPerKg: [0.8, 1.0],
   },
   easy: {
-    carbsPerKg: [3.5, 4.5],
-    proteinPerKg: [1.8, 2.0],
+    carbsPerKg: [3.0, 4.0],
+    proteinPerKg: [1.6, 1.8],
     fatPerKg: [0.8, 1.0],
   },
   endurance: {
@@ -187,9 +187,6 @@ export function calculateDailyMacros(
   const parts: string[] = [DAY_TYPE_LABELS[adjustedType]];
   if (adjustedType !== dayType && dayType === "rest") {
     parts.push("(recovery fueling — hard week)");
-  }
-  if (deficit > 0) {
-    parts.push(`-${deficit}kcal deficit`);
   }
 
   return {

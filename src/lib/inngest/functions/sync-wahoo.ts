@@ -26,6 +26,7 @@ import { estimateRTSSFromAvgPace } from "@/lib/engine/running/rtss";
 import { calculateSTSS } from "@/lib/engine/swimming/stss";
 import { calculateHrTSS } from "@/lib/engine/shared/trimp";
 import { updateDailyMetrics as computeDailyUpdate } from "@/lib/engine/shared/fatigue-model";
+import { findCrossPlatformDuplicate } from "@/lib/engine/shared/activity-dedup";
 
 /**
  * Process a Wahoo webhook event (workout completed).
@@ -164,6 +165,15 @@ export const processWahooWebhook = inngest.createFunction(
           .where(eq(activities.id, existing.id));
         return existing.id;
       } else {
+        // Cross-platform dedup
+        const crossDupe = await findCrossPlatformDuplicate(
+          connection.userId,
+          "wahoo",
+          activityData.startedAt,
+          activityData.durationSeconds
+        );
+        if (crossDupe) return crossDupe;
+
         const [inserted] = await db
           .insert(activities)
           .values(activityData)
@@ -269,6 +279,15 @@ export const backfillWahooActivities = inngest.createFunction(
             .limit(1);
 
           if (existing) continue;
+
+          // Cross-platform dedup
+          const crossDupe = await findCrossPlatformDuplicate(
+            userId,
+            "wahoo",
+            processed.startedAt,
+            processed.durationSeconds
+          );
+          if (crossDupe) continue;
 
           const [profile] = await db
             .select()

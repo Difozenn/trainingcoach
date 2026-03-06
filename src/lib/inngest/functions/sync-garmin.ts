@@ -31,6 +31,7 @@ import { estimateRTSSFromAvgPace } from "@/lib/engine/running/rtss";
 import { calculateSTSS } from "@/lib/engine/swimming/stss";
 import { calculateHrTSS } from "@/lib/engine/shared/trimp";
 import { updateDailyMetrics as computeDailyUpdate } from "@/lib/engine/shared/fatigue-model";
+import { findCrossPlatformDuplicate } from "@/lib/engine/shared/activity-dedup";
 
 // ── Activity Webhook ────────────────────────────────────────────────
 
@@ -92,6 +93,15 @@ async function processOneGarminActivity(
       .limit(1);
 
     if (existing) return "duplicate";
+
+    // Cross-platform dedup: skip if same ride already synced from Strava/Wahoo
+    const crossDupe = await findCrossPlatformDuplicate(
+      connection.userId,
+      "garmin",
+      processed.startedAt,
+      processed.durationSeconds
+    );
+    if (crossDupe) return "cross_platform_duplicate";
 
     const [profile] = await db
       .select()
@@ -322,6 +332,15 @@ export const backfillGarminActivities = inngest.createFunction(
             .limit(1);
 
           if (existing) continue;
+
+          // Cross-platform dedup
+          const crossDupe = await findCrossPlatformDuplicate(
+            userId,
+            "garmin",
+            processed.startedAt,
+            processed.durationSeconds
+          );
+          if (crossDupe) continue;
 
           const [profile] = await db
             .select()
