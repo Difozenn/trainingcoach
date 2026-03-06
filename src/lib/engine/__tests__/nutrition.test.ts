@@ -76,12 +76,14 @@ describe("Daily Macro Targets (BMR + TDEE model)", () => {
     }
   });
 
-  it("overweight athlete gets deficit on rest day", () => {
+  it("rest day = BMR - deficit (no NEAT/TEF multipliers)", () => {
     const macros = calculateDailyMacros(100, "rest", {
       heightCm: 185,
       age: 35,
       sex: "male",
     });
+    // BMR for 92.5kg, 185cm, 35yo male ≈ 1911, minus 250 deficit
+    expect(macros.totalCalories).toBeLessThan(1900);
     expect(macros.deficit).toBe(250);
   });
 

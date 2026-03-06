@@ -109,7 +109,7 @@ function getBmrWeight(weightKg: number, heightCm: number | null): number {
 
 /**
  * Deficit on rest/easy days when overweight.
- * 250 kcal/day ≈ 0.25kg/week — safe for athletes.
+ * 250 kcal/day on rest/easy — safe for athletes.
  */
 export function getWeightDeficit(
   weightKg: number,
@@ -166,13 +166,10 @@ export function calculateDailyMacros(
   const bmrWeight = getBmrWeight(weightKg, heightCm);
   const bmr = calculateBmr(bmrWeight, heightCm, age, sex);
 
-  // TDEE = (BMR × 1.3 for NEAT + exercise calories) × 1.1 for TEF
-  const neat = bmr * 1.3;
-  let tdee = Math.round((neat + exerciseCal) * 1.1);
-
-  // Weight-loss deficit (only rest/easy days)
+  // Simple model: BMR + exercise calories burned
+  // Deficit applied on rest/easy days when overweight
   const deficit = getWeightDeficit(weightKg, heightCm, adjustedType);
-  tdee = Math.max(1200, tdee - deficit);
+  let tdee = Math.max(1200, Math.round(bmr + exerciseCal - deficit));
 
   // Macro split by day type
   const [carbPct, protPct, fatPct] = MACRO_SPLITS[adjustedType];

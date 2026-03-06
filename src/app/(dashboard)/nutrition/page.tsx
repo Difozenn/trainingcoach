@@ -29,6 +29,7 @@ type DayRow = {
   date: Date;
   label: string;
   tss: number;
+  exerciseCal: number;
   dayType: string;
   calories: number;
   carbs: number;
@@ -124,6 +125,7 @@ export default async function NutritionPage() {
       date,
       label: formatDay(date),
       tss: Math.round(tss),
+      exerciseCal: Math.round(exerciseCal),
       dayType: macros.trainingDayType.replace("_", " "),
       calories: macros.totalCalories,
       carbs: macros.carbsGrams,
@@ -165,6 +167,11 @@ export default async function NutritionPage() {
               {todayRow.tss > 0 && (
                 <Badge variant="secondary" className="text-xs">
                   {todayRow.tss} TSS
+                </Badge>
+              )}
+              {todayRow.exerciseCal > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {todayRow.exerciseCal.toLocaleString()} kcal burned
                 </Badge>
               )}
             </div>
@@ -231,8 +238,9 @@ export default async function NutritionPage() {
                   <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
                     <th className="px-2 py-2 text-left font-medium">Day</th>
                     <th className="px-2 py-2 text-right font-medium">TSS</th>
+                    <th className="px-2 py-2 text-right font-medium">Burned</th>
                     <th className="px-2 py-2 text-left font-medium">Type</th>
-                    <th className="px-2 py-2 text-right font-medium">Cal</th>
+                    <th className="px-2 py-2 text-right font-medium">Target</th>
                     <th className="px-2 py-2 text-right font-medium">Carbs</th>
                     <th className="px-2 py-2 text-right font-medium">Protein</th>
                     <th className="px-2 py-2 text-right font-medium">Fat</th>
@@ -260,6 +268,9 @@ export default async function NutritionPage() {
                       </td>
                       <td className="px-2 py-2.5 text-right tabular-nums">
                         {d.tss > 0 ? d.tss : (d.isPast || d.isToday) ? "—" : ""}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {d.exerciseCal > 0 ? `${d.exerciseCal.toLocaleString()}` : (d.isPast || d.isToday) ? "—" : ""}
                       </td>
                       <td className="px-2 py-2.5 capitalize whitespace-nowrap">
                         {(d.isPast || d.isToday || d.tss > 0) ? d.dayType : ""}
