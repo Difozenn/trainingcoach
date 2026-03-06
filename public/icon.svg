@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="caveBg" x1="0" y1="0" x2="32" y2="32">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#caveBg)"/>
+  <path d="M6 24L13 8l4 8 3-5 6 13H6z" fill="white" opacity="0.95"/>
+  <path d="M12 24c0-3 2-5.5 4.5-5.5S21 21 21 24H12z" fill="url(#caveBg)"/>
+</svg>
