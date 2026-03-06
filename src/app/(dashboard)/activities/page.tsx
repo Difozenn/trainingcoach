@@ -211,6 +211,23 @@ export default async function ActivitiesPage({
     });
   }
 
+  // Order: current week first, then past weeks (newest→oldest), then future weeks
+  // For current month: current week on top, past weeks below (newest first), no future weeks
+  // For past months: all weeks newest first
+  const isCurrentMonth =
+    monthIdx === now.getMonth() && year === now.getFullYear();
+  let orderedWeeks: WeekRow[];
+  if (isCurrentMonth) {
+    const currentWeek = getISOWeek(now);
+    const currentWeekRow = weeks.find((w) => w.weekNumber === currentWeek);
+    const pastWeeks = weeks
+      .filter((w) => w.weekNumber < currentWeek)
+      .reverse();
+    orderedWeeks = [...(currentWeekRow ? [currentWeekRow] : []), ...pastWeeks];
+  } else {
+    orderedWeeks = [...weeks].reverse();
+  }
+
   const monthName = firstOfMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
@@ -256,8 +273,8 @@ export default async function ActivitiesPage({
               )}
             </div>
 
-            {/* Week rows — latest week first */}
-            {[...weeks].reverse().map((week) => (
+            {/* Week rows — current week first, past below, future at end */}
+            {orderedWeeks.map((week) => (
               <div
                 key={week.weekNumber}
                 className="grid grid-cols-[140px_repeat(7,1fr)] gap-px"
