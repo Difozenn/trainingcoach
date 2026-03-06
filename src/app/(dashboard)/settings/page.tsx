@@ -126,6 +126,28 @@ export default async function SettingsPage({
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="sex">Sex</Label>
+                      <select
+                        id="sex"
+                        name="sex"
+                        defaultValue={profile?.sex ?? ""}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">Not set</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                      <Input
+                        id="dateOfBirth"
+                        name="dateOfBirth"
+                        type="date"
+                        defaultValue={profile?.dateOfBirth ? profile.dateOfBirth.toISOString().split("T")[0] : ""}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="maxHr">Max Heart Rate</Label>
                       <Input
                         id="maxHr"

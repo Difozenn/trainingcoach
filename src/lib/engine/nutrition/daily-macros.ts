@@ -1,14 +1,14 @@
 /**
- * Daily Macro Targets — Live TSS-Based
+ * Daily Macro Targets — BMR + TDEE Model
  *
- * Computes nutrition targets from actual training stress, not pre-planned.
- * Includes weight-loss deficit when athlete is above ideal weight.
+ * Computes nutrition from BMR (Mifflin-St Jeor) + actual exercise calories,
+ * with periodized macro splits by training day type.
  *
  * References:
- * - Impey et al. (2018) "Fuel for the work required" (FFTWR)
- * - ISSN Position Stand on nutrition (2024 update)
- * - Stellingwerff et al. (2019) periodized nutrition for endurance
- * - Mujika et al. (2018) safe weight loss in athletes
+ * - Mifflin-St Jeor (1990): most accurate BMR predictor
+ * - kJ ≈ kcal for cycling (CTS, TrainingPeaks)
+ * - ISSN Position Stand (2024): protein 1.4-2.0 g/kg
+ * - Impey et al. (2018) "Fuel for the work required"
  */
 
 export type TrainingDayType =
@@ -28,56 +28,21 @@ export type MacroTargets = {
   proteinPerKg: number;
   fatPerKg: number;
   trainingDayType: TrainingDayType;
-  deficit: number; // kcal deficit applied (0 if none)
+  deficit: number;
   explanation: string;
 };
 
-type MacroRanges = {
-  carbsPerKg: [number, number];
-  proteinPerKg: [number, number];
-  fatPerKg: [number, number];
-};
-
 /**
- * Macro ranges by training day type (g/kg body weight).
- *
- * Sources:
- * - Rest/easy: ACSM general guidelines, lowered for deficit-friendly days
- * - Endurance: ISSN 2024
- * - Hard intervals: UCI 2025 Morton et al.
- * - Race/4hr+: Pro peloton data, UCI 2025
+ * Macro split percentages by training day type.
+ * [carb%, protein%, fat%] — must sum to 100.
  */
-const MACRO_RANGES: Record<TrainingDayType, MacroRanges> = {
-  rest: {
-    carbsPerKg: [1.5, 2.5],
-    proteinPerKg: [1.8, 2.0], // higher protein on rest to aid recovery
-    fatPerKg: [0.8, 1.0],
-  },
-  easy: {
-    carbsPerKg: [3.0, 4.0],
-    proteinPerKg: [1.6, 1.8],
-    fatPerKg: [0.8, 1.0],
-  },
-  endurance: {
-    carbsPerKg: [5, 7],
-    proteinPerKg: [1.6, 1.8],
-    fatPerKg: [0.9, 1.1],
-  },
-  hard: {
-    carbsPerKg: [7, 9],
-    proteinPerKg: [1.8, 2.0],
-    fatPerKg: [0.9, 1.1],
-  },
-  race: {
-    carbsPerKg: [10, 12],
-    proteinPerKg: [1.8, 2.0],
-    fatPerKg: [1.0, 1.2],
-  },
-  carb_load: {
-    carbsPerKg: [8, 10],
-    proteinPerKg: [1.6, 1.8],
-    fatPerKg: [0.8, 1.0],
-  },
+const MACRO_SPLITS: Record<TrainingDayType, [number, number, number]> = {
+  rest:      [37, 33, 30],
+  easy:      [47, 28, 25],
+  endurance: [57, 23, 20],
+  hard:      [62, 20, 18],
+  race:      [67, 18, 15],
+  carb_load: [65, 18, 17],
 };
 
 const DAY_TYPE_LABELS: Record<TrainingDayType, string> = {
@@ -88,6 +53,11 @@ const DAY_TYPE_LABELS: Record<TrainingDayType, string> = {
   race: "Race / 4hr+",
   carb_load: "Carb loading",
 };
+
+/** Protein floor: minimum g/kg regardless of percentage split */
+const PROTEIN_FLOOR_G_KG = 1.6;
+/** Protein cap: diminishing returns above this */
+const PROTEIN_CAP_G_KG = 2.2;
 
 /**
  * Determine training day type from actual TSS.
@@ -101,32 +71,45 @@ export function getTrainingDayType(tss: number): TrainingDayType {
 }
 
 /**
- * After a hard week, rest day nutrition shifts: more protein, moderate carbs
- * for glycogen replenishment and muscle repair.
+ * BMR via Mifflin-St Jeor equation.
+ * Falls back to weight-only estimate when age/sex unavailable.
  */
-function adjustForWeeklyLoad(
-  dayType: TrainingDayType,
-  weeklyTss: number
-): TrainingDayType {
-  // Hard week (>400 TSS) + rest day → upgrade to easy-level fueling
-  // so the athlete recovers properly instead of under-eating
-  if (dayType === "rest" && weeklyTss > 400) return "easy";
-  return dayType;
+export function calculateBmr(
+  weightKg: number,
+  heightCm: number | null,
+  age: number | null,
+  sex: "male" | "female" | null
+): number {
+  if (heightCm && age && sex) {
+    const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+    return sex === "male" ? base + 5 : base - 161;
+  }
+  // Fallback: rough estimate (Katch-McArdle simplified)
+  return 22 * weightKg;
 }
 
 /**
- * Calculate ideal weight from height using a simple formula.
- * height_cm - 100 = ideal weight in kg.
- * This is approximate — used only for mild deficit calculation.
+ * Ideal weight from height (Devine formula simplified).
+ * height_cm - 100 = approximate ideal weight.
  */
 export function getIdealWeight(heightCm: number): number {
   return heightCm - 100;
 }
 
 /**
- * Calculate daily deficit based on weight vs ideal weight.
- * 250 kcal/day ≈ 0.25kg/week loss — safe for athletes.
- * Only applied on rest/easy days. Hard training days = full fuel.
+ * Weight for BMR calculation: average of current and ideal when overweight.
+ * Prevents BMR from being inflated by excess body fat.
+ */
+function getBmrWeight(weightKg: number, heightCm: number | null): number {
+  if (!heightCm) return weightKg;
+  const ideal = getIdealWeight(heightCm);
+  if (weightKg <= ideal) return weightKg;
+  return (weightKg + ideal) / 2;
+}
+
+/**
+ * Deficit on rest/easy days when overweight.
+ * 250 kcal/day ≈ 0.25kg/week — safe for athletes.
  */
 export function getWeightDeficit(
   weightKg: number,
@@ -134,59 +117,91 @@ export function getWeightDeficit(
   dayType: TrainingDayType
 ): number {
   if (!heightCm) return 0;
-
   const ideal = getIdealWeight(heightCm);
   if (weightKg <= ideal) return 0;
-
-  // Only apply deficit on rest and easy days — fuel hard days fully
   if (dayType === "rest" || dayType === "easy") return 250;
-
   return 0;
 }
 
 /**
- * Calculate daily macro targets from actual TSS.
+ * After a hard week, rest day → easy-level fueling for proper recovery.
+ */
+function adjustForWeeklyLoad(
+  dayType: TrainingDayType,
+  weeklyTss: number
+): TrainingDayType {
+  if (dayType === "rest" && weeklyTss > 400) return "easy";
+  return dayType;
+}
+
+/**
+ * Calculate daily macro targets from BMR + actual exercise calories.
+ *
+ * TDEE = (BMR × 1.3 + exerciseCal) × 1.1
+ *   - BMR × 1.3 = NEAT (sedentary multiplier, training added separately)
+ *   - × 1.1 = TEF (thermic effect of food ~10%)
+ *   - exerciseCal: kJ from power data (kJ ≈ kcal for cycling)
  */
 export function calculateDailyMacros(
   weightKg: number,
   dayType: TrainingDayType,
   options?: {
     heightCm?: number | null;
+    age?: number | null;
+    sex?: "male" | "female" | null;
+    exerciseCal?: number;
     weeklyTss?: number;
   }
 ): MacroTargets {
+  const heightCm = options?.heightCm ?? null;
+  const age = options?.age ?? null;
+  const sex = options?.sex ?? null;
+  const exerciseCal = options?.exerciseCal ?? 0;
   const weeklyTss = options?.weeklyTss ?? 0;
 
   // Adjust day type based on weekly load context
   const adjustedType = adjustForWeeklyLoad(dayType, weeklyTss);
-  const ranges = MACRO_RANGES[adjustedType];
 
-  // Use midpoint of ranges
-  const carbsPerKg = (ranges.carbsPerKg[0] + ranges.carbsPerKg[1]) / 2;
-  const proteinPerKg = (ranges.proteinPerKg[0] + ranges.proteinPerKg[1]) / 2;
-  const fatPerKg = (ranges.fatPerKg[0] + ranges.fatPerKg[1]) / 2;
+  // BMR using adjusted weight (average of current+ideal when overweight)
+  const bmrWeight = getBmrWeight(weightKg, heightCm);
+  const bmr = calculateBmr(bmrWeight, heightCm, age, sex);
 
-  const carbsGrams = Math.round(weightKg * carbsPerKg);
-  const proteinGrams = Math.round(weightKg * proteinPerKg);
-  const fatGrams = Math.round(weightKg * fatPerKg);
+  // TDEE = (BMR × 1.3 for NEAT + exercise calories) × 1.1 for TEF
+  const neat = bmr * 1.3;
+  let tdee = Math.round((neat + exerciseCal) * 1.1);
 
-  // Base calories
-  let totalCalories = Math.round(
-    carbsGrams * 4 + proteinGrams * 4 + fatGrams * 9
-  );
+  // Weight-loss deficit (only rest/easy days)
+  const deficit = getWeightDeficit(weightKg, heightCm, adjustedType);
+  tdee = Math.max(1200, tdee - deficit);
 
-  // Weight-loss deficit
-  const deficit = getWeightDeficit(
-    weightKg,
-    options?.heightCm ?? null,
-    adjustedType
-  );
-  totalCalories = Math.max(1200, totalCalories - deficit);
+  // Macro split by day type
+  const [carbPct, protPct, fatPct] = MACRO_SPLITS[adjustedType];
+
+  // Start with percentage-based macros
+  let proteinGrams = Math.round((tdee * protPct / 100) / 4);
+  let carbsGrams = Math.round((tdee * carbPct / 100) / 4);
+  let fatGrams = Math.round((tdee * fatPct / 100) / 9);
+
+  // Enforce protein floor and cap
+  const proteinFloor = Math.round(weightKg * PROTEIN_FLOOR_G_KG);
+  const proteinCap = Math.round(weightKg * PROTEIN_CAP_G_KG);
+  if (proteinGrams < proteinFloor) {
+    const extraProteinCal = (proteinFloor - proteinGrams) * 4;
+    proteinGrams = proteinFloor;
+    // Reduce carbs to compensate
+    carbsGrams = Math.max(50, carbsGrams - Math.round(extraProteinCal / 4));
+  }
+  if (proteinGrams > proteinCap) {
+    proteinGrams = proteinCap;
+  }
+
+  // Recalculate total from actual grams
+  const totalCalories = carbsGrams * 4 + proteinGrams * 4 + fatGrams * 9;
 
   // Explanation
   const parts: string[] = [DAY_TYPE_LABELS[adjustedType]];
   if (adjustedType !== dayType && dayType === "rest") {
-    parts.push("(recovery fueling — hard week)");
+    parts.push("(recovery fueling \u2014 hard week)");
   }
 
   return {
@@ -194,9 +209,9 @@ export function calculateDailyMacros(
     proteinGrams,
     fatGrams,
     totalCalories,
-    carbsPerKg: Math.round(carbsPerKg * 10) / 10,
-    proteinPerKg: Math.round(proteinPerKg * 10) / 10,
-    fatPerKg: Math.round(fatPerKg * 10) / 10,
+    carbsPerKg: Math.round((carbsGrams / weightKg) * 10) / 10,
+    proteinPerKg: Math.round((proteinGrams / weightKg) * 10) / 10,
+    fatPerKg: Math.round((fatGrams / weightKg) * 10) / 10,
     trainingDayType: adjustedType,
     deficit,
     explanation: parts.join(" \u00B7 "),

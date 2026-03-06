@@ -226,6 +226,12 @@ export async function getDailyTssForWeek(
     .select({
       date: sql<string>`DATE(${activities.startedAt})`,
       totalTss: sql<number>`COALESCE(SUM(${activities.tss}), 0)`,
+      totalExerciseKj: sql<number>`COALESCE(SUM(
+        CASE WHEN ${activities.averagePowerWatts} > 0
+          THEN ${activities.averagePowerWatts} * ${activities.durationSeconds} / 1000.0
+          ELSE ${activities.durationSeconds} / 3600.0 * 500
+        END
+      ), 0)`,
       activityCount: sql<number>`COUNT(*)::int`,
     })
     .from(activities)

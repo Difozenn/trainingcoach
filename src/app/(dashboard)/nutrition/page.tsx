@@ -71,6 +71,10 @@ export default async function NutritionPage() {
 
   const weightKg = profile.weightKg;
   const heightCm = profile.heightCm;
+  const sex = profile.sex as "male" | "female" | null;
+  const age = profile.dateOfBirth
+    ? Math.floor((Date.now() - profile.dateOfBirth.getTime()) / (365.25 * 24 * 3600_000))
+    : null;
 
   // Get this week's dates (Mon-Sun)
   const now = new Date();
@@ -83,12 +87,14 @@ export default async function NutritionPage() {
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
 
-  // Fetch actual TSS per day
+  // Fetch actual TSS + exercise calories per day
   const dailyTss = await getDailyTssForWeek(userId, monday, sunday);
   const tssMap = new Map<string, number>();
+  const exerciseCalMap = new Map<string, number>();
   for (const row of dailyTss) {
-    // row.date is a string like "2026-03-05"
-    tssMap.set(String(row.date), Number(row.totalTss) || 0);
+    const key = String(row.date);
+    tssMap.set(key, Number(row.totalTss) || 0);
+    exerciseCalMap.set(key, Number(row.totalExerciseKj) || 0); // kJ ≈ kcal
   }
 
   // Weekly cumulative TSS (for rest-day adjustments)
@@ -105,8 +111,12 @@ export default async function NutritionPage() {
     const today = isToday(date);
 
     const dayType = getTrainingDayType(tss);
+    const exerciseCal = exerciseCalMap.get(dateKey) ?? 0;
     const macros = calculateDailyMacros(weightKg, dayType, {
       heightCm,
+      age,
+      sex,
+      exerciseCal,
       weeklyTss,
     });
 
@@ -134,7 +144,13 @@ export default async function NutritionPage() {
     <>
       <DashboardHeader title="Nutrition" />
       <div className="flex-1 space-y-6 p-6">
-        {/* Weight status removed — deficit is applied silently */}
+        {(!sex || !age) && (
+          <p className="text-xs text-muted-foreground">
+            Add your date of birth and sex in{" "}
+            <a href="/settings" className="underline">settings</a>{" "}
+            for more accurate nutrition targets.
+          </p>
+        )}
 
         {/* Today's macros */}
         <Card>

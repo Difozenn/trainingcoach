@@ -94,13 +94,22 @@ export default async function DashboardPage({
     getAthleteProfile(userId),
   ]);
 
-  // Compute today's nutrition live from actual TSS
+  // Compute today's nutrition live from actual TSS + exercise calories
   const todayTss = Number(todayTssRows[0]?.totalTss) || 0;
+  const todayExerciseCal = Number(todayTssRows[0]?.totalExerciseKj) || 0;
+  const athleteAge = athleteProfile?.dateOfBirth
+    ? Math.floor((Date.now() - athleteProfile.dateOfBirth.getTime()) / (365.25 * 24 * 3600_000))
+    : null;
   const nutrition = athleteProfile?.weightKg
     ? calculateDailyMacros(
         athleteProfile.weightKg,
         getTrainingDayType(todayTss),
-        { heightCm: athleteProfile.heightCm }
+        {
+          heightCm: athleteProfile.heightCm,
+          age: athleteAge,
+          sex: athleteProfile.sex as "male" | "female" | null,
+          exerciseCal: todayExerciseCal,
+        }
       )
     : null;
 

@@ -10,6 +10,8 @@ import { z } from "zod/v4";
 const profileSchema = z.object({
   weightKg: z.coerce.number().min(30).max(200).optional(),
   heightCm: z.coerce.number().min(120).max(250).optional(),
+  sex: z.enum(["male", "female"]).optional(),
+  dateOfBirth: z.coerce.string().optional(),
   maxHr: z.coerce.number().min(100).max(230).optional(),
   restingHr: z.coerce.number().min(30).max(100).optional(),
   experienceLevel: z
@@ -24,7 +26,10 @@ export async function updateProfile(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
 
-  const data = profileSchema.parse(Object.fromEntries(formData));
+  const raw = profileSchema.parse(Object.fromEntries(formData));
+  const { dateOfBirth: dobStr, ...rest } = raw;
+  const data: Record<string, unknown> = { ...rest };
+  if (dobStr) data.dateOfBirth = new Date(dobStr);
 
   const [existing] = await db
     .select()

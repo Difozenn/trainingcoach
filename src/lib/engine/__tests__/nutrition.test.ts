@@ -31,58 +31,87 @@ describe("Training Day Type Classification", () => {
   });
 });
 
-describe("Daily Macro Targets", () => {
-  const weight = 70; // kg
-
-  it("rest day: 3-4g/kg carbs", () => {
-    const macros = calculateDailyMacros(weight, "rest");
-    expect(macros.carbsPerKg).toBeGreaterThanOrEqual(3);
-    expect(macros.carbsPerKg).toBeLessThanOrEqual(4);
-    expect(macros.carbsGrams).toBe(Math.round(weight * macros.carbsPerKg));
-  });
-
-  it("hard day: 8-10g/kg carbs", () => {
-    const macros = calculateDailyMacros(weight, "hard");
-    expect(macros.carbsPerKg).toBeGreaterThanOrEqual(8);
-    expect(macros.carbsPerKg).toBeLessThanOrEqual(10);
-  });
-
-  it("race day: 10-12g/kg carbs", () => {
-    const macros = calculateDailyMacros(weight, "race");
-    expect(macros.carbsPerKg).toBeGreaterThanOrEqual(10);
-    expect(macros.carbsPerKg).toBeLessThanOrEqual(12);
-  });
-
-  it("protein is 1.6-2.0g/kg for all day types", () => {
-    for (const dayType of ["rest", "easy", "endurance", "hard", "race"] as const) {
-      const macros = calculateDailyMacros(weight, dayType);
-      expect(macros.proteinPerKg).toBeGreaterThanOrEqual(1.6);
-      expect(macros.proteinPerKg).toBeLessThanOrEqual(2.0);
-    }
-  });
+describe("Daily Macro Targets (BMR + TDEE model)", () => {
+  const weight = 70;
+  const opts = { heightCm: 178, age: 30, sex: "male" as const };
 
   it("total calories = 4×carbs + 4×protein + 9×fat", () => {
-    const macros = calculateDailyMacros(weight, "endurance");
+    const macros = calculateDailyMacros(weight, "endurance", opts);
     const expected =
       macros.carbsGrams * 4 + macros.proteinGrams * 4 + macros.fatGrams * 9;
     expect(macros.totalCalories).toBe(expected);
   });
 
-  it("70kg cyclist hard day produces ~3000+ calories", () => {
-    const macros = calculateDailyMacros(weight, "hard");
-    expect(macros.totalCalories).toBeGreaterThan(3000);
+  it("rest day is lower calories than endurance day", () => {
+    const rest = calculateDailyMacros(weight, "rest", opts);
+    const endurance = calculateDailyMacros(weight, "endurance", {
+      ...opts,
+      exerciseCal: 800,
+    });
+    expect(rest.totalCalories).toBeLessThan(endurance.totalCalories);
   });
 
-  it("includes plain-English explanation", () => {
-    const macros = calculateDailyMacros(weight, "rest");
-    expect(macros.explanation).toContain("carbs");
-    expect(macros.explanation).toContain("protein");
+  it("exercise calories increase TDEE", () => {
+    const noExercise = calculateDailyMacros(weight, "endurance", opts);
+    const withExercise = calculateDailyMacros(weight, "endurance", {
+      ...opts,
+      exerciseCal: 1000,
+    });
+    expect(withExercise.totalCalories).toBeGreaterThan(
+      noExercise.totalCalories
+    );
   });
 
-  it("carb loading: 7-10g/kg carbs", () => {
-    const macros = calculateDailyMacros(weight, "carb_load");
-    expect(macros.carbsPerKg).toBeGreaterThanOrEqual(7);
-    expect(macros.carbsPerKg).toBeLessThanOrEqual(10);
+  it("protein stays within 1.6-2.2 g/kg floor/cap", () => {
+    for (const dayType of [
+      "rest",
+      "easy",
+      "endurance",
+      "hard",
+      "race",
+    ] as const) {
+      const macros = calculateDailyMacros(weight, dayType, opts);
+      expect(macros.proteinPerKg).toBeGreaterThanOrEqual(1.6);
+      expect(macros.proteinPerKg).toBeLessThanOrEqual(2.2);
+    }
+  });
+
+  it("overweight athlete gets deficit on rest day", () => {
+    const macros = calculateDailyMacros(100, "rest", {
+      heightCm: 185,
+      age: 35,
+      sex: "male",
+    });
+    expect(macros.deficit).toBe(250);
+  });
+
+  it("normal weight athlete gets no deficit", () => {
+    const macros = calculateDailyMacros(weight, "rest", opts);
+    expect(macros.deficit).toBe(0);
+  });
+
+  it("hard day gets no deficit even when overweight", () => {
+    const macros = calculateDailyMacros(100, "hard", {
+      heightCm: 185,
+      age: 35,
+      sex: "male",
+      exerciseCal: 1200,
+    });
+    expect(macros.deficit).toBe(0);
+  });
+
+  it("includes day type in explanation", () => {
+    const macros = calculateDailyMacros(weight, "rest", opts);
+    expect(macros.explanation).toContain("Rest");
+  });
+
+  it("never goes below 1200 kcal floor", () => {
+    const macros = calculateDailyMacros(50, "rest", {
+      heightCm: 200,
+      age: 80,
+      sex: "female",
+    });
+    expect(macros.totalCalories).toBeGreaterThanOrEqual(1200);
   });
 });
 

@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
+export const sexEnum = pgEnum("sex", ["male", "female"]);
 export const sportEnum = pgEnum("sport", ["cycling", "running", "swimming"]);
 export const goalTypeEnum = pgEnum("goal_type", ["event", "fitness_gain"]);
 export const fitnessSubModeEnum = pgEnum("fitness_sub_mode", [
@@ -40,6 +41,7 @@ export const athleteProfiles = pgTable("athlete_profiles", {
   weightKg: real("weight_kg"),
   heightCm: real("height_cm"),
   dateOfBirth: timestamp("date_of_birth", { mode: "date" }),
+  sex: sexEnum("sex"),
   maxHr: integer("max_hr"),
   restingHr: integer("resting_hr"),
   experienceLevel: experienceLevelEnum("experience_level").default(
