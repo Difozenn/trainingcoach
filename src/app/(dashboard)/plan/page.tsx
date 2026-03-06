@@ -38,8 +38,23 @@ export default async function PlanPage() {
   ]);
 
   const workouts = weeklyPlan ? await getWeeklyWorkouts(weeklyPlan.id) : [];
-  const weeklyActuals = weeklyPlan
-    ? await getActualWeeklyTss(userId, weeklyPlan.weekStartDate, weeklyPlan.weekEndDate)
+
+  // Recalculate ISO Mon–Sun from stored start date (may be wrong day)
+  let isoMonday: Date | null = null;
+  let isoSunday: Date | null = null;
+  if (weeklyPlan) {
+    const start = new Date(weeklyPlan.weekStartDate);
+    const dow = (start.getDay() + 6) % 7; // 0=Mon
+    isoMonday = new Date(start);
+    isoMonday.setDate(isoMonday.getDate() - dow);
+    isoMonday.setHours(0, 0, 0, 0);
+    isoSunday = new Date(isoMonday);
+    isoSunday.setDate(isoSunday.getDate() + 6);
+    isoSunday.setHours(23, 59, 59, 999);
+  }
+
+  const weeklyActuals = isoMonday && isoSunday
+    ? await getActualWeeklyTss(userId, isoMonday, isoSunday)
     : { totalTss: 0, activityCount: 0 };
   const completed = weeklyActuals.activityCount;
   const progress = workouts.length > 0 ? Math.min(100, (completed / workouts.length) * 100) : 0;
@@ -55,18 +70,17 @@ export default async function PlanPage() {
               <CardTitle className="flex items-center justify-between">
                 <span>
                   {(() => {
-                    // Always display as Mon–Sun ISO week
-                    const start = new Date(weeklyPlan.weekStartDate);
-                    const dow = (start.getDay() + 6) % 7;
-                    const monday = new Date(start);
-                    monday.setDate(monday.getDate() - dow);
-                    const sunday = new Date(monday);
-                    sunday.setDate(sunday.getDate() + 6);
-                    const monMonth = monday.toLocaleDateString("en-US", { month: "short" });
-                    const sunMonth = sunday.toLocaleDateString("en-US", { month: "short" });
-                    return monMonth === sunMonth
-                      ? `${monMonth} ${monday.getDate()}–${sunday.getDate()}`
-                      : `${monMonth} ${monday.getDate()} – ${sunMonth} ${sunday.getDate()}`;
+                    if (!isoMonday || !isoSunday) return "";
+                    // ISO week number
+                    const d = new Date(Date.UTC(isoMonday.getFullYear(), isoMonday.getMonth(), isoMonday.getDate()));
+                    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+                    const weekNum = Math.ceil(((d.getTime() - new Date(Date.UTC(d.getUTCFullYear(), 0, 1)).getTime()) / 86400000 + 1) / 7);
+                    const monMonth = isoMonday.toLocaleDateString("en-US", { month: "short" });
+                    const sunMonth = isoSunday.toLocaleDateString("en-US", { month: "short" });
+                    const dateRange = monMonth === sunMonth
+                      ? `${monMonth} ${isoMonday.getDate()}–${isoSunday.getDate()}`
+                      : `${monMonth} ${isoMonday.getDate()} – ${sunMonth} ${isoSunday.getDate()}`;
+                    return `Wk ${weekNum} · ${dateRange}`;
                   })()}
                 </span>
                 {weeklyPlan.phase && (
