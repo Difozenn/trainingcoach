@@ -129,3 +129,51 @@
   from { width: 0%; }
   to { width: 100%; }
 }
+
+/* ── Premium stat cards with accent bars ── */
+.stat-card-accent {
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.stat-card-accent:hover {
+  border-color: oklch(1 0 0 / 0.08);
+  box-shadow: 0 4px 24px oklch(0 0 0 / 0.15);
+}
+.stat-card-accent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--stat-accent);
+  opacity: 0.85;
+}
+.stat-card-accent::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(180deg, var(--stat-glow) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.stat-card-accent[data-accent="blue"]   { --stat-accent: #3b82f6; --stat-glow: oklch(0.62 0.22 259 / 0.06); }
+.stat-card-accent[data-accent="pink"]   { --stat-accent: #ec4899; --stat-glow: oklch(0.65 0.28 350 / 0.06); }
+.stat-card-accent[data-accent="green"]  { --stat-accent: #22c55e; --stat-glow: oklch(0.72 0.19 155 / 0.06); }
+.stat-card-accent[data-accent="amber"]  { --stat-accent: #f59e0b; --stat-glow: oklch(0.79 0.17 75 / 0.06); }
+.stat-card-accent[data-accent="purple"] { --stat-accent: #8b5cf6; --stat-glow: oklch(0.55 0.25 290 / 0.06); }
+.stat-card-accent[data-accent="red"]    { --stat-accent: #ef4444; --stat-glow: oklch(0.63 0.26 25 / 0.06); }
+.stat-card-accent[data-accent="teal"]   { --stat-accent: #14b8a6; --stat-glow: oklch(0.70 0.15 180 / 0.06); }
+
+/* ── Sidebar active state accent bar ── */
+[data-sidebar="menu-button"][data-active="true"] {
+  box-shadow: inset 3px 0 0 var(--sidebar-primary);
+  border-radius: 0 var(--radius-sm, 6px) var(--radius-sm, 6px) 0;
+}
+[data-sidebar="menu-button"][data-active="true"] > svg {
+  color: var(--sidebar-primary);
+}

@@ -76,32 +76,32 @@ export default async function FitnessPage({
         {/* Current-day stats */}
         {timeline.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg border bg-card px-4 py-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="blue">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Fitness
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-[#3b82f6]">
+              <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums text-[#3b82f6]">
                 {lastCtl != null ? Math.round(lastCtl) : "--"}
               </p>
-              <p className="text-[10px] text-muted-foreground">CTL</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">CTL</p>
             </div>
-            <div className="rounded-lg border bg-card px-4 py-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="pink">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Fatigue
               </p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums text-[#ec4899]">
+              <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums text-[#ec4899]">
                 {lastAtl != null ? Math.round(lastAtl) : "--"}
               </p>
-              <p className="text-[10px] text-muted-foreground">ATL</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">ATL</p>
             </div>
-            <div className="rounded-lg border bg-card px-4 py-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="green">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Form
               </p>
-              <p className={`mt-1 text-2xl font-semibold tabular-nums ${formColor}`}>
+              <p className={`mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums ${formColor}`}>
                 {formPct != null ? `${formPct > 0 ? "+" : ""}${formPct}%` : "--"}
               </p>
-              <p className={`text-[10px] ${formColor || "text-muted-foreground"}`}>
+              <p className={`mt-1 text-[10px] ${formColor || "text-muted-foreground"}`}>
                 {formLabel ?? "TSB / CTL"}
               </p>
             </div>

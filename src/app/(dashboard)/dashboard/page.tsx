@@ -155,83 +155,87 @@ export default async function DashboardPage({
       <div className="flex-1 space-y-6 p-6">
         {/* Summary cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
+          <Card className="stat-card-accent" data-accent="blue">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Fitness (CTL)
               </CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-[28px] font-bold leading-none tracking-tight tabular-nums">
                 {metrics?.ctl ? Math.round(metrics.ctl) : "--"}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
                 {metrics?.rampRate
-                  ? `${metrics.rampRate > 0 ? "+" : ""}${metrics.rampRate.toFixed(1)} TSS/wk`
+                  ? <span className={metrics.rampRate > 0 ? "font-medium text-green-500" : "font-medium text-red-500"}>
+                      {metrics.rampRate > 0 ? "+" : ""}{metrics.rampRate.toFixed(1)} TSS/wk
+                    </span>
                   : "42-day training load"}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card-accent" data-accent="pink">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Fatigue (ATL)
               </CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
+              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-[28px] font-bold leading-none tracking-tight tabular-nums">
                 {metrics?.atl ? Math.round(metrics.atl) : "--"}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-1.5 text-[11px] text-muted-foreground">
                 7-day training load
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card-accent" data-accent="green">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Form</CardTitle>
-              <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                Form
+              </CardTitle>
+              <TrendingDown className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${formColor}`}>
+              <div className={`text-[28px] font-bold leading-none tracking-tight tabular-nums ${formColor}`}>
                 {formPct != null
                   ? `${formPct > 0 ? "+" : ""}${formPct}%`
                   : "--"}
               </div>
-              <p className={`text-xs ${formLabel ? `font-medium ${formColor}` : "text-muted-foreground"}`}>
+              <p className={`mt-1.5 text-[11px] ${formLabel ? `font-medium ${formColor}` : "text-muted-foreground"}`}>
                 {formLabel ?? "Fitness - Fatigue balance"}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="stat-card-accent" data-accent="amber">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
+              <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Weekly TSS
               </CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-[28px] font-bold leading-none tracking-tight tabular-nums">
                 {Math.round(weeklyTss.total)}
               </div>
-              <div className="flex gap-2 text-xs text-muted-foreground">
+              <div className="mt-1.5 flex gap-2 text-[11px] text-muted-foreground">
                 {weeklyTss.cycling > 0 && (
-                  <span className="text-blue-500">
+                  <span className="font-medium text-blue-500">
                     {Math.round(weeklyTss.cycling)} bike
                   </span>
                 )}
                 {weeklyTss.running > 0 && (
-                  <span className="text-green-500">
+                  <span className="font-medium text-green-500">
                     {Math.round(weeklyTss.running)} run
                   </span>
                 )}
                 {weeklyTss.swimming > 0 && (
-                  <span className="text-teal-500">
+                  <span className="font-medium text-teal-500">
                     {Math.round(weeklyTss.swimming)} swim
                   </span>
                 )}
@@ -266,23 +270,31 @@ export default async function DashboardPage({
             </CardHeader>
             <CardContent>
               {recentActivities.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-1.5">
                   {recentActivities.map((a) => {
                     const Icon =
                       sportIcons[a.sport as keyof typeof sportIcons] ??
                       Activity;
+                    const isRun = a.sport === "running";
+                    const isSwim = a.sport === "swimming";
                     return (
                       <Link
                         key={a.id}
                         href={`/activities/${a.id}`}
-                        className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                        className="flex items-center gap-3 rounded-lg border border-border/50 p-2.5 transition-all hover:bg-muted/50 hover:border-border"
                       >
-                        <Icon className="h-5 w-5 shrink-0 text-muted-foreground" />
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                          isRun ? "bg-green-500/10" : isSwim ? "bg-teal-500/10" : "bg-primary/10"
+                        }`}>
+                          <Icon className={`h-4 w-4 ${
+                            isRun ? "text-green-500" : isSwim ? "text-teal-500" : "text-primary"
+                          }`} />
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate text-[13px] font-medium">
                             {a.name ?? "Untitled"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[11px] text-muted-foreground">
                             {formatDate(a.startedAt)} &middot;{" "}
                             {formatDuration(a.durationSeconds)}
                             {a.distanceMeters
@@ -291,9 +303,9 @@ export default async function DashboardPage({
                           </p>
                         </div>
                         {a.tss != null && (
-                          <Badge variant="secondary">
+                          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
                             {Math.round(a.tss)} TSS
-                          </Badge>
+                          </span>
                         )}
                       </Link>
                     );
@@ -328,11 +340,19 @@ export default async function DashboardPage({
               {workouts.length > 0 ? (
                 <div className="space-y-2">
                   {weeklyPlan?.targetTss && (
-                    <p className="text-sm text-muted-foreground">
-                      Target: {Math.round(weeklyPlan.targetTss)} TSS
-                      {weeklyPlan.actualTss != null &&
-                        ` · Done: ${Math.round(weeklyPlan.actualTss)} TSS`}
-                    </p>
+                    <>
+                      <p className="text-[12px] text-muted-foreground">
+                        Target: {Math.round(weeklyPlan.targetTss)} TSS
+                        {weeklyPlan.actualTss != null &&
+                          ` · Done: ${Math.round(weeklyPlan.actualTss)} TSS`}
+                      </p>
+                      <div className="h-1 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary transition-all duration-700"
+                          style={{ width: `${Math.min(100, Math.round(((weeklyPlan.actualTss ?? 0) / weeklyPlan.targetTss) * 100))}%` }}
+                        />
+                      </div>
+                    </>
                   )}
                   {workouts.slice(0, 5).map((w) => {
                     const Icon =
@@ -341,17 +361,18 @@ export default async function DashboardPage({
                     return (
                       <div
                         key={w.id}
-                        className="flex items-center gap-3 rounded-lg border p-2"
+                        className="flex items-center gap-2.5 rounded-lg border border-border/50 p-2 text-[13px] transition-colors hover:bg-muted/30"
                       >
-                        <Icon className="h-4 w-4 text-muted-foreground" />
-                        <span className="flex-1 text-sm">{w.title}</span>
-                        {w.isCompleted && (
-                          <Badge
-                            variant="outline"
-                            className="text-green-600"
-                          >
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="flex-1 font-medium">{w.title}</span>
+                        {w.isCompleted ? (
+                          <span className="rounded-full border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[10px] font-semibold text-green-500">
                             Done
-                          </Badge>
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-border bg-transparent px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            Upcoming
+                          </span>
                         )}
                       </div>
                     );
@@ -382,33 +403,33 @@ export default async function DashboardPage({
           <CardContent>
             {nutrition ? (
               <div className="space-y-3">
-                <div className="grid gap-4 sm:grid-cols-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Calories</p>
-                    <p className="text-xl font-bold">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <div className="rounded-lg bg-muted/50 px-4 py-3 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Calories</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums">
                       {nutrition.totalCalories.toLocaleString()}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Carbs</p>
-                    <p className="text-xl font-bold">
+                  <div className="rounded-lg bg-amber-500/10 px-4 py-3 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Carbs</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums text-amber-600 dark:text-amber-400">
                       {nutrition.carbsGrams}g
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Protein</p>
-                    <p className="text-xl font-bold">
+                  <div className="rounded-lg bg-blue-500/10 px-4 py-3 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Protein</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums text-blue-600 dark:text-blue-400">
                       {nutrition.proteinGrams}g
                     </p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fat</p>
-                    <p className="text-xl font-bold">
+                  <div className="rounded-lg bg-green-500/10 px-4 py-3 text-center">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Fat</p>
+                    <p className="mt-1 text-xl font-bold tabular-nums text-green-600 dark:text-green-400">
                       {nutrition.fatGrams}g
                     </p>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {nutrition.explanation}
                   {todayTss > 0 && ` \u00B7 ${Math.round(todayTss)} TSS today`}
                 </p>

@@ -122,32 +122,32 @@ export default async function PlanPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Target TSS</p>
-                  <p className="text-2xl font-bold">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="amber">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Target TSS</p>
+                  <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums">
                     {weeklyPlan.targetTss
                       ? Math.round(weeklyPlan.targetTss)
                       : "--"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Actual TSS</p>
-                  <p className="text-2xl font-bold">
+                <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="blue">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Actual TSS</p>
+                  <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums">
                     {weeklyActuals.totalTss || "0"}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Progress</p>
-                  <p className="text-2xl font-bold">
+                <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="green">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Progress</p>
+                  <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums">
                     {completed}/{workouts.length}
                   </p>
                 </div>
               </div>
               {/* Progress bar */}
-              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-primary transition-all"
+                  className="h-full rounded-full bg-primary transition-all duration-700"
                   style={{ width: `${progress}%` }}
                 />
               </div>
@@ -257,7 +257,7 @@ export default async function PlanPage() {
                   return (
                     <div
                       key={w.id}
-                      className={`rounded-lg border p-4 ${w.isCompleted ? "border-green-500/50 bg-green-500/5" : ""}`}
+                      className={`rounded-lg border p-4 transition-colors ${w.isCompleted ? "border-green-500/30 bg-green-500/5" : "border-border/50 hover:border-border"}`}
                     >
                       <div className="flex items-start gap-3">
                         <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
