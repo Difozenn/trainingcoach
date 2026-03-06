@@ -54,8 +54,20 @@ export default async function PlanPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>
-                  Week of {formatDate(weeklyPlan.weekStartDate)} &ndash;{" "}
-                  {formatDate(weeklyPlan.weekEndDate)}
+                  {(() => {
+                    // Always display as Mon–Sun ISO week
+                    const start = new Date(weeklyPlan.weekStartDate);
+                    const dow = (start.getDay() + 6) % 7;
+                    const monday = new Date(start);
+                    monday.setDate(monday.getDate() - dow);
+                    const sunday = new Date(monday);
+                    sunday.setDate(sunday.getDate() + 6);
+                    const monMonth = monday.toLocaleDateString("en-US", { month: "short" });
+                    const sunMonth = sunday.toLocaleDateString("en-US", { month: "short" });
+                    return monMonth === sunMonth
+                      ? `${monMonth} ${monday.getDate()}–${sunday.getDate()}`
+                      : `${monMonth} ${monday.getDate()} – ${sunMonth} ${sunday.getDate()}`;
+                  })()}
                 </span>
                 {weeklyPlan.phase && (
                   <Badge variant="outline" className="capitalize">
