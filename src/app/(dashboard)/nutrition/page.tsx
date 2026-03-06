@@ -1,16 +1,47 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  getTodayNutrition,
-  getWeekNutrition,
-  getUpcomingFueling,
-} from "@/lib/data/queries";
-import { formatDate } from "@/lib/data/helpers";
+import { getDailyTssForWeek } from "@/lib/data/queries";
+import { getAthleteProfile } from "@/lib/data/queries";
 import { getUserPlan } from "@/lib/subscription";
 import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
+import {
+  calculateDailyMacros,
+  getTrainingDayType,
+  getIdealWeight,
+} from "@/lib/engine/nutrition/daily-macros";
+
+function formatDay(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function isToday(date: Date): boolean {
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
+type DayRow = {
+  date: Date;
+  label: string;
+  tss: number;
+  dayType: string;
+  calories: number;
+  carbs: number;
+  protein: number;
+  fat: number;
+  carbsPerKg: number;
+  proteinPerKg: number;
+  fatPerKg: number;
+  deficit: number;
+  isToday: boolean;
+  isPast: boolean;
+};
 
 export default async function NutritionPage() {
   const session = await auth();
@@ -20,203 +51,247 @@ export default async function NutritionPage() {
   if (plan === "free") return <UpgradePrompt feature="Nutrition Targets" />;
 
   const userId = session.user.id;
+  const profile = await getAthleteProfile(userId);
 
-  const [today, week, fueling] = await Promise.all([
-    getTodayNutrition(userId),
-    getWeekNutrition(userId),
-    getUpcomingFueling(userId),
-  ]);
+  if (!profile?.weightKg) {
+    return (
+      <>
+        <DashboardHeader title="Nutrition" />
+        <div className="flex-1 p-6">
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">
+                Set your weight in your profile to see nutrition targets.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
+  const weightKg = profile.weightKg;
+  const heightCm = profile.heightCm;
+
+  // Get this week's dates (Mon-Sun)
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + daysToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  // Fetch actual TSS per day
+  const dailyTss = await getDailyTssForWeek(userId, monday, sunday);
+  const tssMap = new Map<string, number>();
+  for (const row of dailyTss) {
+    // row.date is a string like "2026-03-05"
+    tssMap.set(String(row.date), Number(row.totalTss) || 0);
+  }
+
+  // Weekly cumulative TSS (for rest-day adjustments)
+  const weeklyTss = Array.from(tssMap.values()).reduce((a, b) => a + b, 0);
+
+  // Build 7-day rows
+  const days: DayRow[] = [];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const dateKey = date.toISOString().split("T")[0];
+    const tss = tssMap.get(dateKey) ?? 0;
+    const past = date < now && !isToday(date);
+    const today = isToday(date);
+
+    const dayType = getTrainingDayType(tss);
+    const macros = calculateDailyMacros(weightKg, dayType, {
+      heightCm,
+      weeklyTss,
+    });
+
+    days.push({
+      date,
+      label: formatDay(date),
+      tss: Math.round(tss),
+      dayType: macros.trainingDayType.replace("_", " "),
+      calories: macros.totalCalories,
+      carbs: macros.carbsGrams,
+      protein: macros.proteinGrams,
+      fat: macros.fatGrams,
+      carbsPerKg: macros.carbsPerKg,
+      proteinPerKg: macros.proteinPerKg,
+      fatPerKg: macros.fatPerKg,
+      deficit: macros.deficit,
+      isToday: today,
+      isPast: past,
+    });
+  }
+
+  const todayRow = days.find((d) => d.isToday) ?? days[0];
+  const idealWeight = heightCm ? getIdealWeight(heightCm) : null;
+  const overWeight = idealWeight ? Math.max(0, weightKg - idealWeight) : 0;
 
   return (
     <>
-      <DashboardHeader title="Nutrition Targets" />
+      <DashboardHeader title="Nutrition" />
       <div className="flex-1 space-y-6 p-6">
-        {/* Today's targets */}
+        {/* Weight status */}
+        {overWeight > 0 && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm">
+            <span className="text-amber-600 dark:text-amber-400 font-medium">
+              {weightKg}kg
+            </span>
+            <span className="text-muted-foreground">
+              is {overWeight.toFixed(1)}kg above {idealWeight}kg target
+            </span>
+            <span className="text-muted-foreground">&middot;</span>
+            <span className="text-muted-foreground">
+              250kcal deficit on rest/easy days
+            </span>
+          </div>
+        )}
+
+        {/* Today's macros */}
         <Card>
-          <CardHeader>
-            <CardTitle>Today&apos;s Macro Targets</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {today ? (
-              <div className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-4">
-                  <div className="rounded-lg bg-muted/50 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Calories</p>
-                    <p className="text-3xl font-bold">
-                      {today.totalCalories.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="rounded-lg bg-amber-500/10 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Carbs</p>
-                    <p className="text-3xl font-bold text-amber-600 dark:text-amber-400">
-                      {Math.round(today.carbsGrams)}g
-                    </p>
-                    {today.carbsPerKg && (
-                      <p className="text-xs text-muted-foreground">
-                        {today.carbsPerKg.toFixed(1)} g/kg
-                      </p>
-                    )}
-                  </div>
-                  <div className="rounded-lg bg-blue-500/10 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Protein</p>
-                    <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                      {Math.round(today.proteinGrams)}g
-                    </p>
-                    {today.proteinPerKg && (
-                      <p className="text-xs text-muted-foreground">
-                        {today.proteinPerKg.toFixed(1)} g/kg
-                      </p>
-                    )}
-                  </div>
-                  <div className="rounded-lg bg-green-500/10 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">Fat</p>
-                    <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-                      {Math.round(today.fatGrams)}g
-                    </p>
-                    {today.fatPerKg && (
-                      <p className="text-xs text-muted-foreground">
-                        {today.fatPerKg.toFixed(1)} g/kg
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="capitalize">
-                    {today.trainingDayType.replace("_", " ")} day
-                  </Badge>
-                  {today.plannedTss && (
-                    <Badge variant="secondary">
-                      ~{Math.round(today.plannedTss)} TSS planned
-                    </Badge>
-                  )}
-                </div>
-                {today.explanation && (
-                  <p className="text-sm text-muted-foreground">
-                    {today.explanation}
-                  </p>
-                )}
+          <CardContent className="p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                Today
+              </h2>
+              <Badge variant="outline" className="capitalize text-xs">
+                {todayRow.dayType}
+              </Badge>
+              {todayRow.tss > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  {todayRow.tss} TSS
+                </Badge>
+              )}
+              {todayRow.deficit > 0 && (
+                <Badge variant="outline" className="text-xs text-amber-600 dark:text-amber-400">
+                  -{todayRow.deficit}kcal
+                </Badge>
+              )}
+            </div>
+            <div className="grid grid-cols-4 gap-3">
+              <div className="rounded-lg bg-muted/50 px-4 py-3 text-center">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                  Calories
+                </p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">
+                  {todayRow.calories.toLocaleString()}
+                </p>
               </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No nutrition targets yet. Targets are generated alongside your
-                weekly training plan — head to the{" "}
-                <a href="/plan" className="underline">Plan</a> page to generate
-                your first plan.
-              </p>
-            )}
+              <div className="rounded-lg bg-amber-500/10 px-4 py-3 text-center">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                  Carbs
+                </p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                  {todayRow.carbs}g
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {todayRow.carbsPerKg} g/kg
+                </p>
+              </div>
+              <div className="rounded-lg bg-blue-500/10 px-4 py-3 text-center">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                  Protein
+                </p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+                  {todayRow.protein}g
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {todayRow.proteinPerKg} g/kg
+                </p>
+              </div>
+              <div className="rounded-lg bg-green-500/10 px-4 py-3 text-center">
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+                  Fat
+                </p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums text-green-600 dark:text-green-400">
+                  {todayRow.fat}g
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {todayRow.fatPerKg} g/kg
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Weekly targets */}
+        {/* Weekly view */}
         <Card>
-          <CardHeader>
-            <CardTitle>This Week</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {week.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th className="p-2 text-left font-medium">Day</th>
-                      <th className="p-2 text-left font-medium">Type</th>
-                      <th className="p-2 text-right font-medium">Cal</th>
-                      <th className="p-2 text-right font-medium">Carbs</th>
-                      <th className="p-2 text-right font-medium">Protein</th>
-                      <th className="p-2 text-right font-medium">Fat</th>
+          <CardContent className="p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                This Week
+              </h2>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {Math.round(weeklyTss)} TSS total
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <th className="px-2 py-2 text-left font-medium">Day</th>
+                    <th className="px-2 py-2 text-right font-medium">TSS</th>
+                    <th className="px-2 py-2 text-left font-medium">Type</th>
+                    <th className="px-2 py-2 text-right font-medium">Cal</th>
+                    <th className="px-2 py-2 text-right font-medium">Carbs</th>
+                    <th className="px-2 py-2 text-right font-medium">Protein</th>
+                    <th className="px-2 py-2 text-right font-medium">Fat</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {days.map((d) => (
+                    <tr
+                      key={d.label}
+                      className={`border-b border-border/40 ${
+                        d.isToday
+                          ? "bg-primary/5 font-medium"
+                          : d.isPast
+                            ? "text-muted-foreground"
+                            : ""
+                      }`}
+                    >
+                      <td className="px-2 py-2.5 whitespace-nowrap">
+                        {d.label}
+                        {d.isToday && (
+                          <span className="ml-1.5 text-[10px] text-primary font-medium">
+                            today
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {d.tss > 0 ? d.tss : (d.isPast || d.isToday) ? "—" : ""}
+                      </td>
+                      <td className="px-2 py-2.5 capitalize whitespace-nowrap">
+                        {(d.isPast || d.isToday || d.tss > 0) ? d.dayType : ""}
+                        {d.deficit > 0 && (
+                          <span className="ml-1 text-[10px] text-amber-600 dark:text-amber-400">
+                            -{d.deficit}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {(d.isPast || d.isToday) ? d.calories.toLocaleString() : ""}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {(d.isPast || d.isToday) ? `${d.carbs}g` : ""}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {(d.isPast || d.isToday) ? `${d.protein}g` : ""}
+                      </td>
+                      <td className="px-2 py-2.5 text-right tabular-nums">
+                        {(d.isPast || d.isToday) ? `${d.fat}g` : ""}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {week.map((d) => (
-                      <tr key={d.id} className="border-b">
-                        <td className="p-2">{formatDate(d.date)}</td>
-                        <td className="p-2 capitalize">
-                          {d.trainingDayType.replace("_", " ")}
-                        </td>
-                        <td className="p-2 text-right">
-                          {d.totalCalories.toLocaleString()}
-                        </td>
-                        <td className="p-2 text-right">
-                          {Math.round(d.carbsGrams)}g
-                        </td>
-                        <td className="p-2 text-right">
-                          {Math.round(d.proteinGrams)}g
-                        </td>
-                        <td className="p-2 text-right">
-                          {Math.round(d.fatGrams)}g
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Weekly targets appear once you have a training plan.
-                Generate one from the{" "}
-                <a href="/plan" className="underline">Plan</a> page.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Fueling plans */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ride/Run Fueling Plans</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {fueling.length > 0 ? (
-              <div className="space-y-4">
-                {fueling.map((f) => (
-                  <div key={f.id} className="rounded-lg border p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{formatDate(f.date)}</p>
-                      <Badge variant="outline">{f.durationMinutes} min</Badge>
-                    </div>
-                    <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
-                      <div>
-                        <span className="text-muted-foreground">Carbs: </span>
-                        {f.carbsPerHour}g/hr ({f.totalCarbsGrams}g total)
-                      </div>
-                      {f.hydrationMlPerHour && (
-                        <div>
-                          <span className="text-muted-foreground">Fluid: </span>
-                          {f.hydrationMlPerHour}ml/hr
-                        </div>
-                      )}
-                      {f.sodiumMgPerHour && (
-                        <div>
-                          <span className="text-muted-foreground">Sodium: </span>
-                          {f.sodiumMgPerHour}mg/hr
-                        </div>
-                      )}
-                    </div>
-                    {f.glucoseFructoseRatio && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Glucose:Fructose {f.glucoseFructoseRatio}
-                      </p>
-                    )}
-                    {f.recoveryProteinGrams && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Post-workout: {Math.round(f.recoveryProteinGrams)}g
-                        protein + {Math.round(f.recoveryCarbsGrams ?? 0)}g carbs
-                        within {f.recoveryWindowMinutes ?? 120}min
-                      </p>
-                    )}
-                    {f.explanation && (
-                      <p className="mt-2 text-sm text-muted-foreground italic">
-                        {f.explanation}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Fueling plans are generated for workouts over 60 minutes.
-              </p>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </div>

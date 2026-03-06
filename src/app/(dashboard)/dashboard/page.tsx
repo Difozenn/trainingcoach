@@ -17,12 +17,16 @@ import {
   getLatestMetrics,
   getWeeklyTSS,
   getRecentActivities,
-  getTodayNutrition,
+  getDailyTssForWeek,
   getCurrentWeeklyPlan,
   getWeeklyWorkouts,
   getUserPeakPowers,
   getAthleteProfile,
 } from "@/lib/data/queries";
+import {
+  calculateDailyMacros,
+  getTrainingDayType,
+} from "@/lib/engine/nutrition/daily-macros";
 import {
   formatDuration,
   formatDistance,
@@ -62,11 +66,17 @@ export default async function DashboardPage({
   const params = await searchParams;
   const curveDays = Number(params.pp) || 90;
 
+  // Today's date range for nutrition TSS lookup
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
   const [
     metrics,
     weeklyTss,
     recentActivities,
-    nutrition,
+    todayTssRows,
     weeklyPlan,
     profilePeaks,
     allTimePeaks,
@@ -76,13 +86,23 @@ export default async function DashboardPage({
     getLatestMetrics(userId),
     getWeeklyTSS(userId),
     getRecentActivities(userId, 5),
-    getTodayNutrition(userId),
+    getDailyTssForWeek(userId, todayStart, todayEnd),
     getCurrentWeeklyPlan(userId),
     getUserPeakPowers(userId, PROFILE_WINDOW_DAYS),
     getUserPeakPowers(userId),
     getUserPeakPowers(userId, curveDays),
     getAthleteProfile(userId),
   ]);
+
+  // Compute today's nutrition live from actual TSS
+  const todayTss = Number(todayTssRows[0]?.totalTss) || 0;
+  const nutrition = athleteProfile?.weightKg
+    ? calculateDailyMacros(
+        athleteProfile.weightKg,
+        getTrainingDayType(todayTss),
+        { heightCm: athleteProfile.heightCm }
+      )
+    : null;
 
   const workouts = weeklyPlan
     ? await getWeeklyWorkouts(weeklyPlan.id)
@@ -352,36 +372,37 @@ export default async function DashboardPage({
           </CardHeader>
           <CardContent>
             {nutrition ? (
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Calories</p>
-                  <p className="text-xl font-bold">
-                    {nutrition.totalCalories.toLocaleString()}
-                  </p>
+              <div className="space-y-3">
+                <div className="grid gap-4 sm:grid-cols-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Calories</p>
+                    <p className="text-xl font-bold">
+                      {nutrition.totalCalories.toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Carbs</p>
+                    <p className="text-xl font-bold">
+                      {nutrition.carbsGrams}g
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Protein</p>
+                    <p className="text-xl font-bold">
+                      {nutrition.proteinGrams}g
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Fat</p>
+                    <p className="text-xl font-bold">
+                      {nutrition.fatGrams}g
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Carbs</p>
-                  <p className="text-xl font-bold">
-                    {Math.round(nutrition.carbsGrams)}g
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Protein</p>
-                  <p className="text-xl font-bold">
-                    {Math.round(nutrition.proteinGrams)}g
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Fat</p>
-                  <p className="text-xl font-bold">
-                    {Math.round(nutrition.fatGrams)}g
-                  </p>
-                </div>
-                {nutrition.explanation && (
-                  <p className="col-span-full text-sm text-muted-foreground">
-                    {nutrition.explanation}
-                  </p>
-                )}
+                <p className="text-xs text-muted-foreground">
+                  {nutrition.explanation}
+                  {todayTss > 0 && ` \u00B7 ${Math.round(todayTss)} TSS today`}
+                </p>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">

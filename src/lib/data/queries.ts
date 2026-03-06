@@ -213,45 +213,32 @@ export async function getActivityCount(userId: string) {
 
 // ── Nutrition ───────────────────────────────────────────────────────
 
-export async function getTodayNutrition(userId: string) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const [target] = await db
-    .select()
-    .from(dailyNutritionTargets)
+/**
+ * Get actual TSS per day for a date range from activities.
+ * Returns array of { date (YYYY-MM-DD), totalTss, activityCount }.
+ */
+export async function getDailyTssForWeek(
+  userId: string,
+  weekStart: Date,
+  weekEnd: Date
+) {
+  const rows = await db
+    .select({
+      date: sql<string>`DATE(${activities.startedAt})`,
+      totalTss: sql<number>`COALESCE(SUM(${activities.tss}), 0)`,
+      activityCount: sql<number>`COUNT(*)::int`,
+    })
+    .from(activities)
     .where(
       and(
-        eq(dailyNutritionTargets.userId, userId),
-        gte(dailyNutritionTargets.date, today),
-        lte(dailyNutritionTargets.date, tomorrow)
+        eq(activities.userId, userId),
+        gte(activities.startedAt, weekStart),
+        lte(activities.startedAt, weekEnd)
       )
     )
-    .limit(1);
-  return target ?? null;
-}
+    .groupBy(sql`DATE(${activities.startedAt})`);
 
-export async function getWeekNutrition(userId: string) {
-  const now = new Date();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 7);
-
-  return db
-    .select()
-    .from(dailyNutritionTargets)
-    .where(
-      and(
-        eq(dailyNutritionTargets.userId, userId),
-        gte(dailyNutritionTargets.date, monday),
-        lte(dailyNutritionTargets.date, sunday)
-      )
-    )
-    .orderBy(dailyNutritionTargets.date);
+  return rows;
 }
 
 export async function getUpcomingFueling(userId: string) {

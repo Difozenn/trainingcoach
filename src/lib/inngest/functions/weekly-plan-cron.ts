@@ -21,7 +21,6 @@ import {
   weeklyPlans,
   plannedWorkouts,
   targetEvents,
-  dailyNutritionTargets,
   subscriptions,
 } from "@/lib/db/schema";
 import { eq, and, desc, gte, inArray } from "drizzle-orm";
@@ -32,7 +31,6 @@ import {
 } from "@/lib/engine/coaching/periodization";
 import type { AthleteState } from "@/lib/engine/coaching/decision-engine";
 import { getCoachingDecision } from "@/lib/engine/coaching/decision-engine";
-import { calculateDailyMacros, getTrainingDayType } from "@/lib/engine/nutrition/daily-macros";
 import { computeHrv7DayTrend, computeRestingHrDelta } from "@/lib/engine/shared/health-trends";
 import type { AthleteLevel } from "@/lib/engine/coaching/progression";
 
@@ -364,33 +362,8 @@ export async function generatePlanForUser(user: {
     });
   }
 
-  // Generate nutrition targets for each day of the week
-  if (user.weightKg) {
-    for (let d = 0; d < 7; d++) {
-      const day = new Date(weekStart);
-      day.setDate(weekStart.getDate() + d);
-
-      const hasWorkout = d < plan.workouts.length;
-      const workoutTss = hasWorkout ? (plan.workouts[d]?.targetTss ?? 0) : 0;
-      const dayType = getTrainingDayType(workoutTss);
-      const macros = calculateDailyMacros(user.weightKg, dayType);
-
-      await db.insert(dailyNutritionTargets).values({
-        userId: user.userId,
-        date: day,
-        carbsGrams: macros.carbsGrams,
-        proteinGrams: macros.proteinGrams,
-        fatGrams: macros.fatGrams,
-        totalCalories: macros.totalCalories,
-        carbsPerKg: macros.carbsPerKg,
-        proteinPerKg: macros.proteinPerKg,
-        fatPerKg: macros.fatPerKg,
-        trainingDayType: dayType,
-        plannedTss: workoutTss,
-        explanation: macros.explanation,
-      });
-    }
-  }
+  // Nutrition targets are now computed live on the nutrition page
+  // from actual activity TSS — no pre-generation needed.
 }
 
 export function countConsecutiveHardDays(recentTss: number[]): number {
