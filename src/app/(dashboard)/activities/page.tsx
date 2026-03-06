@@ -256,8 +256,8 @@ export default async function ActivitiesPage({
               )}
             </div>
 
-            {/* Week rows */}
-            {weeks.map((week) => (
+            {/* Week rows — latest week first */}
+            {[...weeks].reverse().map((week) => (
               <div
                 key={week.weekNumber}
                 className="grid grid-cols-[140px_repeat(7,1fr)] gap-px"
