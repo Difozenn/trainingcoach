@@ -10,12 +10,19 @@ import {
   getWeeklyWorkouts,
   getUpcomingEvents,
   getActualWeeklyTss,
+  getPowerStreamsForRange,
+  getSportProfiles,
 } from "@/lib/data/queries";
 import { formatDuration, formatDate } from "@/lib/data/helpers";
 import { getUserPlan } from "@/lib/subscription";
 import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 import Link from "next/link";
 import { GeneratePlanButton } from "@/components/dashboard/generate-plan-button";
+import { calculateZoneDistribution } from "@/lib/engine/cycling/zones";
+import {
+  aggregateZoneDistributions,
+  calculatePolarizationIndex,
+} from "@/lib/engine/cycling/polarization";
 
 const sportIcons = {
   cycling: Bike,
@@ -58,6 +65,30 @@ export default async function PlanPage() {
     : { totalTss: 0, activityCount: 0 };
   const completed = weeklyActuals.activityCount;
   const progress = workouts.length > 0 ? Math.min(100, (completed / workouts.length) * 100) : 0;
+
+  // Polarization Index — compute from power streams this week
+  const [powerActivities, sportProfiles] = await Promise.all([
+    isoMonday && isoSunday
+      ? getPowerStreamsForRange(userId, isoMonday, isoSunday)
+      : Promise.resolve([]),
+    getSportProfiles(userId),
+  ]);
+  const cyclingProfile = sportProfiles.find((p) => p.sport === "cycling");
+  const ftp = cyclingProfile?.ftp ?? 0;
+
+  let polarization = null;
+  if (ftp > 0 && powerActivities.length > 0) {
+    const distributions = powerActivities
+      .filter((a) => a.streamData?.watts?.length)
+      .map((a) => ({
+        zones: calculateZoneDistribution(a.streamData!.watts!, ftp),
+        seconds: a.durationSeconds,
+      }));
+    if (distributions.length > 0) {
+      const weekZones = aggregateZoneDistributions(distributions);
+      polarization = calculatePolarizationIndex(weekZones);
+    }
+  }
 
   return (
     <>
@@ -136,6 +167,71 @@ export default async function PlanPage() {
                 workouts — you pick when to do each one.
               </p>
               <GeneratePlanButton />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Intensity Distribution */}
+        {polarization && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Intensity Distribution</span>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="capitalize text-xs"
+                  >
+                    {polarization.label}
+                  </Badge>
+                  {polarization.pi !== null && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      PI {polarization.pi.toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Stacked bar */}
+              <div className="flex h-8 w-full overflow-hidden rounded-full">
+                {polarization.low > 0 && (
+                  <div
+                    className="bg-green-500 transition-all"
+                    style={{ width: `${polarization.low}%` }}
+                    title={`Z1-Z2: ${polarization.low}%`}
+                  />
+                )}
+                {polarization.mid > 0 && (
+                  <div
+                    className="bg-amber-500 transition-all"
+                    style={{ width: `${polarization.mid}%` }}
+                    title={`Z3-Z4: ${polarization.mid}%`}
+                  />
+                )}
+                {polarization.high > 0 && (
+                  <div
+                    className="bg-red-500 transition-all"
+                    style={{ width: `${polarization.high}%` }}
+                    title={`Z5+: ${polarization.high}%`}
+                  />
+                )}
+              </div>
+              {/* Legend */}
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+                  Z1-Z2 {polarization.low}%
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  Z3-Z4 {polarization.mid}%
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
+                  Z5+ {polarization.high}%
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}

@@ -444,6 +444,29 @@ export async function getActivitiesForRange(
     .orderBy(activities.startedAt);
 }
 
+export async function getPowerStreamsForRange(
+  userId: string,
+  start: Date,
+  end: Date
+) {
+  return db
+    .select({
+      id: activities.id,
+      durationSeconds: activities.durationSeconds,
+      streamData: activities.streamData,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.sport, "cycling"),
+        gte(activities.startedAt, start),
+        lte(activities.startedAt, end),
+        sql`${activities.streamData} IS NOT NULL`
+      )
+    );
+}
+
 export async function getMetricsForRange(
   userId: string,
   start: Date,
