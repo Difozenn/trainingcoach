@@ -58,7 +58,10 @@ function getISOWeek(d: Date): number {
 }
 
 function dateKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Metrics are stored as CET midnight (T23:00Z or T22:00Z DST).
+  // Round to nearest date by adding 2h before taking UTC date.
+  const rounded = new Date(d.getTime() + 2 * 3600_000);
+  return `${rounded.getUTCFullYear()}-${String(rounded.getUTCMonth() + 1).padStart(2, "0")}-${String(rounded.getUTCDate()).padStart(2, "0")}`;
 }
 
 function getMondayOfWeek(d: Date): Date {
@@ -102,10 +105,17 @@ export async function fetchWeeks(
   rangeEnd.setDate(rangeEnd.getDate() + 6);
   rangeEnd.setHours(23, 59, 59, 999);
 
+  // Metrics dates are stored as CET midnight (e.g. T23:00Z for CET+1).
+  // Widen the metrics range by 1 day on each side to capture edge cases.
+  const metricsStart = new Date(oldestMonday);
+  metricsStart.setDate(metricsStart.getDate() - 1);
+  const metricsEnd = new Date(rangeEnd);
+  metricsEnd.setDate(metricsEnd.getDate() + 1);
+
   const [activities, planned, metrics] = await Promise.all([
     getActivitiesForRange(session.user.id, oldestMonday, rangeEnd),
     getPlannedWorkoutsForRange(session.user.id, oldestMonday, rangeEnd),
-    getMetricsForRange(session.user.id, oldestMonday, rangeEnd),
+    getMetricsForRange(session.user.id, metricsStart, metricsEnd),
   ]);
 
   // Index by date key
