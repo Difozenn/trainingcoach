@@ -24,7 +24,7 @@ export type PolarizationResult = {
   /** Polarization Index score */
   pi: number | null;
   /** Classification label */
-  label: "polarized" | "pyramidal" | "threshold" | "mixed";
+  label: "polarized" | "pyramidal" | "threshold" | "hiit" | "base";
 };
 
 /**
@@ -59,16 +59,18 @@ export function calculatePolarizationIndex(
     pi = Math.round(Math.log10(raw) * 100) / 100;
   }
 
-  // Classification
+  // Classification (matches intervals.icu categories)
   let label: PolarizationResult["label"];
   if (pi !== null && pi > 2.0 && low > high && high > mid) {
     label = "polarized";
-  } else if (low > mid && mid > high) {
-    label = "pyramidal";
-  } else if (mid > low && mid > high) {
+  } else if (high > 30) {
+    label = "hiit";
+  } else if (mid > low) {
     label = "threshold";
+  } else if (low > 75 && high < 10) {
+    label = "base";
   } else {
-    label = "mixed";
+    label = "pyramidal";
   }
 
   return {
