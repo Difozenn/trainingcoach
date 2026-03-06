@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   TrendingUp,
   Calendar,
-  Activity,
   Target,
   Apple,
   Dumbbell,
@@ -33,8 +32,7 @@ import { signOut } from "next-auth/react";
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Fitness", href: "/fitness", icon: TrendingUp },
-  { label: "Calendar", href: "/calendar", icon: Calendar },
-  { label: "Activities", href: "/activities", icon: Activity },
+  { label: "Activities", href: "/activities", icon: Calendar },
   { label: "Zones", href: "/zones", icon: Target },
   { label: "Nutrition", href: "/nutrition", icon: Apple },
   { label: "Plan", href: "/plan", icon: Dumbbell },
@@ -64,7 +62,7 @@ export function DashboardSidebar({ isAdmin = false }: { isAdmin?: boolean }) {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href || pathname.startsWith(item.href + "/")}>
                     <Link href={item.href}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.label}</span>

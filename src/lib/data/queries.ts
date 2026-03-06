@@ -423,6 +423,7 @@ export async function getActivitiesForRange(
       startedAt: activities.startedAt,
       durationSeconds: activities.durationSeconds,
       distanceMeters: activities.distanceMeters,
+      elevationGainMeters: activities.elevationGainMeters,
       tss: activities.tss,
     })
     .from(activities)
@@ -434,6 +435,30 @@ export async function getActivitiesForRange(
       )
     )
     .orderBy(activities.startedAt);
+}
+
+export async function getMetricsForRange(
+  userId: string,
+  start: Date,
+  end: Date
+) {
+  return db
+    .select({
+      date: dailyMetrics.date,
+      ctl: dailyMetrics.ctl,
+      atl: dailyMetrics.atl,
+      tsb: dailyMetrics.tsb,
+      rampRate: dailyMetrics.rampRate,
+    })
+    .from(dailyMetrics)
+    .where(
+      and(
+        eq(dailyMetrics.userId, userId),
+        gte(dailyMetrics.date, start),
+        lte(dailyMetrics.date, end)
+      )
+    )
+    .orderBy(dailyMetrics.date);
 }
 
 export async function getPlannedWorkoutsForRange(
