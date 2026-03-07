@@ -286,8 +286,8 @@ async function StreamsSection({
   if (sport === "cycling" && wbalFtp && hasPower) {
     const powerStream = streams.map((s) => s.powerWatts ?? 0);
     const wbalOpts = {
-      pMax: peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
-      peak5m: peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
+      pMax: recentPeaks?.peaks["5s"] ?? peak5s ?? undefined,
+      peak5m: recentPeaks?.peaks["5m"] ?? peak5m ?? undefined,
     };
     const wbalResult = calculateWbal(powerStream, wbalFtp, wbalOpts);
     const btPoint = wbalResult.find((p) => p.isBreakthrough);
@@ -370,8 +370,8 @@ async function StreamsSection({
       {sport === "cycling" && wbalFtp && hasPower && (() => {
         const powerStream = streams.map((s) => s.powerWatts ?? 0);
         const wbalData = calculateWbal(powerStream, wbalFtp, {
-          pMax: peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
-          peak5m: peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
+          pMax: recentPeaks?.peaks["5s"] ?? peak5s ?? undefined,
+          peak5m: recentPeaks?.peaks["5m"] ?? peak5m ?? undefined,
         });
         // On non-breakthrough rides, clamp MPA to stay above actual power.
         if (!breakthroughData) {
@@ -410,7 +410,7 @@ export default async function ActivityDetailPage({
   const [activity, profiles, recentPeaks, athleteProfile] = await Promise.all([
     getActivityById(userId, id),
     getSportProfiles(userId),
-    getUserPeakPowers(userId),
+    getUserPeakPowers(userId, 90),
     getAthleteProfile(userId),
   ]);
 
@@ -568,9 +568,9 @@ export default async function ActivityDetailPage({
               sport={activity.sport}
               ftp={ftp}
               wbalFtp={wbalFtp}
+              recentPeaks={recentPeaks}
               peak5s={activity.peak5s}
               peak5m={activity.peak5m}
-              recentPeaks={recentPeaks}
               color={color}
             />
           </Suspense>
