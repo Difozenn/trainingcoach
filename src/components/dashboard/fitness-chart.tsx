@@ -163,7 +163,7 @@ function computeTickInterval(count: number): number {
 
 function niceYTicks(upper: number): number[] {
   const steps = [5, 10, 20, 25, 50, 100];
-  const target = upper / 5;
+  const target = upper / 6;
   const step = steps.find((s) => s >= target) ?? Math.ceil(target / 10) * 10;
   const ticks: number[] = [];
   for (let v = 0; v <= upper; v += step) ticks.push(v);
@@ -211,8 +211,8 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
     <div>
       <ChartLegend />
 
-      {/* ── Main PMC chart ─────────────────────────────────────────── */}
-      <ResponsiveContainer width="100%" height={360}>
+      {/* ── Main PMC chart (no X-axis dates — shared axis below form) ── */}
+      <ResponsiveContainer width="100%" height={320}>
         <ComposedChart
           data={data}
           syncId="pmc"
@@ -224,14 +224,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             strokeOpacity={0.25}
             strokeWidth={1}
           />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 9, fill: "#94a3b8" }}
-            tickLine={false}
-            axisLine={false}
-            interval={tickInterval}
-            dy={4}
-          />
+          <XAxis dataKey="date" tick={false} tickLine={false} axisLine={false} height={0} />
           <YAxis
             domain={[0, upperDomain]}
             ticks={niceYTicks(upperDomain)}
@@ -318,18 +311,12 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* ── Form chart ─────────────────────────────────────────────── */}
-      <div className="mt-4 mb-1.5 px-1">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-          Form (TSB / CTL)
-        </span>
-      </div>
-
-      <ResponsiveContainer width="100%" height={130}>
+      {/* ── Form chart — sits directly under fitness ─────────────────── */}
+      <ResponsiveContainer width="100%" height={120}>
         <ComposedChart
           data={data}
           syncId="pmc"
-          margin={{ top: 2, right: 12, bottom: 4, left: 0 }}
+          margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
         >
           {/* Zone backgrounds */}
           {FORM_ZONES.map((z) => (
@@ -349,14 +336,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             strokeOpacity={0.2}
             strokeWidth={1}
           />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 9, fill: "#94a3b8" }}
-            tickLine={false}
-            axisLine={false}
-            interval={tickInterval}
-            dy={4}
-          />
+          <XAxis dataKey="date" tick={false} tickLine={false} axisLine={false} height={0} />
           <YAxis
             domain={[formLower, formUpper]}
             tick={{ fontSize: 9, fill: "#94a3b8" }}
@@ -424,8 +404,28 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         </ComposedChart>
       </ResponsiveContainer>
 
+      {/* ── Shared date axis ─────────────────────────────────────────── */}
+      <ResponsiveContainer width="100%" height={24}>
+        <ComposedChart
+          data={data}
+          syncId="pmc"
+          margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+        >
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 9, fill: "#94a3b8" }}
+            tickLine={false}
+            axisLine={false}
+            interval={tickInterval}
+            dy={-4}
+          />
+          <YAxis hide width={40} />
+        </ComposedChart>
+      </ResponsiveContainer>
+
       {/* ── Form zone legend ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 px-1 text-[10px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 px-1 text-[10px] text-muted-foreground">
+        <span className="text-[9px] font-semibold uppercase tracking-wider opacity-60 mr-1">Form</span>
         {FORM_ZONES.slice().reverse().map((z) => (
           <span key={z.label} className="flex items-center gap-1">
             <span
