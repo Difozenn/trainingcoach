@@ -22,7 +22,9 @@ import {
   getSportProfiles,
   getUserPeakPowers,
   getCyclingFtpAtDate,
+  getAthleteProfile,
 } from "@/lib/data/queries";
+import { classifyPower, CATEGORY_LABELS } from "@/lib/engine/cycling/power-profile";
 import {
   formatDuration,
   formatDistance,
@@ -219,11 +221,12 @@ export default async function ActivityDetailPage({
   const userId = session.user.id;
 
   // Parallel data fetch
-  const [activity, streams, profiles, recentPeaks] = await Promise.all([
+  const [activity, streams, profiles, recentPeaks, athleteProfile] = await Promise.all([
     getActivityById(userId, id),
     getActivityStreams(id),
     getSportProfiles(userId),
     getUserPeakPowers(userId),
+    getAthleteProfile(userId),
   ]);
 
   if (!activity) notFound();
@@ -299,6 +302,23 @@ export default async function ActivityDetailPage({
 
   // Metabolic calories ≈ mechanical work / efficiency (~24%)
   const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
+
+  // Ride Power Rankings (Coggan classification)
+  const weightKg = athleteProfile?.weightKg ?? 75;
+  const rideRankings = activity.sport === "cycling" ? (() => {
+    const durations = [
+      { key: "5s", label: "5s", watts: activity.peak5s },
+      { key: "1m", label: "1m", watts: activity.peak1m },
+      { key: "5m", label: "5m", watts: activity.peak5m },
+      { key: "20m", label: "20m", watts: activity.peak20m },
+      { key: "60m", label: "60m", watts: activity.peak60m },
+    ].filter((d): d is { key: string; label: string; watts: number } => d.watts != null && d.watts > 0);
+    if (durations.length === 0) return null;
+    return durations.map((d) => ({
+      ...d,
+      category: classifyPower(d.watts, weightKg, d.key),
+    }));
+  })() : null;
 
   // Coasting % from streams
   const coastingPct =
@@ -645,6 +665,31 @@ export default async function ActivityDetailPage({
                       unit={activity.sport === "running" ? "spm" : "rpm"}
                     />
                   )}
+                </StatSection>
+              )}
+
+              {/* Ride Power Rankings */}
+              {rideRankings && rideRankings.length > 0 && (
+                <StatSection icon={Zap} title="Ride Rankings">
+                  {rideRankings.map((r) => (
+                    <div key={r.key} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium w-7 text-muted-foreground">{r.label}</span>
+                        <span className="text-sm font-semibold tabular-nums">{r.watts}<span className="text-xs font-normal text-muted-foreground ml-0.5">W</span></span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] tabular-nums text-muted-foreground">{r.category.wPerKg} W/kg</span>
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          r.category.level >= 6 ? "bg-purple-500/15 text-purple-400" :
+                          r.category.level >= 4 ? "bg-blue-500/15 text-blue-400" :
+                          r.category.level >= 2 ? "bg-green-500/15 text-green-400" :
+                          "bg-muted text-muted-foreground"
+                        }`}>
+                          {r.category.label}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </StatSection>
               )}
 
