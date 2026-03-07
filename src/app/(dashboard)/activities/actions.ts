@@ -1,11 +1,116 @@
 "use server";
 
 import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { activities } from "@/lib/db/schema";
+import { eq, and, desc, asc, gte, lte, sql, ilike } from "drizzle-orm";
 import {
   getActivitiesForRange,
   getPlannedWorkoutsForRange,
   getMetricsForRange,
 } from "@/lib/data/queries";
+
+// ── Activity List Search ────────────────────────────────────────────
+
+export type SortField = "date" | "tss" | "duration" | "distance" | "power" | "hr";
+export type SortDir = "asc" | "desc";
+export type SportFilter = "all" | "cycling" | "running" | "swimming";
+export type RangeFilter = "all" | "7d" | "30d" | "90d" | "6m" | "1y" | "ytd";
+
+export interface ActivityRow {
+  id: string;
+  sport: string;
+  name: string | null;
+  startedAt: Date;
+  durationSeconds: number;
+  distanceMeters: number | null;
+  elevationGainMeters: number | null;
+  tss: number | null;
+  averagePowerWatts: number | null;
+  averageHr: number | null;
+  normalizedPower: number | null;
+  intensityFactor: number | null;
+}
+
+function rangeToDate(range: RangeFilter): Date | null {
+  if (range === "all") return null;
+  const now = new Date();
+  if (range === "ytd") return new Date(now.getFullYear(), 0, 1);
+  const days: Record<string, number> = { "7d": 7, "30d": 30, "90d": 90, "6m": 183, "1y": 365 };
+  const d = new Date();
+  d.setDate(d.getDate() - (days[range] ?? 365));
+  return d;
+}
+
+const SORT_COLUMNS = {
+  date: activities.startedAt,
+  tss: activities.tss,
+  duration: activities.durationSeconds,
+  distance: activities.distanceMeters,
+  power: activities.averagePowerWatts,
+  hr: activities.averageHr,
+} as const;
+
+export async function searchActivities(opts: {
+  sport: SportFilter;
+  range: RangeFilter;
+  search: string;
+  sortBy: SortField;
+  sortDir: SortDir;
+  offset: number;
+  limit: number;
+}): Promise<{ rows: ActivityRow[]; total: number }> {
+  const session = await auth();
+  if (!session?.user?.id) return { rows: [], total: 0 };
+
+  const conditions = [eq(activities.userId, session.user.id)];
+
+  if (opts.sport !== "all") {
+    conditions.push(eq(activities.sport, opts.sport));
+  }
+
+  const rangeDate = rangeToDate(opts.range);
+  if (rangeDate) {
+    conditions.push(gte(activities.startedAt, rangeDate));
+  }
+
+  if (opts.search.trim()) {
+    conditions.push(ilike(activities.name, `%${opts.search.trim()}%`));
+  }
+
+  const where = and(...conditions);
+  const col = SORT_COLUMNS[opts.sortBy];
+  const order = opts.sortDir === "asc" ? asc(col) : desc(col);
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select({
+        id: activities.id,
+        sport: activities.sport,
+        name: activities.name,
+        startedAt: activities.startedAt,
+        durationSeconds: activities.durationSeconds,
+        distanceMeters: activities.distanceMeters,
+        elevationGainMeters: activities.elevationGainMeters,
+        tss: activities.tss,
+        averagePowerWatts: activities.averagePowerWatts,
+        averageHr: activities.averageHr,
+        normalizedPower: activities.normalizedPower,
+        intensityFactor: activities.intensityFactor,
+      })
+      .from(activities)
+      .where(where)
+      .orderBy(order)
+      .limit(opts.limit)
+      .offset(opts.offset),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(activities)
+      .where(where),
+  ]);
+
+  return { rows, total: countResult[0]?.count ?? 0 };
+}
 
 export interface WeekData {
   weekNumber: number;

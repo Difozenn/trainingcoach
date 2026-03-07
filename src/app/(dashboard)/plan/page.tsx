@@ -118,44 +118,36 @@ function generatePhaseTimeline(
   weeksSinceStart: number,
   level: AthleteLevel,
   weeklyHours: number,
-  weeksAhead: number = 12
+  actualRampRate: number | null,
+  weeksAhead: number = 16
 ): { subPhase: SubPhase; isRecovery: boolean; weekNum: number; projectedCtl: number }[] {
   const timeline: { subPhase: SubPhase; isRecovery: boolean; weekNum: number; projectedCtl: number }[] = [];
   const pattern = getRecoveryPattern(level);
 
-  // CTL projection — exponential approach to ceiling
-  //
-  // CTL = EMA(TSS, 42 days). Steady-state CTL = weeklyTSS / 7.
-  //
-  // Average TSS/hr across a mixed training week (Coggan/Allen):
-  //   Easy rides ~40 TSS/hr, tempo ~60, threshold ~80, intervals ~90+
-  //   Blended avg ~45-55 depending on intensity mix.
-  //   Higher-level athletes do slightly more intensity per hour.
-  //
-  // Safe ramp rates (Coggan, Friel, Couzens):
-  //   Novice: 3-5 CTL/wk    Competitive: 7-10 CTL/wk
-  //   >10 CTL/wk = injury/overtraining risk (Friel, Couzens)
-  //
-  // Recovery week: volume ~60% → CTL decays ~5-7% (proportional)
-  //
-  const avgTssPerHour: Record<AthleteLevel, number> = {
-    novice: 42,     // mostly easy + some tempo
-    beginner: 47,   // regular sweet spot sessions
-    intermediate: 52, // structured intervals
-    advanced: 55,   // high-intensity mix
-    competitive: 58, // race-intensity training
+  // CTL ramp rate: use actual measured ramp if available, else level default.
+  // Safe ranges (Coggan, Friel, Couzens): 3-5 novice, 5-7 intermediate, 7-10 advanced
+  const defaultRamp: Record<AthleteLevel, number> = {
+    novice: 3,
+    beginner: 4,
+    intermediate: 5,
+    advanced: 7,
+    competitive: 8,
   };
-  const maxRampRate: Record<AthleteLevel, number> = {
-    novice: 4,      // conservative (Coggan: 3-5 safe for novice)
-    beginner: 5,    // mid-range novice ceiling
-    intermediate: 6, // standard (Coggan: 5-7 for most athletes)
-    advanced: 7,    // upper standard range
-    competitive: 9, // aggressive but below injury threshold (Couzens: <10)
-  };
+  const ramp = actualRampRate != null && actualRampRate > 0
+    ? Math.min(actualRampRate, 10) // cap at 10 for safety
+    : defaultRamp[level];
 
-  const weeklyTssCapacity = weeklyHours * avgTssPerHour[level];
-  const ctlCeiling = weeklyTssCapacity / 7;
-  const maxRamp = maxRampRate[level];
+  // CTL ceiling: steady-state CTL for given weekly hours + intensity.
+  // Use realistic TSS/hr that accounts for structured training (sweet spot,
+  // threshold sessions push avg well above pure Z2).
+  const tssPerHour: Record<AthleteLevel, number> = {
+    novice: 45,
+    beginner: 50,
+    intermediate: 58,
+    advanced: 63,
+    competitive: 68,
+  };
+  const ctlCeiling = (weeklyHours * tssPerHour[level]) / 7;
 
   let projectedCtl = ctl;
   for (let i = 0; i < weeksAhead; i++) {
@@ -164,13 +156,13 @@ function generatePhaseTimeline(
     const sub = recovery ? "recovery" as SubPhase : projectPhase(projectedCtl);
     timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1, projectedCtl: Math.round(projectedCtl) });
     if (recovery) {
-      // Recovery week: ~60% volume → CTL decays ~6% (proportional to current load)
       projectedCtl = Math.max(0, projectedCtl * 0.94);
     } else {
-      // Exponential approach to ceiling, capped by max safe ramp rate
-      const headroom = Math.max(0, ctlCeiling - projectedCtl);
-      const growth = Math.min(maxRamp, headroom * 0.15);
-      projectedCtl += growth;
+      // Linear ramp, tapering only when approaching ceiling (>80%)
+      const ceilingPct = projectedCtl / ctlCeiling;
+      const taper = ceilingPct > 0.8 ? Math.max(0.1, 1 - (ceilingPct - 0.8) * 4) : 1;
+      projectedCtl += ramp * taper;
+      projectedCtl = Math.min(projectedCtl, ctlCeiling);
     }
   }
 
@@ -272,8 +264,9 @@ export default async function PlanPage() {
   );
 
   const weeklyHours = profile?.weeklyHoursAvailable ?? 8;
+  const actualRamp = metrics?.rampRate ?? null;
   const currentPhase = generateAutoProgressivePlan(ctl, weeksSinceStart, level);
-  const phaseTimeline = generatePhaseTimeline(ctl, weeksSinceStart, level, weeklyHours, 12);
+  const phaseTimeline = generatePhaseTimeline(ctl, weeksSinceStart, level, weeklyHours, actualRamp);
 
   // ── Expected Zone Distribution ──────────────────────────────────
   const expectedZones = currentPhase.intensityDistribution;
@@ -327,7 +320,7 @@ export default async function PlanPage() {
                   } ${i === phaseTimeline.length - 1 ? "rounded-r-full" : ""} ${
                     week.isRecovery ? "opacity-50" : ""
                   }`}
-                  title={`Wk ${week.weekNum}: ${PHASE_LABELS[week.subPhase] ?? week.subPhase}${week.isRecovery ? " (recovery)" : ""}`}
+                  title={`Wk ${week.weekNum}: ${PHASE_LABELS[week.subPhase] ?? week.subPhase}${week.isRecovery ? " (recovery)" : ""} · CTL ${week.projectedCtl}`}
                 />
               ))}
             </div>
@@ -335,15 +328,16 @@ export default async function PlanPage() {
             {/* Timeline legend */}
             <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
               {(() => {
-                // Group consecutive phases
-                const groups: { label: string; color: string; count: number }[] = [];
+                // Group consecutive phases, track CTL at start of each group
+                const groups: { label: string; color: string; count: number; startCtl: number; weekIdx: number }[] = [];
                 let prev = "";
-                for (const week of phaseTimeline) {
+                for (let idx = 0; idx < phaseTimeline.length; idx++) {
+                  const week = phaseTimeline[idx];
                   const label = PHASE_LABELS[week.subPhase] ?? week.subPhase;
                   if (label === prev && groups.length > 0) {
                     groups[groups.length - 1].count++;
                   } else {
-                    groups.push({ label, color: PHASE_COLORS[week.subPhase] ?? "bg-gray-400", count: 1 });
+                    groups.push({ label, color: PHASE_COLORS[week.subPhase] ?? "bg-gray-400", count: 1, startCtl: week.projectedCtl, weekIdx: idx });
                     prev = label;
                   }
                 }
@@ -351,10 +345,22 @@ export default async function PlanPage() {
                   <span key={i} className="flex items-center gap-1">
                     <span className={`inline-block h-2.5 w-2.5 rounded-sm ${g.color}`} />
                     {g.label} ({g.count}w)
+                    {g.weekIdx > 0 && (
+                      <span className="text-[10px] text-muted-foreground/60">
+                        wk{g.weekIdx + 1}
+                      </span>
+                    )}
                   </span>
                 ));
               })()}
             </div>
+
+            {/* CTL projection summary */}
+            <p className="text-[11px] text-muted-foreground">
+              CTL {Math.round(ctl)} → {phaseTimeline[phaseTimeline.length - 1]?.projectedCtl ?? "?"}{" "}
+              projected over {phaseTimeline.length} weeks
+              {actualRamp != null && ` (ramp ${actualRamp.toFixed(1)}/wk)`}
+            </p>
           </CardContent>
         </Card>
 

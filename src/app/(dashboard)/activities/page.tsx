@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchWeeks } from "./actions";
-import { WeekCalendar } from "./week-calendar";
+import { ActivityTabs } from "./activity-tabs";
 
 export default async function ActivitiesPage() {
   const session = await auth();
@@ -17,7 +17,7 @@ export default async function ActivitiesPage() {
       <div className="flex-1 p-6">
         <Card>
           <CardContent className="overflow-x-auto pt-4">
-            <WeekCalendar initialWeeks={weeks} initialCursor={nextCursor} />
+            <ActivityTabs initialWeeks={weeks} initialCursor={nextCursor} />
           </CardContent>
         </Card>
       </div>
