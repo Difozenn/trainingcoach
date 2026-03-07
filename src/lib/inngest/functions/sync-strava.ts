@@ -625,9 +625,9 @@ function calculateActivityMetrics(
       }
     }
   } else if (sport === "running") {
-    const thresholdPace = profile?.thresholdPaceSPerKm ?? 300;
+    const thresholdPace = profile?.thresholdPaceSPerKm;
 
-    // Try stream-based NGP/rTSS
+    // Always capture NGP even without threshold
     if (
       streams?.velocity_smooth?.data &&
       streams.velocity_smooth.data.length >= 30
@@ -636,20 +636,22 @@ function calculateActivityMetrics(
       const ngp = calculateNGP(streams.velocity_smooth.data, gradeStream);
       if (ngp) {
         result.normalizedGradedPace = ngp;
-        const rtssResult = calculateRTSS(
-          streams.velocity_smooth.data,
-          thresholdPace,
-          gradeStream
-        );
-        if (rtssResult) {
-          result.intensityFactor = rtssResult.intensityFactor;
-          result.tss = rtssResult.rtss;
+        if (thresholdPace) {
+          const rtssResult = calculateRTSS(
+            streams.velocity_smooth.data,
+            thresholdPace,
+            gradeStream
+          );
+          if (rtssResult) {
+            result.intensityFactor = rtssResult.intensityFactor;
+            result.tss = rtssResult.rtss;
+          }
         }
       }
     }
 
     // Fall back to average pace estimate
-    if (!result.tss && activity.distance > 0) {
+    if (!result.tss && thresholdPace && activity.distance > 0) {
       const avgPaceSecPerKm = (activity.moving_time / activity.distance) * 1000;
       result.tss = estimateRTSSFromAvgPace(
         avgPaceSecPerKm,
@@ -659,9 +661,9 @@ function calculateActivityMetrics(
       result.normalizedGradedPace = Math.round(avgPaceSecPerKm * 10) / 10;
     }
   } else if (sport === "swimming") {
-    const css = profile?.cssSPer100m ?? 110;
+    const css = profile?.cssSPer100m;
 
-    if (activity.distance > 0) {
+    if (css && activity.distance > 0) {
       const stssResult = calculateSTSS(
         activity.distance,
         activity.moving_time,

@@ -369,7 +369,8 @@ type CalculatedMetrics = {
 
 function calculateWahooMetrics(
   processed: ReturnType<typeof processWahooWorkout> & {},
-  profile: SportProfileRow
+  profile: SportProfileRow,
+  athleteRestingHr?: number | null
 ): CalculatedMetrics {
   const result: CalculatedMetrics = {
     normalizedPower: null,
@@ -380,18 +381,17 @@ function calculateWahooMetrics(
   };
 
   if (processed.sport === "cycling") {
-    const ftp = profile?.ftp ?? 200;
+    const ftp = profile?.ftp;
 
     // Use Wahoo's NP and TSS when available
     if (processed.wahooTss && processed.wahooTss > 0) {
       result.normalizedPower = processed.normalizedPower;
       result.tss = processed.wahooTss;
-      if (processed.normalizedPower) {
+      if (ftp && processed.normalizedPower) {
         result.intensityFactor =
           Math.round((processed.normalizedPower / ftp) * 1000) / 1000;
       }
-    } else if (processed.averagePowerWatts) {
-      // Recompute from average power
+    } else if (ftp && processed.averagePowerWatts) {
       result.normalizedPower = processed.normalizedPower;
       result.tss = estimateTSSFromAvgPower(
         processed.averagePowerWatts,
@@ -402,9 +402,9 @@ function calculateWahooMetrics(
         Math.round((processed.averagePowerWatts / ftp) * 1000) / 1000;
     }
   } else if (processed.sport === "running") {
-    const thresholdPace = profile?.thresholdPaceSPerKm ?? 300;
+    const thresholdPace = profile?.thresholdPaceSPerKm;
 
-    if (processed.distanceMeters > 0) {
+    if (thresholdPace && processed.distanceMeters > 0) {
       const avgPaceSecPerKm =
         (processed.durationSeconds / processed.distanceMeters) * 1000;
       result.tss = estimateRTSSFromAvgPace(
@@ -415,9 +415,9 @@ function calculateWahooMetrics(
       result.normalizedGradedPace = Math.round(avgPaceSecPerKm * 10) / 10;
     }
   } else if (processed.sport === "swimming") {
-    const css = profile?.cssSPer100m ?? 110;
+    const css = profile?.cssSPer100m;
 
-    if (processed.distanceMeters > 0) {
+    if (css && processed.distanceMeters > 0) {
       const stssResult = calculateSTSS(
         processed.distanceMeters,
         processed.durationSeconds,
@@ -432,7 +432,7 @@ function calculateWahooMetrics(
 
   // HR-based TRIMP as fallback
   if (processed.averageHr && processed.maxHr) {
-    const restingHr = 60;
+    const restingHr = athleteRestingHr ?? 60;
     result.trimp = calculateHrTSS(
       processed.averageHr,
       processed.durationSeconds,

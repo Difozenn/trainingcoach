@@ -622,14 +622,14 @@ function calculateGarminMetrics(
   };
 
   if (processed.sport === "cycling") {
-    const ftp = profile?.ftp ?? 200;
+    const ftp = profile?.ftp;
 
     // Use Garmin's NP/TSS when available
     if (processed.garminTss && processed.garminTss > 0) {
       result.normalizedPower = processed.garminNp;
       result.tss = processed.garminTss;
       result.intensityFactor = processed.garminIf;
-    } else if (processed.averagePowerWatts) {
+    } else if (ftp && processed.averagePowerWatts) {
       result.tss = estimateTSSFromAvgPower(
         processed.averagePowerWatts,
         processed.durationSeconds,
@@ -639,9 +639,9 @@ function calculateGarminMetrics(
         Math.round((processed.averagePowerWatts / ftp) * 1000) / 1000;
     }
   } else if (processed.sport === "running") {
-    const thresholdPace = profile?.thresholdPaceSPerKm ?? 300;
+    const thresholdPace = profile?.thresholdPaceSPerKm;
 
-    if (processed.distanceMeters > 0) {
+    if (thresholdPace && processed.distanceMeters > 0) {
       const avgPaceSecPerKm =
         (processed.durationSeconds / processed.distanceMeters) * 1000;
       result.tss = estimateRTSSFromAvgPace(
@@ -652,9 +652,9 @@ function calculateGarminMetrics(
       result.normalizedGradedPace = Math.round(avgPaceSecPerKm * 10) / 10;
     }
   } else if (processed.sport === "swimming") {
-    const css = profile?.cssSPer100m ?? 110;
+    const css = profile?.cssSPer100m;
 
-    if (processed.distanceMeters > 0) {
+    if (css && processed.distanceMeters > 0) {
       const stssResult = calculateSTSS(
         processed.distanceMeters,
         processed.durationSeconds,
