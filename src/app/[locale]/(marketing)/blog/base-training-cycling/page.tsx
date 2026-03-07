@@ -33,7 +33,7 @@ export default function BaseTrainingCyclingPage() {
           </h1>
         </div>
 
-        <div className="prose prose-neutral dark:prose-invert">
+        <div className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1">
           <p className="lead">
             Every year, thousands of cyclists make the same mistake: they skip
             base training, jump straight into intervals, see short-term gains,
@@ -67,6 +67,7 @@ export default function BaseTrainingCyclingPage() {
             adaptations you simply cannot get from harder riding.
           </p>
 
+          <hr />
           <h2>The Physiology: What Happens Inside Your Body</h2>
 
           <p>
@@ -159,6 +160,14 @@ export default function BaseTrainingCyclingPage() {
             fatiguing fast-twitch fibers.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Base training triggers five key adaptations: mitochondrial biogenesis, capillarization, fat oxidation, cardiac remodeling, and slow-twitch fiber development. None of these can be shortcutted with intensity — they require sustained aerobic volume over weeks and months.
+            </p>
+          </div>
+
+          <hr />
           <h2>What Zone 2 Actually Means</h2>
 
           <p>
@@ -229,6 +238,7 @@ export default function BaseTrainingCyclingPage() {
             to see your exact Zone 2 wattage range.
           </p>
 
+          <hr />
           <h2>How Long Should Your Base Phase Be?</h2>
 
           <p>
@@ -236,41 +246,28 @@ export default function BaseTrainingCyclingPage() {
             goals. Here are evidence-based guidelines:
           </p>
 
-          <h3>Beginners (less than 2 years of structured training)</h3>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Beginner</p>
+              <p className="text-xs text-muted-foreground mt-1">Less than 2 years of structured training</p>
+              <p className="text-sm font-medium mt-2">8-12 weeks minimum</p>
+              <p className="text-xs text-muted-foreground mt-1">The most room for aerobic development. Rushing this phase is the number one mistake beginner cyclists make.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Intermediate</p>
+              <p className="text-xs text-muted-foreground mt-1">2-5 years of consistent training</p>
+              <p className="text-sm font-medium mt-2">6-8 weeks</p>
+              <p className="text-xs text-muted-foreground mt-1">Rebuild and extend your existing base. Six weeks minimum for meaningful adaptations; eight is preferable.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Advanced</p>
+              <p className="text-xs text-muted-foreground mt-1">5+ years, high volume history</p>
+              <p className="text-sm font-medium mt-2">4-6 weeks</p>
+              <p className="text-xs text-muted-foreground mt-1">Well-established aerobic engine. Even elite pros still include a distinct base phase.</p>
+            </div>
+          </div>
 
-          <p>
-            <strong>8-12 weeks minimum.</strong> Newer athletes have the most
-            room for aerobic development and benefit enormously from extended base
-            periods. The physiological adaptations — capillarization,
-            mitochondrial biogenesis, connective tissue strengthening — take
-            longer to develop in athletes without a training history. Rushing this
-            phase is the number one mistake beginner cyclists make. The patience
-            invested here pays dividends for years.
-          </p>
-
-          <h3>Intermediate (2-5 years of consistent training)</h3>
-
-          <p>
-            <strong>6-8 weeks.</strong> You already have a functional aerobic
-            base from prior seasons. The goal of this period is to rebuild and
-            extend what you have, restore any fitness lost during the off-season,
-            and prepare your body for the intensity that follows. Six weeks is the
-            minimum to see meaningful adaptations; eight weeks is preferable if
-            your schedule allows it.
-          </p>
-
-          <h3>Advanced (5+ years, high volume history)</h3>
-
-          <p>
-            <strong>4-6 weeks.</strong> Experienced athletes with large aerobic
-            engines built over years of training can transition to structured
-            intensity sooner. Their capillary networks, mitochondrial density,
-            and cardiac adaptations are well-established and detraining occurs
-            more slowly. However, even elite professionals still include a
-            distinct base phase — they just need less time to recapture
-            adaptations that took years to build.
-          </p>
-
+          <hr />
           <h2>Weekly Volume Guidelines</h2>
 
           <p>
@@ -279,29 +276,23 @@ export default function BaseTrainingCyclingPage() {
             substitute for it. Here is how to think about weekly hours:
           </p>
 
-          <p>
-            <strong>Minimum effective dose: 6-8 hours per week.</strong> Below
-            six hours, it becomes difficult to accumulate enough aerobic stress
-            to drive meaningful adaptation. For time-crunched athletes, this is
-            the floor. Prioritize consistency over heroic single sessions.
-          </p>
-
-          <p>
-            <strong>Optimal range: 10-15 hours per week.</strong> This is where
-            most serious amateur cyclists should aim. It provides enough volume
-            to drive substantial aerobic gains while remaining sustainable
-            alongside work and life commitments. Improvement in aerobic markers
-            is roughly dose-dependent up to about 15 hours per week for most
-            athletes.
-          </p>
-
-          <p>
-            <strong>Pro-level: 20-30 hours per week.</strong> Professional
-            cyclists routinely log 25-30 hours per week during their base
-            periods. This volume is not necessary for amateur performance, and
-            attempting it without the recovery infrastructure of a pro (sleep,
-            nutrition, massage, no day job) is counterproductive.
-          </p>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Minimum effective dose</p>
+              <p className="text-sm font-medium mt-2">6-8 hours/week</p>
+              <p className="text-xs text-muted-foreground mt-1">The floor for meaningful adaptation. Prioritize consistency over heroic single sessions.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Optimal range</p>
+              <p className="text-sm font-medium mt-2">10-15 hours/week</p>
+              <p className="text-xs text-muted-foreground mt-1">Where most serious amateurs should aim. Substantial aerobic gains while staying sustainable.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Pro-level</p>
+              <p className="text-sm font-medium mt-2">20-30 hours/week</p>
+              <p className="text-xs text-muted-foreground mt-1">Requires full recovery infrastructure. Not necessary for amateur performance.</p>
+            </div>
+          </div>
 
           <h3>The Long Ride</h3>
 
@@ -322,6 +313,14 @@ export default function BaseTrainingCyclingPage() {
             are finishing these rides exhausted, you are going too hard.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Volume is the primary driver of aerobic adaptation during base training. Aim for 10-15 hours per week if possible, with one ride per week of 3+ hours to trigger fat oxidation pathways that shorter sessions cannot replicate.
+            </p>
+          </div>
+
+          <hr />
           <h2>Can You Include Intensity During Base?</h2>
 
           <p>
@@ -375,6 +374,7 @@ export default function BaseTrainingCyclingPage() {
             intense efforts.
           </p>
 
+          <hr />
           <h2>Indoor vs. Outdoor Base Training</h2>
 
           <p>
@@ -393,6 +393,7 @@ export default function BaseTrainingCyclingPage() {
             ideal when weather allows it.
           </p>
 
+          <hr />
           <h2>Signs Your Base Is Working</h2>
 
           <p>
@@ -434,6 +435,7 @@ export default function BaseTrainingCyclingPage() {
             fitness in action.
           </p>
 
+          <hr />
           <h2>The Biggest Mistakes</h2>
 
           <h3>Going Too Hard: The Gray Zone Trap</h3>
@@ -457,6 +459,13 @@ export default function BaseTrainingCyclingPage() {
             designed to build. Discipline in base training means holding back
             when every instinct says go harder.
           </p>
+
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              The most common and damaging mistake in base training is riding in Zone 3 instead of Zone 2. Zone 3 generates significant fatigue without proportionate aerobic adaptation. Discipline means holding back when every instinct says go harder.
+            </p>
+          </div>
 
           <h3>Cutting Base Short to Chase Intensity</h3>
 
@@ -498,6 +507,7 @@ export default function BaseTrainingCyclingPage() {
             aerobic markers are improving over time.
           </p>
 
+          <hr />
           <h2>When to Move On to the Build Phase</h2>
 
           <p>

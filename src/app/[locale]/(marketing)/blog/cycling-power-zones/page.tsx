@@ -34,7 +34,7 @@ export default function CyclingPowerZonesArticle() {
           </h1>
         </div>
 
-        <div className="prose prose-neutral dark:prose-invert">
+        <div className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1">
           <p className="lead">
             Power zones are the backbone of structured cycling training. Developed by Dr. Andrew Coggan and co-authored
             with Hunter Allen in <em>Training and Racing with a Power Meter</em>, the 7-zone model gives every cyclist a
@@ -64,6 +64,7 @@ export default function CyclingPowerZonesArticle() {
             Zones eliminate the grey area.
           </p>
 
+          <hr />
           <h2>The 7 Coggan Power Zones</h2>
 
           <p>
@@ -145,6 +146,7 @@ export default function CyclingPowerZonesArticle() {
             </Button>
           </div>
 
+          <hr />
           <h2>Zone 1 — Active Recovery (&lt;55% FTP)</h2>
 
           <p>
@@ -164,6 +166,7 @@ export default function CyclingPowerZonesArticle() {
             comfortable (85-95 rpm). If you find yourself pushing harder on a climb, shift down or take a different route.
           </p>
 
+          <hr />
           <h2>Zone 2 — Endurance (55-75% FTP)</h2>
 
           <p>
@@ -191,6 +194,14 @@ export default function CyclingPowerZonesArticle() {
             development over time.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Zone 2 is where aerobic fitness is built. It develops mitochondrial density, capillarization, and fat oxidation capacity. Most athletes ride too hard here, creeping into Zone 3 — one of the most common and damaging training errors.
+            </p>
+          </div>
+
+          <hr />
           <h2>Zone 3 — Tempo (75-90% FTP)</h2>
 
           <p>
@@ -217,6 +228,7 @@ export default function CyclingPowerZonesArticle() {
             a continuous 60-90 minute tempo ride for a sweetspot-style session that targets the upper end of the range.
           </p>
 
+          <hr />
           <h2>Zone 4 — Threshold (90-105% FTP)</h2>
 
           <p>
@@ -243,6 +255,7 @@ export default function CyclingPowerZonesArticle() {
             gains than any other workout in cycling.
           </p>
 
+          <hr />
           <h2>Zone 5 — VO2max (105-120% FTP)</h2>
 
           <p>
@@ -269,6 +282,7 @@ export default function CyclingPowerZonesArticle() {
             110-118% FTP with 3 minutes rest.
           </p>
 
+          <hr />
           <h2>Zone 6 — Anaerobic Capacity (120-150% FTP)</h2>
 
           <p>
@@ -295,6 +309,7 @@ export default function CyclingPowerZonesArticle() {
             and ensure adequate recovery.
           </p>
 
+          <hr />
           <h2>Zone 7 — Neuromuscular Power (150%+ FTP)</h2>
 
           <p>
@@ -320,6 +335,7 @@ export default function CyclingPowerZonesArticle() {
             is non-negotiable — if you cannot reach peak power, the recovery was too short.
           </p>
 
+          <hr />
           <h2>Zone Distribution: How to Structure Your Training</h2>
 
           <p>
@@ -353,6 +369,7 @@ export default function CyclingPowerZonesArticle() {
             fatigue cost and may lead to stagnation if sustained indefinitely.
           </p>
 
+          <hr />
           <h2>The 80/20 Rule</h2>
 
           <p>
@@ -369,6 +386,14 @@ export default function CyclingPowerZonesArticle() {
             equation of endurance training.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Approximately 80% of your training should be at low intensity (Zones 1-2) and 20% at high intensity (Zones 4-7). This ratio maximizes adaptation while managing fatigue — the fundamental equation of endurance training.
+            </p>
+          </div>
+
+          <hr />
           <h2>How Zones Change as FTP Changes</h2>
 
           <p>
@@ -390,6 +415,7 @@ export default function CyclingPowerZonesArticle() {
             current without any manual intervention.
           </p>
 
+          <hr />
           <h2>Common Mistakes</h2>
 
           <h3>Too Much Time in Zone 3</h3>
@@ -428,6 +454,14 @@ export default function CyclingPowerZonesArticle() {
             training stimulus shifts downward. Test regularly or use a platform that tracks FTP continuously.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Training with outdated zones is worse than training without zones at all. As your FTP rises, your zones shift upward in absolute watts. Regular FTP testing or continuous tracking keeps your training stimulus correctly targeted.
+            </p>
+          </div>
+
+          <hr />
           <h2>Putting It All Together</h2>
 
           <p>

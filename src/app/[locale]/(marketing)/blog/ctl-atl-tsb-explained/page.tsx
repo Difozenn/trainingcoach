@@ -35,8 +35,8 @@ export default function CtlAtlTsbExplainedPage() {
           </div>
         </header>
 
-        <article className="prose prose-neutral dark:prose-invert mx-auto max-w-3xl">
-          <p>
+        <article className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1 mx-auto max-w-3xl">
+          <p className="lead">
             If you have ever used TrainingPeaks, Strava, or any modern training
             platform, you have seen the Performance Management Chart — a line
             graph with three colored curves that supposedly tell you when you are
@@ -82,6 +82,7 @@ export default function CtlAtlTsbExplainedPage() {
             Power.
           </p>
 
+          <hr />
           <h2>CTL — Chronic Training Load (Fitness)</h2>
           <p>
             CTL is a rolling, exponentially weighted moving average of your
@@ -128,21 +129,33 @@ export default function CtlAtlTsbExplainedPage() {
           </p>
 
           <h3>Typical CTL Ranges</h3>
-          <ul>
-            <li>
-              <strong>20-40</strong>: Recreational rider, 3-5 hours per week
-            </li>
-            <li>
-              <strong>40-70</strong>: Serious amateur, structured training
-            </li>
-            <li>
-              <strong>70-100</strong>: Competitive amateur, 10-15 hours per week
-            </li>
-            <li>
-              <strong>100-150+</strong>: Elite or professional level
-            </li>
-          </ul>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">CTL 20-40</p>
+              <p className="text-xs text-muted-foreground mt-1">Recreational rider, 3-5 hours per week</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">CTL 40-70</p>
+              <p className="text-xs text-muted-foreground mt-1">Serious amateur, structured training</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">CTL 70-100</p>
+              <p className="text-xs text-muted-foreground mt-1">Competitive amateur, 10-15 hours per week</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">CTL 100-150+</p>
+              <p className="text-xs text-muted-foreground mt-1">Elite or professional level</p>
+            </div>
+          </div>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              CTL is a 42-day rolling average of your daily TSS. It reflects how much training your body has absorbed — but higher CTL does not automatically mean better performance. Quality matters as much as quantity.
+            </p>
+          </div>
+
+          <hr />
           <h2>ATL — Acute Training Load (Fatigue)</h2>
           <p>
             ATL is the same exponentially weighted moving average, but with a{" "}
@@ -183,6 +196,7 @@ export default function CtlAtlTsbExplainedPage() {
             </li>
           </ul>
 
+          <hr />
           <h2>TSB — Training Stress Balance (Form)</h2>
           <p>
             TSB is the simplest calculation on the PMC:
@@ -199,31 +213,28 @@ export default function CtlAtlTsbExplainedPage() {
           </p>
 
           <h3>TSB Ranges and What They Mean</h3>
-          <ul>
-            <li>
-              <strong>+15 to +25</strong>: Very fresh, but fitness is likely
-              decaying. Extended periods here mean detraining.
-            </li>
-            <li>
-              <strong>+5 to +15</strong>: Fresh and ready to perform.
-              Ideal for A-races after a proper taper.
-            </li>
-            <li>
-              <strong>0 to -10</strong>: Slightly fatigued but functional.
-              Normal during a well-managed training block.
-            </li>
-            <li>
-              <strong>-10 to -30</strong>: Fatigued. This is where productive
-              training happens — you are applying a stimulus that exceeds your
-              current fitness. Common during build phases.
-            </li>
-            <li>
-              <strong>Below -30</strong>: Deep fatigue. Risk of overtraining,
-              illness, or injury increases significantly. You should be here
-              only briefly and intentionally (functional overreaching) before
-              backing off.
-            </li>
-          </ul>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">+15 to +25</p>
+              <p className="text-xs text-muted-foreground mt-1">Very fresh, but fitness is likely decaying. Extended periods here mean detraining.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">+5 to +15</p>
+              <p className="text-xs text-muted-foreground mt-1">Fresh and ready to perform. Ideal for A-races after a proper taper.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">0 to -10</p>
+              <p className="text-xs text-muted-foreground mt-1">Slightly fatigued but functional. Normal during a well-managed training block.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">-10 to -30</p>
+              <p className="text-xs text-muted-foreground mt-1">Fatigued. This is where productive training happens — you are applying stimulus that exceeds your current fitness.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4 sm:col-span-2">
+              <p className="text-sm font-semibold">Below -30</p>
+              <p className="text-xs text-muted-foreground mt-1">Deep fatigue. Risk of overtraining, illness, or injury increases significantly. Be here only briefly and intentionally.</p>
+            </div>
+          </div>
 
           <h3>The Taper Sweet Spot</h3>
           <p>
@@ -243,6 +254,14 @@ export default function CtlAtlTsbExplainedPage() {
             small amount of fitness to eliminate a large amount of fatigue.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              TSB (CTL minus ATL) is your readiness gauge. Aim for +5 to +15 on race day, stay between 0 and -30 during training blocks, and never push below -30 for more than a week without backing off.
+            </p>
+          </div>
+
+          <hr />
           <h2>The Math: Exponential Weighted Moving Averages</h2>
           <p>
             Both CTL and ATL use the same mathematical structure — an
@@ -273,6 +292,7 @@ export default function CtlAtlTsbExplainedPage() {
             three weeks is irrelevant.
           </p>
 
+          <hr />
           <h2>How to Read the PMC Chart</h2>
           <p>
             Looking at a PMC chart, you will see three lines plotted against a
@@ -313,6 +333,7 @@ export default function CtlAtlTsbExplainedPage() {
             few days is a warning sign of detraining, not a sign of peak form.
           </p>
 
+          <hr />
           <h2>CTL Ramp Rate: How Fast Can You Build Fitness?</h2>
           <p>
             The rate at which CTL increases week over week is called the{" "}
@@ -350,6 +371,14 @@ export default function CtlAtlTsbExplainedPage() {
             the athlete feels cardiovascularly ready for more.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Keep your CTL ramp rate between 3-7 TSS/week. Ramp rate is more predictive of injury risk than absolute CTL — your body can only adapt at a finite rate, and connective tissue adapts slower than your cardiovascular system.
+            </p>
+          </div>
+
+          <hr />
           <h2>Periodization Using the PMC</h2>
           <p>
             The PMC is not just a monitoring tool — it is a planning tool.
@@ -390,6 +419,7 @@ export default function CtlAtlTsbExplainedPage() {
             or burnout.
           </p>
 
+          <hr />
           <h2>Common Mistakes</h2>
 
           <h3>1. Chasing CTL</h3>
@@ -447,6 +477,7 @@ export default function CtlAtlTsbExplainedPage() {
             the most accurate tracking.
           </p>
 
+          <hr />
           <h2>How TSS Feeds the PMC</h2>
           <p>
             Every point on the PMC is driven by a single daily input:{" "}
@@ -479,6 +510,7 @@ export default function CtlAtlTsbExplainedPage() {
             calculation differs.
           </p>
 
+          <hr />
           <h2>Putting It All Together</h2>
           <p>
             The Performance Management Chart is a simplified model of a

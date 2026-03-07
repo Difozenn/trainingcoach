@@ -33,8 +33,8 @@ export default function HowToIncreaseFtpPage() {
           </h1>
         </div>
 
-        <div className="prose prose-neutral dark:prose-invert">
-          <p>
+        <div className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1">
+          <p className="lead">
             Functional Threshold Power is the single most important metric in
             cycling performance. It defines your training zones, determines your
             race pacing, and serves as the benchmark against which every watt of
@@ -81,6 +81,7 @@ export default function HowToIncreaseFtpPage() {
             three systems. Neglect one, and you leave watts on the table.
           </p>
 
+          <hr />
           <h2>The Three Pillars of FTP Improvement</h2>
 
           <h3>Pillar 1: Aerobic Base (Zone 2 Volume)</h3>
@@ -166,6 +167,14 @@ export default function HowToIncreaseFtpPage() {
             sleep, and stagnation.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              FTP improvement requires three pillars working together: aerobic base (Zone 2 volume for mitochondria and capillaries), threshold work (Zone 4 intervals for lactate clearance), and VO2max intervals (Zone 5 to raise your aerobic ceiling). Neglect any one and you leave watts on the table.
+            </p>
+          </div>
+
+          <hr />
           <h2>Specific Workout Prescriptions</h2>
           <p>
             The following workouts are the building blocks of an effective FTP
@@ -250,6 +259,7 @@ export default function HowToIncreaseFtpPage() {
             </Button>
           </div>
 
+          <hr />
           <h2>Periodization: A 12-Week FTP Block</h2>
           <p>
             Random training produces random results. A structured 12-week block
@@ -347,6 +357,14 @@ export default function HowToIncreaseFtpPage() {
             </Button>
           </div>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Structure your 12-week block in phases: 4 weeks of aerobic base building, 4 weeks of build with threshold and VO2max intervals, 3 weeks of specialization, and 1 week of taper before retesting. Random training produces random results.
+            </p>
+          </div>
+
+          <hr />
           <h2>Weekly Structure Example (5 Rides/Week)</h2>
           <p>
             Here is a practical weekly layout for the build phase (weeks 5-8).
@@ -387,6 +405,7 @@ export default function HowToIncreaseFtpPage() {
             day or rest day to allow adequate recovery and adaptation.
           </p>
 
+          <hr />
           <h2>Progressive Overload: Increasing Training Load Safely</h2>
           <p>
             Progressive overload is the fundamental mechanism of adaptation:
@@ -428,6 +447,14 @@ export default function HowToIncreaseFtpPage() {
             to cause overtraining.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              Apply overload in order of priority: frequency first, then duration, then intensity. A CTL ramp rate above 7 TSS/week significantly increases injury and illness risk.
+            </p>
+          </div>
+
+          <hr />
           <h2>Recovery and Adaptation</h2>
           <p>
             Training does not make you fitter. Training applies stress.
@@ -471,32 +498,33 @@ export default function HowToIncreaseFtpPage() {
             the preceding hard weeks.
           </p>
 
+          <hr />
           <h2>Realistic FTP Gains: What to Expect</h2>
           <p>
             Setting realistic expectations prevents both discouragement and
             reckless overtraining. FTP improvement rate depends heavily on
             training history and current fitness level.
           </p>
-          <p>
-            <strong>Beginners (first 1-2 years of structured training):</strong>{" "}
-            Expect gains of 1 to 2 watts per week, or roughly 12 to 24 watts
-            over a 12-week block. Beginners have the most room for adaptation
-            and respond quickly to structured training. Initial gains of 15-20%
-            in the first year are common.
-          </p>
-          <p>
-            <strong>Intermediate (2-4 years of training):</strong> Expect 0.5
-            to 1 watt per week, or roughly 6 to 12 watts over 12 weeks. The
-            rate of improvement slows as you approach your genetic potential.
-            A 5-8% annual improvement is a strong result at this level.
-          </p>
-          <p>
-            <strong>Advanced (4+ years of consistent training):</strong> Gains
-            of 0.25 to 0.5 watts per week, or 3 to 6 watts over 12 weeks. At
-            this level, marginal gains come from optimizing every aspect of
-            training, recovery, and nutrition. Annual improvements of 2-4% are
-            realistic and meaningful.
-          </p>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Beginner</p>
+              <p className="text-xs text-muted-foreground mt-1">First 1-2 years of structured training</p>
+              <p className="text-sm font-medium mt-2">1-2 watts/week</p>
+              <p className="text-xs text-muted-foreground mt-1">12-24 watts over 12 weeks. Initial gains of 15-20% in the first year are common.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Intermediate</p>
+              <p className="text-xs text-muted-foreground mt-1">2-4 years of training</p>
+              <p className="text-sm font-medium mt-2">0.5-1 watt/week</p>
+              <p className="text-xs text-muted-foreground mt-1">6-12 watts over 12 weeks. A 5-8% annual improvement is a strong result.</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Advanced</p>
+              <p className="text-xs text-muted-foreground mt-1">4+ years of consistent training</p>
+              <p className="text-sm font-medium mt-2">0.25-0.5 watts/week</p>
+              <p className="text-xs text-muted-foreground mt-1">3-6 watts over 12 weeks. Annual improvements of 2-4% are realistic.</p>
+            </div>
+          </div>
           <p>
             These numbers assume consistent, well-structured training with
             adequate recovery. Illness, life stress, or poor periodization can
@@ -505,6 +533,7 @@ export default function HowToIncreaseFtpPage() {
             memory&quot; effect.
           </p>
 
+          <hr />
           <h2>Plateau-Busting Strategies</h2>
           <p>
             Every cyclist eventually hits a plateau — a period where FTP refuses
@@ -550,6 +579,7 @@ export default function HowToIncreaseFtpPage() {
             sport-specific intervals.
           </p>
 
+          <hr />
           <h2>Common Mistakes</h2>
           <p>
             <strong>Too much intensity.</strong> This is by far the most common
@@ -591,6 +621,7 @@ export default function HowToIncreaseFtpPage() {
             are load-bearing pillars of the adaptation process.
           </p>
 
+          <hr />
           <h2>Putting It All Together</h2>
           <p>
             Raising your FTP is not complicated, but it is demanding. The

@@ -51,9 +51,9 @@ export default function WhatIsFtpPage() {
         </header>
 
         {/* Article Body */}
-        <article className="prose prose-neutral dark:prose-invert mx-auto max-w-3xl">
+        <article className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1 mx-auto max-w-3xl">
           <h2>What FTP Actually Means</h2>
-          <p>
+          <p className="lead">
             FTP stands for <strong>Functional Threshold Power</strong>. It
             represents the highest average power, measured in watts, that you can
             sustain for approximately one hour. The concept was developed and
@@ -74,6 +74,7 @@ export default function WhatIsFtpPage() {
             line between those two realities — is your FTP.
           </p>
 
+          <hr />
           <h2>The Science Behind FTP</h2>
           <p>
             FTP is a field-based proxy for your{" "}
@@ -114,6 +115,14 @@ export default function WhatIsFtpPage() {
             and it requires nothing more than a power meter and a hard effort.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              FTP is a field-based proxy for your lactate threshold — the boundary between sustainable and unsustainable effort. It reflects VO2max, fractional utilization, efficiency, and muscle composition working together.
+            </p>
+          </div>
+
+          <hr />
           <h2>How to Test Your FTP</h2>
           <p>
             There are three widely used field tests for estimating FTP. Each has
@@ -203,6 +212,7 @@ export default function WhatIsFtpPage() {
             </Button>
           </div>
 
+          <hr />
           <h2>Why FTP Matters for Training</h2>
           <p>
             FTP is not just a number to brag about. It is the foundation of
@@ -215,29 +225,36 @@ export default function WhatIsFtpPage() {
             of FTP. Without an accurate FTP, every zone is wrong — and you end
             up training too hard on easy days and too easy on hard days.
           </p>
-          <ul>
-            <li>
-              <strong>Zone 1 — Active Recovery:</strong> &lt;55% FTP
-            </li>
-            <li>
-              <strong>Zone 2 — Endurance:</strong> 56-75% FTP
-            </li>
-            <li>
-              <strong>Zone 3 — Tempo:</strong> 76-90% FTP
-            </li>
-            <li>
-              <strong>Zone 4 — Threshold:</strong> 91-105% FTP
-            </li>
-            <li>
-              <strong>Zone 5 — VO2max:</strong> 106-120% FTP
-            </li>
-            <li>
-              <strong>Zone 6 — Anaerobic:</strong> 121-150% FTP
-            </li>
-            <li>
-              <strong>Zone 7 — Neuromuscular:</strong> &gt;150% FTP
-            </li>
-          </ul>
+          <div className="not-prose my-6 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 1 — Active Recovery</p>
+              <p className="text-xs text-muted-foreground mt-1">&lt;55% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 2 — Endurance</p>
+              <p className="text-xs text-muted-foreground mt-1">56-75% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 3 — Tempo</p>
+              <p className="text-xs text-muted-foreground mt-1">76-90% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 4 — Threshold</p>
+              <p className="text-xs text-muted-foreground mt-1">91-105% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 5 — VO2max</p>
+              <p className="text-xs text-muted-foreground mt-1">106-120% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-sm font-semibold">Zone 6 — Anaerobic</p>
+              <p className="text-xs text-muted-foreground mt-1">121-150% FTP</p>
+            </div>
+            <div className="rounded-lg border border-border/50 p-4 sm:col-span-2">
+              <p className="text-sm font-semibold">Zone 7 — Neuromuscular</p>
+              <p className="text-xs text-muted-foreground mt-1">&gt;150% FTP</p>
+            </div>
+          </div>
 
           <h3>Training Stress Score (TSS)</h3>
           <p>
@@ -271,6 +288,14 @@ export default function WhatIsFtpPage() {
             Management Chart is unreliable.
           </p>
 
+          <div className="not-prose my-8 rounded-lg border border-border/50 bg-muted/50 p-5">
+            <p className="text-sm font-semibold mb-2">Key takeaway</p>
+            <p className="text-sm text-muted-foreground">
+              FTP drives everything: your seven power zones, every TSS calculation, your CTL fitness tracking, and your entire Performance Management Chart. If your FTP is wrong by 10%, all downstream metrics are unreliable.
+            </p>
+          </div>
+
+          <hr />
           <h2>How Often Should You Retest?</h2>
           <p>
             The short answer: <strong>every 4 to 6 weeks</strong> during
@@ -302,6 +327,7 @@ export default function WhatIsFtpPage() {
             zones accurate.
           </p>
 
+          <hr />
           <h2>Common Mistakes with FTP</h2>
 
           <h3>1. Testing Without Proper Warm-Up</h3>
@@ -344,6 +370,7 @@ export default function WhatIsFtpPage() {
             meaningful comparisons across individuals.
           </p>
 
+          <hr />
           <h2>FTP Ranges by Level</h2>
           <p>
             The following ranges use watts per kilogram (W/kg) and represent
@@ -421,6 +448,7 @@ export default function WhatIsFtpPage() {
             it changes over time for <em>you</em>.
           </p>
 
+          <hr />
           <h2>FTP Is the Starting Point, Not the Finish Line</h2>
           <p>
             FTP is the most important single number in cycling training, but it
