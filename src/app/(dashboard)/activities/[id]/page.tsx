@@ -299,22 +299,18 @@ export default async function ActivityDetailPage({
   // Metabolic calories ≈ mechanical work / efficiency (~24%)
   const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
 
-  // Ride Power Rankings (Coggan classification)
+  // Ride classification: single NP-based category (like Sauce)
   const weightKg = athleteProfile?.weightKg ?? 75;
-  const rideRankings = activity.sport === "cycling" ? (() => {
-    const durations = [
-      { key: "5s", label: "5s", watts: activity.peak5s },
-      { key: "1m", label: "1m", watts: activity.peak1m },
-      { key: "5m", label: "5m", watts: activity.peak5m },
-      { key: "20m", label: "20m", watts: activity.peak20m },
-      { key: "60m", label: "60m", watts: activity.peak60m },
-    ].filter((d): d is { key: string; label: string; watts: number } => d.watts != null && d.watts > 0);
-    if (durations.length === 0) return null;
-    return durations.map((d) => ({
-      ...d,
-      category: classifyPowerRacing(d.watts, weightKg, d.key),
-    }));
-  })() : null;
+  const rideCategory = activity.sport === "cycling" && activity.normalizedPower
+    ? classifyPowerRacing(activity.normalizedPower, weightKg, "20m")
+    : null;
+  const ridePeaks = activity.sport === "cycling" ? [
+    { label: "5s", watts: activity.peak5s },
+    { label: "1m", watts: activity.peak1m },
+    { label: "5m", watts: activity.peak5m },
+    { label: "20m", watts: activity.peak20m },
+    { label: "60m", watts: activity.peak60m },
+  ].filter((d): d is { label: string; watts: number } => d.watts != null && d.watts > 0) : null;
 
   // Coasting % from streams
   const coastingPct =
@@ -664,26 +660,34 @@ export default async function ActivityDetailPage({
                 </StatSection>
               )}
 
-              {/* Ride Power Rankings */}
-              {rideRankings && rideRankings.length > 0 && (
-                <StatSection icon={Zap} title="Ride Rankings">
-                  {rideRankings.map((r) => (
-                    <div key={r.key} className="flex items-center justify-between py-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium w-7 text-muted-foreground">{r.label}</span>
-                        <span className="text-sm font-semibold tabular-nums">{r.watts}<span className="text-xs font-normal text-muted-foreground ml-0.5">W</span></span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] tabular-nums text-muted-foreground">{r.category.wPerKg} W/kg</span>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          r.category.level >= 5 ? "bg-purple-500/15 text-purple-400" :
-                          r.category.level >= 3 ? "bg-blue-500/15 text-blue-400" :
-                          r.category.level >= 1 ? "bg-green-500/15 text-green-400" :
-                          "bg-muted text-muted-foreground"
-                        }`}>
-                          {r.category.label}
+              {/* Ride Classification + Peak Powers */}
+              {rideCategory && (
+                <StatSection icon={Zap} title="Ride Ranking">
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-xs text-muted-foreground">Classification</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold tabular-nums">
+                        {rideCategory.wPerKg}<span className="text-xs font-normal text-muted-foreground ml-0.5">W/kg</span>
+                      </span>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                        rideCategory.level >= 5 ? "bg-purple-500/15 text-purple-400" :
+                        rideCategory.level >= 3 ? "bg-blue-500/15 text-blue-400" :
+                        rideCategory.level >= 1 ? "bg-green-500/15 text-green-400" :
+                        "bg-muted text-muted-foreground"
+                      }`}>
+                        {rideCategory.label}
+                      </span>
+                    </div>
+                  </div>
+                  {ridePeaks && ridePeaks.length > 0 && ridePeaks.map((p) => (
+                    <div key={p.label} className="flex items-center justify-between py-1.5">
+                      <span className="text-xs text-muted-foreground">{p.label} peak</span>
+                      <span className="text-sm font-semibold tabular-nums">
+                        {p.watts}<span className="text-xs font-normal text-muted-foreground ml-0.5">W</span>
+                        <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">
+                          {(p.watts / weightKg).toFixed(1)} W/kg
                         </span>
-                      </div>
+                      </span>
                     </div>
                   ))}
                 </StatSection>

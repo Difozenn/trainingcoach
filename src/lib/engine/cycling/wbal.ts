@@ -94,7 +94,10 @@ export function calculateWbal(
   const pp = opts?.pMax ?? peakPowerFromStream(powerStream, 5);
   const effectivePP = Math.max(pp, cp + 100);
 
-  const MIN_BREACH_SECONDS = 5; // Xert-style: must sustain power > MPA for 5s+
+  const MIN_BREACH_SECONDS = 10; // Must sustain power > MPA for 10s+
+  const MAX_BREACH_POWER_RATIO = 2.0; // Skip sprint-driven breaches (power > 2×CP)
+  const CONTEXT_WINDOW = 300; // 5-min window before breach to check riding context
+  const MIN_CONTEXT_RATIO = 0.80; // Avg power in context window must be ≥ 80% of CP
 
   let wbal = wMax;
   const results: WbalPoint[] = [];
@@ -129,10 +132,11 @@ export function calculateWbal(
   }
 
   // Find breach zones: continuous periods where power > MPA
-  // Only mark as breakthrough if sustained for MIN_BREACH_SECONDS+
+  // Only mark as breakthrough if sustained and not a pure sprint
   let bestZonePeakIdx = -1;
   let bestZonePeakDelta = 0;
   let zoneStart = -1;
+  const sprintCeiling = cp * MAX_BREACH_POWER_RATIO;
 
   for (let i = 0; i <= results.length; i++) {
     const breaching = i < results.length && results[i].power > results[i].mpa;
@@ -140,9 +144,33 @@ export function calculateWbal(
     if (breaching && zoneStart < 0) {
       zoneStart = i; // start of a new breach zone
     } else if (!breaching && zoneStart >= 0) {
-      // End of breach zone — check if it lasted long enough
+      // End of breach zone — check if it qualifies as a threshold breakthrough
       const zoneDuration = i - zoneStart;
       if (zoneDuration >= MIN_BREACH_SECONDS) {
+        // Compute average power in the breach zone
+        let zoneSum = 0;
+        for (let j = zoneStart; j < i; j++) zoneSum += results[j].power;
+        const zoneAvgPower = zoneSum / zoneDuration;
+
+        // Skip sprint-driven breaches: avg power > 2×CP is anaerobic, not threshold
+        if (zoneAvgPower > sprintCeiling) {
+          zoneStart = -1;
+          continue;
+        }
+
+        // Context check: avg power in the 5 min before breach must be near-threshold.
+        // This prevents false breakthroughs on endurance rides where W'bal depletes
+        // from accumulated micro-surges rather than sustained hard effort.
+        const contextStart = Math.max(0, zoneStart - CONTEXT_WINDOW);
+        let contextSum = 0;
+        for (let j = contextStart; j < zoneStart; j++) contextSum += results[j].power;
+        const contextLen = zoneStart - contextStart;
+        const contextAvg = contextLen > 0 ? contextSum / contextLen : 0;
+        if (contextAvg < cp * MIN_CONTEXT_RATIO) {
+          zoneStart = -1;
+          continue;
+        }
+
         // Find peak delta within this zone
         for (let j = zoneStart; j < i; j++) {
           const delta = results[j].power - results[j].mpa;
