@@ -20,6 +20,8 @@ const profileSchema = z.object({
   weeklyHoursAvailable: z.coerce.number().min(1).max(40).optional(),
   goalType: z.enum(["event", "fitness_gain"]).optional(),
   timezone: z.string().optional(),
+  riderType: z.enum(["Sprinter", "Puncheur", "Climber", "Time Trialist", "Crit Racer", "All-Rounder", ""]).optional(),
+  trainingFocus: z.enum(["strengths", "weaknesses", "balanced", ""]).optional(),
 });
 
 export async function updateProfile(formData: FormData) {
@@ -27,9 +29,12 @@ export async function updateProfile(formData: FormData) {
   if (!session?.user?.id) throw new Error("Unauthorized");
 
   const raw = profileSchema.parse(Object.fromEntries(formData));
-  const { dateOfBirth: dobStr, ...rest } = raw;
+  const { dateOfBirth: dobStr, riderType, trainingFocus, ...rest } = raw;
   const data: Record<string, unknown> = { ...rest };
   if (dobStr) data.dateOfBirth = new Date(dobStr);
+  // Store empty strings as null
+  data.riderType = riderType || null;
+  data.trainingFocus = trainingFocus || null;
 
   const [existing] = await db
     .select()

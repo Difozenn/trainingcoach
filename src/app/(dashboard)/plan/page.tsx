@@ -12,6 +12,9 @@ import {
   getActualWeeklyTss,
   getPowerStreamsForRange,
   getSportProfiles,
+  getAthleteProfile,
+  getLatestMetrics,
+  getUserPeakPowers,
 } from "@/lib/data/queries";
 import { formatDuration, formatDate } from "@/lib/data/helpers";
 import { getUserPlan } from "@/lib/subscription";
@@ -23,12 +26,97 @@ import {
   aggregateZoneDistributions,
   calculatePolarizationIndex,
 } from "@/lib/engine/cycling/polarization";
+import {
+  generateAutoProgressivePlan,
+  detectSubPhase,
+  getRecoveryPattern,
+  isRecoveryWeek,
+} from "@/lib/engine/coaching/periodization";
+import type { SubPhase, PhaseConfig } from "@/lib/engine/coaching/periodization";
+import type { AthleteLevel } from "@/lib/engine/coaching/progression";
+import { buildPowerProfile } from "@/lib/engine/cycling/power-profile";
+import type { RiderType } from "@/lib/engine/cycling/power-profile";
+import {
+  RIDER_TYPE_DESCRIPTIONS,
+  TRAINING_FOCUS_LABELS,
+} from "@/lib/engine/coaching/workout-bias";
+import type { TrainingFocus } from "@/lib/engine/coaching/workout-bias";
 
 const sportIcons = {
   cycling: Bike,
   running: Footprints,
   swimming: Waves,
 };
+
+// ── Phase colors and labels ─────────────────────────────────────────
+
+const PHASE_COLORS: Record<string, string> = {
+  base1: "bg-blue-500",
+  base2: "bg-blue-500",
+  base3: "bg-blue-500",
+  build1: "bg-amber-500",
+  build2: "bg-amber-500",
+  peak: "bg-green-500",
+  race: "bg-red-500",
+  recovery: "bg-purple-500",
+  transition: "bg-gray-400",
+};
+
+const PHASE_BG_COLORS: Record<string, string> = {
+  base1: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  base2: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  base3: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  build1: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  build2: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  peak: "bg-green-500/10 text-green-700 dark:text-green-400",
+  race: "bg-red-500/10 text-red-700 dark:text-red-400",
+  recovery: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
+  transition: "bg-gray-500/10 text-gray-600 dark:text-gray-400",
+};
+
+const PHASE_LABELS: Record<string, string> = {
+  base1: "Base 1",
+  base2: "Base 2",
+  base3: "Base 3",
+  build1: "Build 1",
+  build2: "Build 2",
+  peak: "Peak",
+  race: "Race",
+  recovery: "Recovery",
+  transition: "Transition",
+};
+
+// ── Helper: map experience level to AthleteLevel ────────────────────
+
+function toAthleteLevel(exp: string | null): AthleteLevel {
+  switch (exp) {
+    case "beginner": return "beginner";
+    case "advanced": return "advanced";
+    case "elite": return "competitive";
+    default: return "intermediate";
+  }
+}
+
+// ── Helper: generate upcoming phase timeline ────────────────────────
+
+function generatePhaseTimeline(
+  ctl: number,
+  weeksSinceStart: number,
+  level: AthleteLevel,
+  weeksAhead: number = 12
+): { subPhase: SubPhase; isRecovery: boolean; weekNum: number }[] {
+  const timeline: { subPhase: SubPhase; isRecovery: boolean; weekNum: number }[] = [];
+  const pattern = getRecoveryPattern(level);
+
+  for (let i = 0; i < weeksAhead; i++) {
+    const week = weeksSinceStart + i;
+    const recovery = isRecoveryWeek(week, pattern);
+    const sub = recovery ? "recovery" as SubPhase : detectSubPhase(ctl, week);
+    timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1 });
+  }
+
+  return timeline;
+}
 
 export default async function PlanPage() {
   const session = await auth();
@@ -39,19 +127,23 @@ export default async function PlanPage() {
 
   const userId = session.user.id;
 
-  const [weeklyPlan, events] = await Promise.all([
+  const [weeklyPlan, events, profile, metrics, sportProfilesList, peakPowers] = await Promise.all([
     getCurrentWeeklyPlan(userId),
     getUpcomingEvents(userId),
+    getAthleteProfile(userId),
+    getLatestMetrics(userId),
+    getSportProfiles(userId),
+    getUserPeakPowers(userId, 42), // 6-week power profile
   ]);
 
   const workouts = weeklyPlan ? await getWeeklyWorkouts(weeklyPlan.id) : [];
 
-  // Recalculate ISO Mon–Sun from stored start date (may be wrong day)
+  // ISO Mon–Sun from stored start date
   let isoMonday: Date | null = null;
   let isoSunday: Date | null = null;
   if (weeklyPlan) {
     const start = new Date(weeklyPlan.weekStartDate);
-    const dow = (start.getDay() + 6) % 7; // 0=Mon
+    const dow = (start.getDay() + 6) % 7;
     isoMonday = new Date(start);
     isoMonday.setDate(isoMonday.getDate() - dow);
     isoMonday.setHours(0, 0, 0, 0);
@@ -66,14 +158,13 @@ export default async function PlanPage() {
   const completed = weeklyActuals.activityCount;
   const progress = workouts.length > 0 ? Math.min(100, (completed / workouts.length) * 100) : 0;
 
-  // Polarization Index — compute from power streams this week
-  const [powerActivities, sportProfiles] = await Promise.all([
+  // Polarization — compute from power streams this week
+  const [powerActivities] = await Promise.all([
     isoMonday && isoSunday
       ? getPowerStreamsForRange(userId, isoMonday, isoSunday)
       : Promise.resolve([]),
-    getSportProfiles(userId),
   ]);
-  const cyclingProfile = sportProfiles.find((p) => p.sport === "cycling");
+  const cyclingProfile = sportProfilesList.find((p) => p.sport === "cycling");
   const ftp = cyclingProfile?.ftp ?? 0;
 
   let polarization = null;
@@ -90,11 +181,124 @@ export default async function PlanPage() {
     }
   }
 
+  // ── Rider Type ──────────────────────────────────────────────────
+  const weightKg = profile?.weightKg ?? 75;
+  let riderType: RiderType = "All-Rounder";
+  let riderTypeSource: "auto" | "manual" = "auto";
+
+  if (profile?.riderType) {
+    riderType = profile.riderType as RiderType;
+    riderTypeSource = "manual";
+  } else if (peakPowers?.peaks) {
+    const validPeaks: Record<string, number> = {};
+    for (const [key, val] of Object.entries(peakPowers.peaks)) {
+      if (val && val > 0) validPeaks[key] = val;
+    }
+    if (Object.keys(validPeaks).length >= 3) {
+      const pp = buildPowerProfile(validPeaks, weightKg);
+      riderType = pp.riderType;
+    }
+  }
+
+  const trainingFocus: TrainingFocus = (profile?.trainingFocus as TrainingFocus) ?? "balanced";
+
+  // ── Periodization Timeline ──────────────────────────────────────
+  const ctl = metrics?.ctl ?? 0;
+  const level = toAthleteLevel(profile?.experienceLevel ?? null);
+  // Estimate weeks since start (from first activity or profile creation)
+  const profileCreated = profile?.createdAt ?? new Date();
+  const weeksSinceStart = Math.max(
+    0,
+    Math.floor((Date.now() - profileCreated.getTime()) / (7 * 24 * 3600_000))
+  );
+
+  const currentPhase = generateAutoProgressivePlan(ctl, weeksSinceStart, level);
+  const phaseTimeline = generatePhaseTimeline(ctl, weeksSinceStart, level, 12);
+
+  // ── Expected Zone Distribution ──────────────────────────────────
+  const expectedZones = currentPhase.intensityDistribution;
+
   return (
     <>
       <DashboardHeader title="Weekly Plan" />
       <div className="flex-1 space-y-6 p-6">
-        {/* Week summary */}
+        {/* ── Rider Type + Training Focus ────────────────────────── */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="text-xs">
+            {riderType}
+            {riderTypeSource === "auto" && (
+              <span className="ml-1 text-muted-foreground">(auto)</span>
+            )}
+          </Badge>
+          <span className="text-[11px] text-muted-foreground">
+            {RIDER_TYPE_DESCRIPTIONS[riderType]}
+          </span>
+          <span className="text-border">·</span>
+          <Badge variant="secondary" className="text-xs">
+            {TRAINING_FOCUS_LABELS[trainingFocus]}
+          </Badge>
+          <Link href="/settings" className="text-[11px] text-muted-foreground underline ml-auto">
+            Change
+          </Link>
+        </div>
+
+        {/* ── Phase Timeline ─────────────────────────────────────── */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between">
+              <span>Training Roadmap</span>
+              <Badge className={`text-xs ${PHASE_BG_COLORS[currentPhase.subPhase] ?? ""}`}>
+                {PHASE_LABELS[currentPhase.subPhase] ?? currentPhase.subPhase}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground italic">
+              {currentPhase.description}
+            </p>
+
+            {/* Visual timeline bar */}
+            <div className="flex gap-0.5 rounded-full overflow-hidden h-6">
+              {phaseTimeline.map((week, i) => (
+                <div
+                  key={i}
+                  className={`flex-1 relative group ${PHASE_COLORS[week.subPhase] ?? "bg-gray-400"} ${
+                    i === 0 ? "ring-2 ring-primary ring-offset-1 ring-offset-background rounded-l-full" : ""
+                  } ${i === phaseTimeline.length - 1 ? "rounded-r-full" : ""} ${
+                    week.isRecovery ? "opacity-50" : ""
+                  }`}
+                  title={`Wk ${week.weekNum}: ${PHASE_LABELS[week.subPhase] ?? week.subPhase}${week.isRecovery ? " (recovery)" : ""}`}
+                />
+              ))}
+            </div>
+
+            {/* Timeline legend */}
+            <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+              {(() => {
+                // Group consecutive phases
+                const groups: { label: string; color: string; count: number }[] = [];
+                let prev = "";
+                for (const week of phaseTimeline) {
+                  const label = PHASE_LABELS[week.subPhase] ?? week.subPhase;
+                  if (label === prev && groups.length > 0) {
+                    groups[groups.length - 1].count++;
+                  } else {
+                    groups.push({ label, color: PHASE_COLORS[week.subPhase] ?? "bg-gray-400", count: 1 });
+                    prev = label;
+                  }
+                }
+                return groups.map((g, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <span className={`inline-block h-2.5 w-2.5 rounded-sm ${g.color}`} />
+                    {g.label} ({g.count}w)
+                  </span>
+                ));
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Week Summary ───────────────────────────────────────── */}
         {weeklyPlan ? (
           <Card>
             <CardHeader>
@@ -102,7 +306,6 @@ export default async function PlanPage() {
                 <span>
                   {(() => {
                     if (!isoMonday || !isoSunday) return "";
-                    // ISO week number
                     const d = new Date(Date.UTC(isoMonday.getFullYear(), isoMonday.getMonth(), isoMonday.getDate()));
                     d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
                     const weekNum = Math.ceil(((d.getTime() - new Date(Date.UTC(d.getUTCFullYear(), 0, 1)).getTime()) / 86400000 + 1) / 7);
@@ -126,9 +329,7 @@ export default async function PlanPage() {
                 <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="amber">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Target TSS</p>
                   <p className="mt-1 text-[28px] font-bold leading-none tracking-tight tabular-nums">
-                    {weeklyPlan.targetTss
-                      ? Math.round(weeklyPlan.targetTss)
-                      : "--"}
+                    {weeklyPlan.targetTss ? Math.round(weeklyPlan.targetTss) : "--"}
                   </p>
                 </div>
                 <div className="stat-card-accent rounded-lg border bg-card px-4 py-3" data-accent="blue">
@@ -144,7 +345,6 @@ export default async function PlanPage() {
                   </p>
                 </div>
               </div>
-              {/* Progress bar */}
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                 <div
                   className="h-full rounded-full bg-primary transition-all duration-700"
@@ -163,80 +363,128 @@ export default async function PlanPage() {
             <CardContent className="space-y-4 p-6">
               <p className="text-sm text-muted-foreground">
                 No weekly plan yet. Plans are generated every Sunday, or you can
-                generate one now. The coaching engine creates a pool of
-                workouts — you pick when to do each one.
+                generate one now.
               </p>
               <GeneratePlanButton />
             </CardContent>
           </Card>
         )}
 
-        {/* Intensity Distribution */}
-        {polarization && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Intensity Distribution</span>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className="capitalize text-xs"
-                  >
-                    {polarization.label}
-                  </Badge>
-                  {polarization.pi !== null && (
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      PI {polarization.pi.toFixed(2)}
-                    </span>
-                  )}
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Stacked bar */}
-              <div className="flex h-8 w-full overflow-hidden rounded-full">
-                {polarization.low > 0 && (
-                  <div
-                    className="bg-green-500 transition-all"
-                    style={{ width: `${polarization.low}%` }}
-                    title={`Z1-Z2: ${polarization.low}%`}
-                  />
-                )}
-                {polarization.mid > 0 && (
-                  <div
-                    className="bg-amber-500 transition-all"
-                    style={{ width: `${polarization.mid}%` }}
-                    title={`Z3-Z4: ${polarization.mid}%`}
-                  />
-                )}
-                {polarization.high > 0 && (
-                  <div
-                    className="bg-red-500 transition-all"
-                    style={{ width: `${polarization.high}%` }}
-                    title={`Z5+: ${polarization.high}%`}
-                  />
+        {/* ── Expected vs Actual Zone Distribution ───────────────── */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Intensity Distribution</span>
+              <div className="flex items-center gap-2">
+                {polarization && (
+                  <>
+                    <Badge variant="outline" className="capitalize text-xs">
+                      {polarization.label}
+                    </Badge>
+                    {polarization.pi !== null && (
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        PI {polarization.pi.toFixed(2)}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
-              {/* Legend */}
-              <div className="flex justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-                  Z1-Z2 {polarization.low}%
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  Z3-Z4 {polarization.mid}%
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-                  Z5+ {polarization.high}%
-                </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Expected distribution from phase config */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Expected ({PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase)
+              </p>
+              <div className="flex h-6 w-full overflow-hidden rounded-full">
+                <div
+                  className="bg-green-500/80 transition-all"
+                  style={{ width: `${expectedZones.zone1_2Pct}%` }}
+                  title={`Z1-Z2: ${expectedZones.zone1_2Pct}%`}
+                />
+                <div
+                  className="bg-amber-500/80 transition-all"
+                  style={{ width: `${expectedZones.zone3Pct}%` }}
+                  title={`Z3: ${expectedZones.zone3Pct}%`}
+                />
+                <div
+                  className="bg-red-500/80 transition-all"
+                  style={{ width: `${expectedZones.zone4_5Pct}%` }}
+                  title={`Z4-Z5+: ${expectedZones.zone4_5Pct}%`}
+                />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground tabular-nums">
+                <span>Z1-Z2 {expectedZones.zone1_2Pct}%</span>
+                <span>Z3 {expectedZones.zone3Pct}%</span>
+                <span>Z4-Z5+ {expectedZones.zone4_5Pct}%</span>
+              </div>
+            </div>
 
-        {/* Workout pool */}
+            {/* Actual distribution from power streams */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Actual (this week)
+              </p>
+              {polarization ? (
+                <>
+                  <div className="flex h-6 w-full overflow-hidden rounded-full">
+                    {polarization.low > 0 && (
+                      <div
+                        className="bg-green-500 transition-all"
+                        style={{ width: `${polarization.low}%` }}
+                        title={`Z1-Z2: ${polarization.low}%`}
+                      />
+                    )}
+                    {polarization.mid > 0 && (
+                      <div
+                        className="bg-amber-500 transition-all"
+                        style={{ width: `${polarization.mid}%` }}
+                        title={`Z3-Z4: ${polarization.mid}%`}
+                      />
+                    )}
+                    {polarization.high > 0 && (
+                      <div
+                        className="bg-red-500 transition-all"
+                        style={{ width: `${polarization.high}%` }}
+                        title={`Z5+: ${polarization.high}%`}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-between mt-1 text-[10px] text-muted-foreground tabular-nums">
+                    <span>Z1-Z2 {polarization.low}%</span>
+                    <span>Z3-Z4 {polarization.mid}%</span>
+                    <span>Z5+ {polarization.high}%</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-6 w-full items-center justify-center rounded-full bg-muted">
+                  <span className="text-[11px] text-muted-foreground">
+                    No power data this week
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Comparison legend */}
+            <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
+                Easy (Z1-Z2)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
+                Tempo (Z3-Z4)
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
+                Hard (Z5+)
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Workout Pool ──────────────────────────────────────── */}
         {workouts.length > 0 && (
           <Card>
             <CardHeader>
@@ -245,7 +493,7 @@ export default async function PlanPage() {
             <CardContent>
               <p className="mb-4 text-sm text-muted-foreground">
                 Pick when to do each workout. Drag onto the{" "}
-                <Link href="/calendar" className="underline">
+                <Link href="/activities" className="underline">
                   calendar
                 </Link>{" "}
                 or just do them whenever.
@@ -311,7 +559,6 @@ export default async function PlanPage() {
                             </p>
                           )}
                         </div>
-                        {/* Export button */}
                         {w.sport === "cycling" && w.structure && (
                           <Button variant="ghost" size="icon" title="Export workout" asChild>
                             <a href={`/api/export?workoutId=${w.id}&format=zwo`} download>
@@ -328,7 +575,7 @@ export default async function PlanPage() {
           </Card>
         )}
 
-        {/* Upcoming events */}
+        {/* ── Upcoming Events ───────────────────────────────────── */}
         {events.length > 0 && (
           <Card>
             <CardHeader>

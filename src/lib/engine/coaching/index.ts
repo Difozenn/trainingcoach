@@ -29,3 +29,11 @@ export {
   THRESHOLD_LADDER,
   VO2MAX_LADDER,
 } from "./progression";
+export {
+  getWorkoutBias,
+  selectBiasedWorkout,
+  RIDER_TYPE_LABELS,
+  TRAINING_FOCUS_LABELS,
+  RIDER_TYPE_DESCRIPTIONS,
+} from "./workout-bias";
+export type { TrainingFocus } from "./workout-bias";

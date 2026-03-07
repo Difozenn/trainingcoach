@@ -54,6 +54,8 @@ export const athleteProfiles = pgTable("athlete_profiles", {
     "auto_progressive"
   ),
   timezone: text("timezone").default("UTC"),
+  riderType: text("rider_type"), // manual override: Sprinter, Puncheur, Climber, etc.
+  trainingFocus: text("training_focus"), // 'strengths' | 'weaknesses' | 'balanced'
   onboardingCompleted: boolean("onboarding_completed").default(false),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),

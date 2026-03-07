@@ -215,6 +215,43 @@ export default async function SettingsPage({
                         placeholder="America/New_York"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="riderType">Rider Type</Label>
+                      <select
+                        id="riderType"
+                        name="riderType"
+                        defaultValue={profile?.riderType ?? ""}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                      >
+                        <option value="">Auto-detect from power profile</option>
+                        <option value="Climber">Climber</option>
+                        <option value="Time Trialist">Time Trialist</option>
+                        <option value="Sprinter">Sprinter</option>
+                        <option value="Puncheur">Puncheur</option>
+                        <option value="Crit Racer">Crit Racer</option>
+                        <option value="All-Rounder">All-Rounder</option>
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Override the auto-detected rider type, or leave on auto.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="trainingFocus">Training Focus</Label>
+                      <select
+                        id="trainingFocus"
+                        name="trainingFocus"
+                        defaultValue={profile?.trainingFocus ?? ""}
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                      >
+                        <option value="">Balanced (default)</option>
+                        <option value="strengths">Train Strengths</option>
+                        <option value="weaknesses">Train Weaknesses</option>
+                        <option value="balanced">Balanced</option>
+                      </select>
+                      <p className="text-[11px] text-muted-foreground">
+                        Strengths: race-specific workouts. Weaknesses: address gaps. Balanced: no bias.
+                      </p>
+                    </div>
                   </div>
                   <SubmitButton>Save Profile</SubmitButton>
                 </form>

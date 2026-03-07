@@ -30,9 +30,10 @@ export type PowerCategory = {
 
 export type RiderType =
   | "Sprinter"
-  | "Pursuiter"
+  | "Puncheur"
   | "Time Trialist"
   | "Climber"
+  | "Crit Racer"
   | "All-Rounder";
 
 export type PowerProfileResult = {
@@ -208,6 +209,8 @@ export function classifyPower(
 
 /**
  * Determine rider type by comparing relative strengths at key durations.
+ * Uses weighted scoring across 6 rider types (Sprinter, Puncheur, Climber,
+ * Time Trialist, Crit Racer, All-Rounder).
  */
 export function determineRiderType(
   categories: Record<string, PowerCategory>
@@ -230,17 +233,43 @@ export function determineRiderType(
   const vals = Object.values(levels);
   const maxLevel = Math.max(...vals);
   const minLevel = Math.min(...vals);
+  const spread = maxLevel - minLevel;
 
-  // All-Rounder: all within 1 category level
-  if (maxLevel - minLevel <= 1) return "All-Rounder";
+  // All-Rounder: all within 0.8 category levels
+  if (spread <= 0.8) return "All-Rounder";
 
-  // Find which is highest
-  if (levels.sprint === maxLevel) return "Sprinter";
-  if (levels.anaerobic === maxLevel) return "Pursuiter";
-  if (levels.vo2max === maxLevel) return "Climber";
-  if (levels.ftp === maxLevel) return "Time Trialist";
+  // Compute relative scores (each level minus mean)
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const rel = {
+    sprint: levels.sprint - mean,
+    anaerobic: levels.anaerobic - mean,
+    vo2max: levels.vo2max - mean,
+    ftp: levels.ftp - mean,
+  };
 
-  return "All-Rounder";
+  // Weighted scoring per rider type
+  const scores: Record<string, number> = {
+    Climber: 0.4 * rel.vo2max + 0.4 * rel.ftp + 0.2 * -rel.sprint,
+    "Time Trialist": 0.6 * rel.ftp + 0.3 * rel.vo2max + 0.1 * -rel.sprint,
+    Sprinter: 0.5 * rel.sprint + 0.3 * rel.anaerobic + 0.2 * -rel.ftp,
+    Puncheur: 0.4 * rel.anaerobic + 0.4 * rel.vo2max + 0.2 * -rel.ftp,
+    "Crit Racer": 0.4 * rel.anaerobic + 0.3 * rel.sprint + 0.3 * rel.vo2max,
+  };
+
+  // Find highest scoring type
+  let bestType: RiderType = "All-Rounder";
+  let bestScore = -Infinity;
+  for (const [type, score] of Object.entries(scores)) {
+    if (score > bestScore) {
+      bestScore = score;
+      bestType = type as RiderType;
+    }
+  }
+
+  // If top score is weak, default to All-Rounder
+  if (bestScore < 0.15) return "All-Rounder";
+
+  return bestType;
 }
 
 // ── Full Profile Builder ───────────────────────────────────────────
