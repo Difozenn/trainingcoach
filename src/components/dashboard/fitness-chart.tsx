@@ -211,15 +211,13 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         >
           <CartesianGrid
             strokeDasharray="none"
-            stroke="currentColor"
-            className="text-muted-foreground"
-            strokeOpacity={0.15}
+            stroke="#64748b"
+            strokeOpacity={0.25}
             strokeWidth={1}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9 }}
-            className="text-muted-foreground"
+            tick={{ fontSize: 9, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
             interval={tickInterval}
@@ -227,8 +225,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           />
           <YAxis
             domain={[0, upperDomain]}
-            tick={{ fontSize: 10 }}
-            className="text-muted-foreground"
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
             width={40}
@@ -236,10 +233,9 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           <Tooltip
             content={<MainTooltip />}
             cursor={{
-              stroke: "currentColor",
-              className: "text-muted-foreground",
+              stroke: "#94a3b8",
               strokeWidth: 1,
-              strokeOpacity: 0.3,
+              strokeOpacity: 0.4,
               strokeDasharray: "4 3",
             }}
             wrapperStyle={{ zIndex: 10 }}
@@ -297,7 +293,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             stroke="#3b82f6"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#fff", fill: "#3b82f6" }}
+            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#1e293b", fill: "#3b82f6" }}
           />
           {/* ATL line — pink */}
           <Line
@@ -307,7 +303,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             stroke="#ec4899"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#fff", fill: "#ec4899" }}
+            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#1e293b", fill: "#ec4899" }}
           />
         </ComposedChart>
       </ResponsiveContainer>
@@ -339,15 +335,13 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
 
           <CartesianGrid
             strokeDasharray="none"
-            stroke="currentColor"
-            className="text-muted-foreground"
-            strokeOpacity={0.12}
+            stroke="#64748b"
+            strokeOpacity={0.2}
             strokeWidth={1}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9 }}
-            className="text-muted-foreground"
+            tick={{ fontSize: 9, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
             interval={tickInterval}
@@ -355,8 +349,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           />
           <YAxis
             domain={[formLower, formUpper]}
-            tick={{ fontSize: 9 }}
-            className="text-muted-foreground"
+            tick={{ fontSize: 9, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
             width={40}
@@ -365,16 +358,15 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           <Tooltip
             content={() => null}
             cursor={{
-              stroke: "currentColor",
-              className: "text-muted-foreground",
+              stroke: "#94a3b8",
               strokeWidth: 1,
-              strokeOpacity: 0.3,
+              strokeOpacity: 0.4,
               strokeDasharray: "4 3",
             }}
           />
           <ReferenceLine
             y={0}
-            stroke="#6b7280"
+            stroke="#94a3b8"
             strokeWidth={0.75}
             strokeOpacity={0.4}
             strokeDasharray="3 3"
