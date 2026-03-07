@@ -55,32 +55,32 @@ export default function WhatIsFtpPage() {
           <svg viewBox="0 0 600 280" className="w-full" aria-label="FTP threshold concept diagram">
             <defs>
               <linearGradient id="sustainableGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="var(--primary)" stopOpacity="0.02" />
               </linearGradient>
               <linearGradient id="unsustainableGrad" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="hsl(0 70% 50%)" stopOpacity="0.1" />
-                <stop offset="100%" stopColor="hsl(0 70% 50%)" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="#dc2626" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="#dc2626" stopOpacity="0.02" />
               </linearGradient>
             </defs>
             {/* Axes */}
-            <line x1="60" y1="20" x2="60" y2="240" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.3" strokeWidth="1" />
-            <line x1="60" y1="240" x2="570" y2="240" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.3" strokeWidth="1" />
+            <line x1="60" y1="20" x2="60" y2="240" stroke="var(--muted-foreground)" strokeOpacity="0.3" strokeWidth="1" />
+            <line x1="60" y1="240" x2="570" y2="240" stroke="var(--muted-foreground)" strokeOpacity="0.3" strokeWidth="1" />
             {/* Axis labels */}
-            <text x="30" y="135" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle" transform="rotate(-90, 30, 135)">Power (watts)</text>
-            <text x="315" y="265" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle">Time</text>
+            <text x="30" y="135" fill="var(--muted-foreground)" fontSize="11" textAnchor="middle" transform="rotate(-90, 30, 135)">Power (watts)</text>
+            <text x="315" y="265" fill="var(--muted-foreground)" fontSize="11" textAnchor="middle">Time</text>
             {/* FTP line */}
-            <line x1="60" y1="140" x2="570" y2="140" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 4" />
-            <text x="575" y="137" fill="hsl(var(--primary))" fontSize="13" fontWeight="600" textAnchor="start">FTP</text>
+            <line x1="60" y1="140" x2="570" y2="140" stroke="var(--primary)" strokeWidth="2" strokeDasharray="8 4" />
+            <text x="575" y="137" fill="var(--primary)" fontSize="13" fontWeight="600" textAnchor="start">FTP</text>
             {/* Zones */}
             <rect x="60" y="140" width="510" height="100" fill="url(#sustainableGrad)" />
             <rect x="60" y="20" width="510" height="120" fill="url(#unsustainableGrad)" />
-            <text x="315" y="195" fill="hsl(var(--primary))" fontSize="12" textAnchor="middle" opacity="0.7">Sustainable — aerobic dominant</text>
-            <text x="315" y="75" fill="hsl(0 70% 50%)" fontSize="12" textAnchor="middle" opacity="0.7">Unsustainable — lactate accumulates</text>
+            <text x="315" y="195" fill="var(--primary)" fontSize="12" textAnchor="middle" opacity="0.7">Sustainable — aerobic dominant</text>
+            <text x="315" y="75" fill="#dc2626" fontSize="12" textAnchor="middle" opacity="0.7">Unsustainable — lactate accumulates</text>
             {/* Power curve */}
-            <path d="M 80 50 Q 150 55, 200 90 Q 250 115, 300 130 Q 380 145, 460 160 Q 520 170, 560 180" fill="none" stroke="hsl(var(--foreground))" strokeWidth="2.5" strokeLinecap="round" />
-            <circle cx="300" cy="130" r="4" fill="hsl(var(--primary))" />
-            <text x="305" y="120" fill="hsl(var(--muted-foreground))" fontSize="10">~60 min</text>
+            <path d="M 80 50 Q 150 55, 200 90 Q 250 115, 300 130 Q 380 145, 460 160 Q 520 170, 560 180" fill="none" stroke="var(--foreground)" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="300" cy="130" r="4" fill="var(--primary)" />
+            <text x="305" y="120" fill="var(--muted-foreground)" fontSize="10">~60 min</text>
           </svg>
           <figcaption className="mt-2 text-center text-xs text-muted-foreground">
             FTP is the power output where your body transitions from sustainable aerobic effort to unsustainable anaerobic effort — roughly the power you can hold for one hour.

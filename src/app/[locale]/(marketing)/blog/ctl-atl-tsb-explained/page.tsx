@@ -85,29 +85,29 @@ export default function CtlAtlTsbExplainedPage() {
           <figure className="not-prose my-10">
             <svg viewBox="0 0 600 260" className="w-full" aria-label="Performance Management Chart overview">
               {/* Grid */}
-              <line x1="60" y1="20" x2="60" y2="220" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.2" strokeWidth="1" />
-              <line x1="60" y1="220" x2="570" y2="220" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.2" strokeWidth="1" />
+              <line x1="60" y1="20" x2="60" y2="220" stroke="var(--muted-foreground)" strokeOpacity="0.2" strokeWidth="1" />
+              <line x1="60" y1="220" x2="570" y2="220" stroke="var(--muted-foreground)" strokeOpacity="0.2" strokeWidth="1" />
               {/* Zero line for TSB */}
-              <line x1="60" y1="160" x2="570" y2="160" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.1" strokeWidth="1" strokeDasharray="4 4" />
+              <line x1="60" y1="160" x2="570" y2="160" stroke="var(--muted-foreground)" strokeOpacity="0.1" strokeWidth="1" strokeDasharray="4 4" />
               {/* CTL line (fitness) - steadily rising */}
-              <path d="M 80 180 Q 150 170, 220 155 Q 300 138, 380 120 Q 450 105, 520 95 L 560 90" fill="none" stroke="hsl(217 91% 60%)" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M 80 180 Q 150 170, 220 155 Q 300 138, 380 120 Q 450 105, 520 95 L 560 90" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" />
               {/* ATL line (fatigue) - oscillating above CTL */}
-              <path d="M 80 175 Q 110 130, 140 100 Q 160 120, 180 145 Q 200 110, 230 80 Q 250 120, 270 140 Q 290 95, 320 70 Q 340 110, 360 125 Q 380 80, 410 60 Q 430 100, 450 115 Q 470 75, 500 55 Q 520 85, 550 80" fill="none" stroke="hsl(0 70% 55%)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              <path d="M 80 175 Q 110 130, 140 100 Q 160 120, 180 145 Q 200 110, 230 80 Q 250 120, 270 140 Q 290 95, 320 70 Q 340 110, 360 125 Q 380 80, 410 60 Q 430 100, 450 115 Q 470 75, 500 55 Q 520 85, 550 80" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
               {/* TSB line (form) - oscillating below zero */}
-              <path d="M 80 163 Q 110 190, 140 200 Q 160 185, 180 170 Q 200 195, 230 205 Q 250 185, 270 170 Q 290 200, 320 210 Q 340 190, 360 175 Q 380 205, 410 215 Q 430 190, 450 178 Q 470 200, 500 210 Q 520 195, 550 190" fill="none" stroke="hsl(142 70% 45%)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              <path d="M 80 163 Q 110 190, 140 200 Q 160 185, 180 170 Q 200 195, 230 205 Q 250 185, 270 170 Q 290 200, 320 210 Q 340 190, 360 175 Q 380 205, 410 215 Q 430 190, 450 178 Q 470 200, 500 210 Q 520 195, 550 190" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
               {/* Labels */}
-              <text x="565" y="87" fill="hsl(217 91% 60%)" fontSize="11" fontWeight="600">CTL</text>
-              <text x="555" y="77" fill="hsl(0 70% 55%)" fontSize="11" fontWeight="600">ATL</text>
-              <text x="555" y="200" fill="hsl(142 70% 45%)" fontSize="11" fontWeight="600">TSB</text>
+              <text x="565" y="87" fill="#3b82f6" fontSize="11" fontWeight="600">CTL</text>
+              <text x="555" y="77" fill="#dc2626" fontSize="11" fontWeight="600">ATL</text>
+              <text x="555" y="200" fill="#22c55e" fontSize="11" fontWeight="600">TSB</text>
               {/* Axis labels */}
-              <text x="315" y="248" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle">Weeks of training →</text>
+              <text x="315" y="248" fill="var(--muted-foreground)" fontSize="11" textAnchor="middle">Weeks of training →</text>
               {/* Legend */}
-              <rect x="70" y="232" width="12" height="3" rx="1" fill="hsl(217 91% 60%)" />
-              <text x="86" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Fitness (CTL)</text>
-              <rect x="170" y="232" width="12" height="3" rx="1" fill="hsl(0 70% 55%)" />
-              <text x="186" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Fatigue (ATL)</text>
-              <rect x="270" y="232" width="12" height="3" rx="1" fill="hsl(142 70% 45%)" />
-              <text x="286" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Form (TSB)</text>
+              <rect x="70" y="232" width="12" height="3" rx="1" fill="#3b82f6" />
+              <text x="86" y="236" fill="var(--muted-foreground)" fontSize="9">Fitness (CTL)</text>
+              <rect x="170" y="232" width="12" height="3" rx="1" fill="#dc2626" />
+              <text x="186" y="236" fill="var(--muted-foreground)" fontSize="9">Fatigue (ATL)</text>
+              <rect x="270" y="232" width="12" height="3" rx="1" fill="#22c55e" />
+              <text x="286" y="236" fill="var(--muted-foreground)" fontSize="9">Form (TSB)</text>
             </svg>
             <figcaption className="mt-2 text-center text-xs text-muted-foreground">
               The Performance Management Chart: CTL (fitness) rises steadily with training. ATL (fatigue) spikes with hard efforts and drops with rest. TSB (form) is the difference between the two.
@@ -376,9 +376,9 @@ export default function CtlAtlTsbExplainedPage() {
                 <div key={p.label} className="rounded-lg border border-border/50 p-3">
                   <p className="text-xs font-semibold mb-1">{p.label}</p>
                   <svg viewBox="0 0 80 80" className="w-full h-16">
-                    <path d={p.paths.ctl} fill="none" stroke="hsl(217 91% 60%)" strokeWidth="2" />
-                    <path d={p.paths.atl} fill="none" stroke="hsl(0 70% 55%)" strokeWidth="1.5" opacity="0.7" />
-                    <path d={p.paths.tsb} fill="none" stroke="hsl(142 70% 45%)" strokeWidth="1.5" opacity="0.7" />
+                    <path d={p.paths.ctl} fill="none" stroke="#3b82f6" strokeWidth="2" />
+                    <path d={p.paths.atl} fill="none" stroke="#dc2626" strokeWidth="1.5" opacity="0.7" />
+                    <path d={p.paths.tsb} fill="none" stroke="#22c55e" strokeWidth="1.5" opacity="0.7" />
                   </svg>
                   <p className="text-[10px] text-muted-foreground">{p.desc}</p>
                 </div>

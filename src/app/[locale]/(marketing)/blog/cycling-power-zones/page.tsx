@@ -406,9 +406,9 @@ export default function CyclingPowerZonesArticle() {
           <figure className="not-prose my-8">
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "Polarized", segments: [{ pct: 80, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 0, label: "Z3", color: "hsl(142 70% 45%)" }, { pct: 20, label: "Z4-7", color: "hsl(0 70% 55%)" }] },
-                { label: "Pyramidal", segments: [{ pct: 65, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 20, label: "Z3", color: "hsl(142 70% 45%)" }, { pct: 15, label: "Z4-7", color: "hsl(0 70% 55%)" }] },
-                { label: "Threshold", segments: [{ pct: 50, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 35, label: "Z3-4", color: "hsl(45 90% 50%)" }, { pct: 15, label: "Z5-7", color: "hsl(0 70% 55%)" }] },
+                { label: "Polarized", segments: [{ pct: 80, label: "Z1-2", color: "#3b82f6" }, { pct: 0, label: "Z3", color: "#22c55e" }, { pct: 20, label: "Z4-7", color: "#dc2626" }] },
+                { label: "Pyramidal", segments: [{ pct: 65, label: "Z1-2", color: "#3b82f6" }, { pct: 20, label: "Z3", color: "#22c55e" }, { pct: 15, label: "Z4-7", color: "#dc2626" }] },
+                { label: "Threshold", segments: [{ pct: 50, label: "Z1-2", color: "#3b82f6" }, { pct: 35, label: "Z3-4", color: "#eab308" }, { pct: 15, label: "Z5-7", color: "#dc2626" }] },
               ].map((model) => (
                 <div key={model.label} className="rounded-lg border border-border/50 p-4 text-center">
                   <p className="text-xs font-semibold mb-3">{model.label}</p>
