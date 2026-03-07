@@ -174,9 +174,12 @@ export function DistanceByYearChart({ data }: { data: DistRow[] }) {
 }
 
 // ── 3. Power vs Heart Rate by Year ─────────────────────────────────
-// intervals.icu style: each activity = a dot, sorted by power, one line per year
+// intervals.icu style: activities binned by power, averaged %threshold HR per bin
 
 type PowerHrRow = { date: Date; avgPower: number | null; avgHr: number | null };
+
+const BIN_WIDTH = 10; // 10W bins like intervals.icu
+const MIN_POWER = 100; // filter out very low power activities
 
 export function PowerHrByYearChart({ data, maxHr }: { data: PowerHrRow[]; maxHr: number | null }) {
   const [hidden, onLegendClick] = useToggleLegend();
@@ -184,51 +187,42 @@ export function PowerHrByYearChart({ data, maxHr }: { data: PowerHrRow[]; maxHr:
 
   const thresholdHr = maxHr ?? 190;
 
-  // Group by year, each activity becomes { watts, hrPct }
-  const byYear = new Map<string, { watts: number; hrPct: number }[]>();
+  // Group by year → power bin → collect HR% values
+  const byYear = new Map<string, Map<number, number[]>>();
   for (const d of data) {
-    if (!d.avgPower || !d.avgHr || d.avgPower < 80) continue;
+    if (!d.avgPower || !d.avgHr || d.avgPower < MIN_POWER) continue;
     const year = String(new Date(d.date).getFullYear());
-    if (!byYear.has(year)) byYear.set(year, []);
-    byYear.get(year)!.push({
-      watts: d.avgPower,
-      hrPct: Math.round((d.avgHr / thresholdHr) * 1000) / 10,
-    });
-  }
-
-  // Sort each year by watts, then smooth with 3-point moving average
-  for (const [, points] of byYear) {
-    points.sort((a, b) => a.watts - b.watts);
+    const bin = Math.round(d.avgPower / BIN_WIDTH) * BIN_WIDTH;
+    const hrPct = Math.round((d.avgHr / thresholdHr) * 1000) / 10;
+    if (!byYear.has(year)) byYear.set(year, new Map());
+    const bins = byYear.get(year)!;
+    if (!bins.has(bin)) bins.set(bin, []);
+    bins.get(bin)!.push(hrPct);
   }
 
   const years = Array.from(byYear.keys()).sort();
   const colors = yearColors(years);
 
-  // Build merged dataset keyed by watts — use all unique watts values
-  const allWatts = new Set<number>();
-  for (const points of byYear.values()) {
-    for (const p of points) allWatts.add(p.watts);
-  }
-  const sortedWatts = Array.from(allWatts).sort((a, b) => a - b);
-
-  // For each year, build a Map<watts, hrPct[]> then average
-  const yearAvg = new Map<string, Map<number, number>>();
-  for (const [year, points] of byYear) {
-    const wMap = new Map<number, number[]>();
-    for (const p of points) {
-      if (!wMap.has(p.watts)) wMap.set(p.watts, []);
-      wMap.get(p.watts)!.push(p.hrPct);
-    }
+  // Average HR% per bin per year
+  const yearBinAvg = new Map<string, Map<number, number>>();
+  for (const [year, bins] of byYear) {
     const avg = new Map<number, number>();
-    for (const [w, vals] of wMap) {
-      avg.set(w, Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10);
+    for (const [bin, vals] of bins) {
+      avg.set(bin, Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10);
     }
-    yearAvg.set(year, avg);
+    yearBinAvg.set(year, avg);
   }
 
-  const merged = sortedWatts.map((w) => {
-    const row: Record<string, number | null> = { watts: w };
-    for (const y of years) row[y] = yearAvg.get(y)?.get(w) ?? null;
+  // Collect all bins used across years
+  const allBins = new Set<number>();
+  for (const avg of yearBinAvg.values()) {
+    for (const bin of avg.keys()) allBins.add(bin);
+  }
+  const sortedBins = Array.from(allBins).sort((a, b) => a - b);
+
+  const merged = sortedBins.map((bin) => {
+    const row: Record<string, number | null> = { watts: bin };
+    for (const y of years) row[y] = yearBinAvg.get(y)?.get(bin) ?? null;
     return row;
   });
 
@@ -236,7 +230,7 @@ export function PowerHrByYearChart({ data, maxHr }: { data: PowerHrRow[]; maxHr:
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-        <XAxis dataKey="watts" type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="w" />
+        <XAxis dataKey="watts" type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="w" domain={[MIN_POWER, "auto"]} />
         <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="%" domain={["auto", "auto"]} label={{ value: "% Threshold HR", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "hsl(var(--muted-foreground))" }, offset: 15 }} />
         <Tooltip contentStyle={ttStyle} labelFormatter={(w) => `${w}W`} formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}%`, name] : ["-"])} />
         <Legend iconSize={8} onClick={onLegendClick} formatter={legendStyle(hidden)} />

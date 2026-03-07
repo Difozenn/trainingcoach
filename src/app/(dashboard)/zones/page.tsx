@@ -170,7 +170,7 @@ export default async function ZonesPage() {
           <Card className="p-4 sm:p-5">
             <CardContent className="p-0">
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Power vs % Max HR
+                Power vs Heart Rate
               </h3>
               <PowerHrByYearChart data={powerHrData} maxHr={maxHr} />
             </CardContent>
