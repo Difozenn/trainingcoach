@@ -206,8 +206,10 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           margin={{ top: 4, right: 8, bottom: 0, left: -8 }}
         >
           <CartesianGrid
-            strokeDasharray="1 4"
-            className="stroke-border/40"
+            strokeDasharray="none"
+            stroke="currentColor"
+            className="text-border/30"
+            strokeWidth={0.5}
             vertical={false}
           />
           <XAxis
@@ -326,8 +328,10 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           ))}
 
           <CartesianGrid
-            strokeDasharray="1 4"
-            className="stroke-border/30"
+            strokeDasharray="none"
+            stroke="currentColor"
+            className="text-border/25"
+            strokeWidth={0.5}
             vertical={false}
           />
           <XAxis
