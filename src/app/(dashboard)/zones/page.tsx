@@ -15,28 +15,12 @@ import { getRunningPaceZones } from "@/lib/engine/running/zones";
 import { getSwimmingZones } from "@/lib/engine/swimming/zones";
 import { formatPace, formatPacePer100m } from "@/lib/data/helpers";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const PowerCurveChart = dynamic(
-  () => import("@/components/dashboard/zone-trends").then((m) => m.PowerCurveChart),
-  { ssr: false, loading: () => <ChartSkeleton /> }
-);
-const PowerHrChart = dynamic(
-  () => import("@/components/dashboard/zone-trends").then((m) => m.PowerHrChart),
-  { ssr: false, loading: () => <ChartSkeleton /> }
-);
-const FitnessTrendChart = dynamic(
-  () => import("@/components/dashboard/zone-trends").then((m) => m.FitnessTrendChart),
-  { ssr: false, loading: () => <ChartSkeleton /> }
-);
-const DistanceChart = dynamic(
-  () => import("@/components/dashboard/zone-trends").then((m) => m.DistanceChart),
-  { ssr: false, loading: () => <ChartSkeleton /> }
-);
-
-function ChartSkeleton() {
-  return <div className="h-[260px] animate-pulse rounded-lg bg-muted/50" />;
-}
+import {
+  LazyPowerCurveChart as PowerCurveChart,
+  LazyPowerHrChart as PowerHrChart,
+  LazyFitnessTrendChart as FitnessTrendChart,
+  LazyDistanceChart as DistanceChart,
+} from "@/components/dashboard/lazy-charts";
 
 const zoneColors = [
   "#6b7280", // Z1

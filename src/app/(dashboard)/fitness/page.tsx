@@ -4,12 +4,7 @@ import { Suspense } from "react";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RangeSelector } from "@/components/dashboard/range-selector";
-import dynamic from "next/dynamic";
-
-const FitnessChart = dynamic(
-  () => import("@/components/dashboard/fitness-chart").then((m) => m.FitnessChart),
-  { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-muted/50" /> }
-);
+import { LazyFitnessChart as FitnessChart } from "@/components/dashboard/lazy-charts";
 import { getFitnessTimeline } from "@/lib/data/queries";
 import { formatDateShort } from "@/lib/data/helpers";
 

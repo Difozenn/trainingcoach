@@ -33,12 +33,7 @@ import {
   formatDate,
 } from "@/lib/data/helpers";
 import Link from "next/link";
-import dynamic from "next/dynamic";
-
-const PowerProfileTab = dynamic(
-  () => import("../profile/power-profile-tab").then((m) => m.PowerProfileTab),
-  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted/50" /> }
-);
+import { LazyPowerProfileTab as PowerProfileTab } from "@/components/dashboard/lazy-charts";
 
 const sportIcons = {
   cycling: Bike,

@@ -36,17 +36,8 @@ import {
 } from "@/lib/data/helpers";
 import Link from "next/link";
 import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
+import { LazyStreamCharts as ActivityStreamCharts, LazyBreakthroughChart as BreakthroughChart } from "@/components/dashboard/stream-charts-wrapper";
 import type { StreamData } from "@/components/dashboard/stream-charts";
-import dynamic from "next/dynamic";
-
-const ActivityStreamCharts = dynamic(
-  () => import("@/components/dashboard/stream-charts").then((m) => m.ActivityStreamCharts),
-  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted/50" /> }
-);
-const BreakthroughChart = dynamic(
-  () => import("@/components/dashboard/stream-charts").then((m) => m.BreakthroughChart),
-  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg bg-muted/50" /> }
-);
 import { calculateWbal, calculateBreakthroughFtp, downsampleWbal } from "@/lib/engine/cycling/wbal";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";

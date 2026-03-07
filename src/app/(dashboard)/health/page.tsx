@@ -5,12 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getHealthMetrics, getLatestMetrics } from "@/lib/data/queries";
 import { formatDateShort } from "@/lib/data/helpers";
-import dynamic from "next/dynamic";
-
-const HealthTrendChart = dynamic(
-  () => import("@/components/dashboard/health-charts").then((m) => m.HealthTrendChart),
-  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg bg-muted/50" /> }
-);
+import { LazyHealthTrendChart as HealthTrendChart } from "@/components/dashboard/lazy-charts";
 import { getUserPlan } from "@/lib/subscription";
 import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 
