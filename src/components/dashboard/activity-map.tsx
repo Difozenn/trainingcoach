@@ -75,7 +75,15 @@ export function ActivityMap({
     // Fit bounds with padding
     map.fitBounds(polyline.getBounds(), { padding: [30, 30] });
 
+    // Invalidate size when container resizes (e.g. sidebar toggle)
+    const container = mapRef.current;
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(container);
+
     return () => {
+      ro.disconnect();
       map.remove();
       mapInstanceRef.current = null;
     };

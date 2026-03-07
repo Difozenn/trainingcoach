@@ -211,30 +211,33 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         >
           <CartesianGrid
             strokeDasharray="none"
-            stroke="hsl(var(--border))"
-            strokeOpacity={0.5}
-            strokeWidth={0.75}
-            vertical={true}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            strokeOpacity={0.15}
+            strokeWidth={1}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 9 }}
+            className="text-muted-foreground"
             tickLine={false}
-            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            axisLine={false}
             interval={tickInterval}
             dy={4}
           />
           <YAxis
             domain={[0, upperDomain]}
-            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 10 }}
+            className="text-muted-foreground"
             tickLine={false}
-            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            axisLine={false}
             width={40}
           />
           <Tooltip
             content={<MainTooltip />}
             cursor={{
-              stroke: "hsl(var(--muted-foreground))",
+              stroke: "currentColor",
+              className: "text-muted-foreground",
               strokeWidth: 1,
               strokeOpacity: 0.3,
               strokeDasharray: "4 3",
@@ -336,31 +339,34 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
 
           <CartesianGrid
             strokeDasharray="none"
-            stroke="hsl(var(--border))"
-            strokeOpacity={0.4}
-            strokeWidth={0.75}
-            vertical={true}
+            stroke="currentColor"
+            className="text-muted-foreground"
+            strokeOpacity={0.12}
+            strokeWidth={1}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 9 }}
+            className="text-muted-foreground"
             tickLine={false}
-            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            axisLine={false}
             interval={tickInterval}
             dy={4}
           />
           <YAxis
             domain={[formLower, formUpper]}
-            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+            tick={{ fontSize: 9 }}
+            className="text-muted-foreground"
             tickLine={false}
-            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            axisLine={false}
             width={40}
             tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip
             content={() => null}
             cursor={{
-              stroke: "hsl(var(--muted-foreground))",
+              stroke: "currentColor",
+              className: "text-muted-foreground",
               strokeWidth: 1,
               strokeOpacity: 0.3,
               strokeDasharray: "4 3",
@@ -368,9 +374,9 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           />
           <ReferenceLine
             y={0}
-            stroke="hsl(var(--muted-foreground))"
+            stroke="#6b7280"
             strokeWidth={0.75}
-            strokeOpacity={0.5}
+            strokeOpacity={0.4}
             strokeDasharray="3 3"
           />
 
