@@ -97,6 +97,20 @@ function toAthleteLevel(exp: string | null): AthleteLevel {
   }
 }
 
+// ── Helper: CTL-only phase detection for projection ─────────────────
+// Unlike detectSubPhase() which uses OR(ctl, weeks) for safety in the
+// current week, the projection shows what phase you'll reach as fitness
+// grows — so we use CTL thresholds only.
+
+function projectPhase(ctl: number): SubPhase {
+  if (ctl < 30) return "base1";
+  if (ctl < 50) return "base2";
+  if (ctl < 60) return "base3";
+  if (ctl < 75) return "build1";
+  if (ctl < 90) return "build2";
+  return "peak";
+}
+
 // ── Helper: generate upcoming phase timeline ────────────────────────
 
 function generatePhaseTimeline(
@@ -147,7 +161,7 @@ function generatePhaseTimeline(
   for (let i = 0; i < weeksAhead; i++) {
     const week = weeksSinceStart + i;
     const recovery = isRecoveryWeek(week, pattern);
-    const sub = recovery ? "recovery" as SubPhase : detectSubPhase(projectedCtl, week);
+    const sub = recovery ? "recovery" as SubPhase : projectPhase(projectedCtl);
     timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1, projectedCtl: Math.round(projectedCtl) });
     if (recovery) {
       // Recovery week: ~60% volume → CTL decays ~6% (proportional to current load)
