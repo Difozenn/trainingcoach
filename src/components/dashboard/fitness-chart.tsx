@@ -161,6 +161,15 @@ function computeTickInterval(count: number): number {
   return Math.ceil(count / 8);   // ~8 ticks for longer ranges
 }
 
+function niceYTicks(upper: number): number[] {
+  const steps = [5, 10, 20, 25, 50, 100];
+  const target = upper / 5;
+  const step = steps.find((s) => s >= target) ?? Math.ceil(target / 10) * 10;
+  const ticks: number[] = [];
+  for (let v = 0; v <= upper; v += step) ticks.push(v);
+  return ticks;
+}
+
 // ── Main component ──────────────────────────────────────────────────
 
 export function FitnessChart({ data }: { data: TimelinePoint[] }) {
@@ -225,6 +234,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           />
           <YAxis
             domain={[0, upperDomain]}
+            ticks={niceYTicks(upperDomain)}
             tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
