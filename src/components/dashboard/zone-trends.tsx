@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import {
   ResponsiveContainer,
   LineChart,
@@ -13,9 +14,9 @@ import {
   Legend,
 } from "recharts";
 
-// ── Year colors ────────────────────────────────────────────────────
+// ── Shared ─────────────────────────────────────────────────────────
 
-const PALETTE = ["#94a3b8", "#f97316", "#22c55e", "#3b82f6", "#8b5cf6", "#ef4444", "#ec4899"];
+const PALETTE = ["#3b82f6", "#ec4899", "#f97316", "#f59e0b", "#22c55e", "#8b5cf6", "#ef4444"];
 
 function yearColors(years: string[]) {
   const sorted = [...years].sort();
@@ -24,8 +25,6 @@ function yearColors(years: string[]) {
   return map;
 }
 
-// ── Day-of-year helpers ────────────────────────────────────────────
-
 function dayOfYear(d: Date): number {
   const start = new Date(d.getFullYear(), 0, 0);
   return Math.floor((d.getTime() - start.getTime()) / 86_400_000);
@@ -33,22 +32,40 @@ function dayOfYear(d: Date): number {
 
 const MONTH_TICKS = [1, 32, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335];
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function monthTick(doy: number) { const i = MONTH_TICKS.indexOf(doy); return i >= 0 ? MONTH_LABELS[i] : ""; }
+function doyLabel(doy: number | string) { const d = new Date(2024, 0, Number(doy)); return d.toLocaleDateString("en-GB", { month: "short", day: "numeric" }); }
 
-function monthTickFormatter(doy: number) {
-  const idx = MONTH_TICKS.indexOf(doy);
-  return idx >= 0 ? MONTH_LABELS[idx] : "";
-}
-
-const tooltipStyle: React.CSSProperties = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--border))",
-  borderRadius: 8,
-  fontSize: 12,
-  padding: "6px 10px",
+const ttStyle: React.CSSProperties = {
+  backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+  borderRadius: 8, fontSize: 12, padding: "6px 10px",
 };
 
 function Empty() {
   return <p className="py-10 text-center text-sm text-muted-foreground">No data yet</p>;
+}
+
+/** Clickable legend hook — returns [hiddenSet, legendClickHandler] */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function useToggleLegend(): [Set<string>, (e: any) => void] {
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onClick = useCallback((e: any) => {
+    const key = String(e?.dataKey ?? e?.value ?? "");
+    setHidden((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }, []);
+  return [hidden, onClick];
+}
+
+function legendStyle(hidden: Set<string>) {
+  return (value: string) => (
+    <span style={{ color: hidden.has(value) ? "hsl(var(--muted-foreground))" : undefined, cursor: "pointer", textDecoration: hidden.has(value) ? "line-through" : undefined, fontSize: 11 }}>
+      {value}
+    </span>
+  );
 }
 
 // ── 1. Fitness (CTL) by Year ───────────────────────────────────────
@@ -56,9 +73,9 @@ function Empty() {
 type FitnessRow = { date: Date; ctl: number | null };
 
 export function FitnessByYearChart({ data }: { data: FitnessRow[] }) {
+  const [hidden, onLegendClick] = useToggleLegend();
   if (data.length === 0) return <Empty />;
 
-  // Group by year
   const byYear = new Map<string, Map<number, number>>();
   for (const d of data) {
     const date = new Date(d.date);
@@ -72,7 +89,6 @@ export function FitnessByYearChart({ data }: { data: FitnessRow[] }) {
   const years = Array.from(byYear.keys()).sort();
   const colors = yearColors(years);
 
-  // Build merged dataset: { doy, [year]: ctl }
   const merged: Record<string, number | null>[] = [];
   for (let doy = 1; doy <= 366; doy += 2) {
     const row: Record<string, number | null> = { doy };
@@ -89,36 +105,12 @@ export function FitnessByYearChart({ data }: { data: FitnessRow[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-        <XAxis
-          dataKey="doy"
-          type="number"
-          domain={[1, 366]}
-          ticks={MONTH_TICKS}
-          tickFormatter={monthTickFormatter}
-          tick={{ fontSize: 10 }}
-          stroke="hsl(var(--muted-foreground))"
-        />
+        <XAxis dataKey="doy" type="number" domain={[1, 366]} ticks={MONTH_TICKS} tickFormatter={monthTick} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
         <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-        <Tooltip
-          contentStyle={tooltipStyle}
-          labelFormatter={(doy) => {
-            const d = new Date(2024, 0, Number(doy));
-            return d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
-          }}
-          formatter={(v: number | undefined, name?: string) => (v != null ? [v, name] : ["-"])}
-        />
-        <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-        {years.map((y, i) => (
-          <Line
-            key={y}
-            dataKey={y}
-            name={y}
-            stroke={colors[y]}
-            dot={false}
-            strokeWidth={i === years.length - 1 ? 2 : 1.5}
-            opacity={i === years.length - 1 ? 1 : 0.5}
-            connectNulls
-          />
+        <Tooltip contentStyle={ttStyle} labelFormatter={(v) => doyLabel(v as number)} formatter={(v: number | undefined, name?: string) => (v != null ? [v, name] : ["-"])} />
+        <Legend iconSize={8} onClick={onLegendClick} formatter={legendStyle(hidden)} />
+        {years.map((y) => (
+          <Line key={y} dataKey={y} name={y} stroke={colors[y]} dot={false} strokeWidth={1.5} hide={hidden.has(y)} connectNulls />
         ))}
       </LineChart>
     </ResponsiveContainer>
@@ -130,9 +122,9 @@ export function FitnessByYearChart({ data }: { data: FitnessRow[] }) {
 type DistRow = { date: Date; distanceMeters: number | null; sport: string };
 
 export function DistanceByYearChart({ data }: { data: DistRow[] }) {
+  const [hidden, onLegendClick] = useToggleLegend();
   if (data.length === 0) return <Empty />;
 
-  // Group activities by year, compute cumulative km by day-of-year
   const byYear = new Map<string, Map<number, number>>();
   for (const d of data) {
     const date = new Date(d.date);
@@ -147,15 +139,12 @@ export function DistanceByYearChart({ data }: { data: DistRow[] }) {
   const years = Array.from(byYear.keys()).sort();
   const colors = yearColors(years);
 
-  // Compute cumulative and sample every 3 days
   const merged: Record<string, number | null>[] = [];
   const cumulative: Record<string, number> = {};
   for (const y of years) cumulative[y] = 0;
 
   for (let doy = 1; doy <= 366; doy++) {
-    for (const y of years) {
-      cumulative[y] += byYear.get(y)?.get(doy) ?? 0;
-    }
+    for (const y of years) cumulative[y] += byYear.get(y)?.get(doy) ?? 0;
     if (doy % 3 === 0 || doy === 1) {
       const row: Record<string, number | null> = { doy };
       let hasAny = false;
@@ -172,36 +161,12 @@ export function DistanceByYearChart({ data }: { data: DistRow[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-        <XAxis
-          dataKey="doy"
-          type="number"
-          domain={[1, 366]}
-          ticks={MONTH_TICKS}
-          tickFormatter={monthTickFormatter}
-          tick={{ fontSize: 10 }}
-          stroke="hsl(var(--muted-foreground))"
-        />
+        <XAxis dataKey="doy" type="number" domain={[1, 366]} ticks={MONTH_TICKS} tickFormatter={monthTick} tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
         <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit=" km" />
-        <Tooltip
-          contentStyle={tooltipStyle}
-          labelFormatter={(doy) => {
-            const d = new Date(2024, 0, Number(doy));
-            return d.toLocaleDateString("en-GB", { month: "short", day: "numeric" });
-          }}
-          formatter={(v: number | undefined, name?: string) => (v != null ? [`${v} km`, name] : ["-"])}
-        />
-        <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-        {years.map((y, i) => (
-          <Line
-            key={y}
-            dataKey={y}
-            name={y}
-            stroke={colors[y]}
-            dot={false}
-            strokeWidth={i === years.length - 1 ? 2 : 1.5}
-            opacity={i === years.length - 1 ? 1 : 0.5}
-            connectNulls
-          />
+        <Tooltip contentStyle={ttStyle} labelFormatter={(v) => doyLabel(v as number)} formatter={(v: number | undefined, name?: string) => (v != null ? [`${v} km`, name] : ["-"])} />
+        <Legend iconSize={8} onClick={onLegendClick} formatter={legendStyle(hidden)} />
+        {years.map((y) => (
+          <Line key={y} dataKey={y} name={y} stroke={colors[y]} dot={false} strokeWidth={1.5} hide={hidden.has(y)} connectNulls />
         ))}
       </LineChart>
     </ResponsiveContainer>
@@ -209,101 +174,74 @@ export function DistanceByYearChart({ data }: { data: DistRow[] }) {
 }
 
 // ── 3. Power vs Heart Rate by Year ─────────────────────────────────
-// intervals.icu style: x=watts (binned), y=%threshold HR, one line per year
+// intervals.icu style: each activity = a dot, sorted by power, one line per year
 
 type PowerHrRow = { date: Date; avgPower: number | null; avgHr: number | null };
 
-const BIN_SIZE = 10; // watts per bin
-
-export function PowerHrByYearChart({
-  data,
-  maxHr,
-}: {
-  data: PowerHrRow[];
-  maxHr: number | null;
-}) {
+export function PowerHrByYearChart({ data, maxHr }: { data: PowerHrRow[]; maxHr: number | null }) {
+  const [hidden, onLegendClick] = useToggleLegend();
   if (data.length === 0) return <Empty />;
 
   const thresholdHr = maxHr ?? 190;
 
-  // Group activities by year, then bin by power (10W bins)
-  const byYear = new Map<string, Map<number, { sumHrPct: number; count: number }>>();
+  // Group by year, each activity becomes { watts, hrPct }
+  const byYear = new Map<string, { watts: number; hrPct: number }[]>();
   for (const d of data) {
     if (!d.avgPower || !d.avgHr || d.avgPower < 80) continue;
     const year = String(new Date(d.date).getFullYear());
-    const bin = Math.round(d.avgPower / BIN_SIZE) * BIN_SIZE;
-    const hrPct = (d.avgHr / thresholdHr) * 100;
-    if (!byYear.has(year)) byYear.set(year, new Map());
-    const yBins = byYear.get(year)!;
-    const existing = yBins.get(bin) ?? { sumHrPct: 0, count: 0 };
-    existing.sumHrPct += hrPct;
-    existing.count += 1;
-    yBins.set(bin, existing);
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year)!.push({
+      watts: d.avgPower,
+      hrPct: Math.round((d.avgHr / thresholdHr) * 1000) / 10,
+    });
+  }
+
+  // Sort each year by watts, then smooth with 3-point moving average
+  for (const [, points] of byYear) {
+    points.sort((a, b) => a.watts - b.watts);
   }
 
   const years = Array.from(byYear.keys()).sort();
   const colors = yearColors(years);
 
-  // Find power range across all years
-  let minW = Infinity, maxW = -Infinity;
-  for (const bins of byYear.values()) {
-    for (const w of bins.keys()) {
-      if (w < minW) minW = w;
-      if (w > maxW) maxW = w;
+  // Build merged dataset keyed by watts — use all unique watts values
+  const allWatts = new Set<number>();
+  for (const points of byYear.values()) {
+    for (const p of points) allWatts.add(p.watts);
+  }
+  const sortedWatts = Array.from(allWatts).sort((a, b) => a - b);
+
+  // For each year, build a Map<watts, hrPct[]> then average
+  const yearAvg = new Map<string, Map<number, number>>();
+  for (const [year, points] of byYear) {
+    const wMap = new Map<number, number[]>();
+    for (const p of points) {
+      if (!wMap.has(p.watts)) wMap.set(p.watts, []);
+      wMap.get(p.watts)!.push(p.hrPct);
     }
+    const avg = new Map<number, number>();
+    for (const [w, vals] of wMap) {
+      avg.set(w, Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10);
+    }
+    yearAvg.set(year, avg);
   }
 
-  // Build merged dataset: { watts, [year]: avg%HR }
-  const merged: Record<string, number | null>[] = [];
-  for (let w = minW; w <= maxW; w += BIN_SIZE) {
+  const merged = sortedWatts.map((w) => {
     const row: Record<string, number | null> = { watts: w };
-    let hasAny = false;
-    for (const y of years) {
-      const bin = byYear.get(y)?.get(w);
-      if (bin && bin.count >= 1) {
-        row[y] = Math.round((bin.sumHrPct / bin.count) * 10) / 10;
-        hasAny = true;
-      } else {
-        row[y] = null;
-      }
-    }
-    if (hasAny) merged.push(row);
-  }
+    for (const y of years) row[y] = yearAvg.get(y)?.get(w) ?? null;
+    return row;
+  });
 
   return (
     <ResponsiveContainer width="100%" height={280}>
       <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-        <XAxis
-          dataKey="watts"
-          type="number"
-          tick={{ fontSize: 10 }}
-          stroke="hsl(var(--muted-foreground))"
-          unit="w"
-        />
-        <YAxis
-          tick={{ fontSize: 10 }}
-          stroke="hsl(var(--muted-foreground))"
-          unit="%"
-          domain={["auto", "auto"]}
-        />
-        <Tooltip
-          contentStyle={tooltipStyle}
-          labelFormatter={(w) => `${w}W`}
-          formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}%`, name] : ["-"])}
-        />
-        <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-        {years.map((y, i) => (
-          <Line
-            key={y}
-            dataKey={y}
-            name={y}
-            stroke={colors[y]}
-            dot={false}
-            strokeWidth={i === years.length - 1 ? 2 : 1.5}
-            opacity={i === years.length - 1 ? 1 : 0.5}
-            connectNulls
-          />
+        <XAxis dataKey="watts" type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="w" />
+        <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="%" domain={["auto", "auto"]} label={{ value: "% Threshold HR", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "hsl(var(--muted-foreground))" }, offset: 15 }} />
+        <Tooltip contentStyle={ttStyle} labelFormatter={(w) => `${w}W`} formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}%`, name] : ["-"])} />
+        <Legend iconSize={8} onClick={onLegendClick} formatter={legendStyle(hidden)} />
+        {years.map((y) => (
+          <Line key={y} dataKey={y} name={y} stroke={colors[y]} dot={{ r: 2, fill: colors[y] }} strokeWidth={1.5} hide={hidden.has(y)} connectNulls />
         ))}
       </LineChart>
     </ResponsiveContainer>
@@ -312,24 +250,16 @@ export function PowerHrByYearChart({
 
 // ── 4. Power Curve by Year ─────────────────────────────────────────
 
-type YearlyPeakRow = {
-  year: string;
-  peak5s: number | null;
-  peak1m: number | null;
-  peak5m: number | null;
-  peak20m: number | null;
-  peak60m: number | null;
-};
-
+type YearlyPeakRow = { year: string; peak5s: number | null; peak1m: number | null; peak5m: number | null; peak20m: number | null; peak60m: number | null };
 const DURATIONS = ["5s", "1m", "5m", "20m", "60m"] as const;
 
 export function PowerCurveByYearChart({ data }: { data: YearlyPeakRow[] }) {
+  const [hidden, onLegendClick] = useToggleLegend();
   if (data.length === 0) return <Empty />;
 
   const years = data.map((d) => d.year).sort();
   const colors = yearColors(years);
 
-  // Pivot: rows = durations, columns = years
   const chartData = DURATIONS.map((dur) => {
     const row: Record<string, string | number | null> = { duration: dur };
     for (const d of data) {
@@ -345,20 +275,10 @@ export function PowerCurveByYearChart({ data }: { data: YearlyPeakRow[] }) {
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
         <XAxis dataKey="duration" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
         <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" unit="W" />
-        <Tooltip
-          contentStyle={tooltipStyle}
-          formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}W`, name] : ["-"])}
-        />
-        <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-        {years.map((y, i) => (
-          <Bar
-            key={y}
-            dataKey={y}
-            name={y}
-            fill={colors[y]}
-            opacity={i === years.length - 1 ? 0.9 : 0.5}
-            radius={[3, 3, 0, 0]}
-          />
+        <Tooltip contentStyle={ttStyle} formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}W`, name] : ["-"])} />
+        <Legend iconSize={8} onClick={onLegendClick} formatter={legendStyle(hidden)} />
+        {years.map((y) => (
+          <Bar key={y} dataKey={y} name={y} fill={colors[y]} hide={hidden.has(y)} radius={[3, 3, 0, 0]} />
         ))}
       </BarChart>
     </ResponsiveContainer>
