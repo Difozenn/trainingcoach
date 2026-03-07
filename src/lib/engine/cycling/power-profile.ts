@@ -49,6 +49,21 @@ const DURATIONS_SECONDS = [5, 15, 30, 60, 300, 600, 1200, 3600] as const;
 const DURATION_KEYS = ["5s", "15s", "30s", "1m", "5m", "10m", "20m", "60m"] as const;
 
 const CATEGORY_LABELS = [
+  "Beginner",
+  "Recreational",
+  "Fitness",
+  "Sportive",
+  "Competitive",
+  "Elite",
+  "Semi-Pro",
+  "World Tour",
+] as const;
+
+/**
+ * Racing category labels (Coggan-style).
+ * Maps to USA Cycling race categories based on W/kg thresholds.
+ */
+const RACING_CATEGORY_LABELS = [
   "Untrained",
   "Cat 5",
   "Cat 4",
@@ -77,19 +92,17 @@ const WATTS_THRESHOLDS_MALE: Record<string, number[]> = {
 };
 
 /**
- * W/kg thresholds for male riders.
- * Same structure as watts thresholds.
- * Benefits lighter riders whose absolute watts don't reflect their W/kg dominance.
+ * Official Coggan W/kg thresholds for male riders.
+ * Source: Allen & Coggan, "Training and Racing with a Power Meter"
+ * Each array = 7 thresholds mapping to Cat 5 → World Class.
+ * 20m interpolated from FTP × 1.05 (FTP = 95% of 20min power).
  */
 const WKG_THRESHOLDS_MALE: Record<string, number[]> = {
-  "5s":  [8.0,  10.0, 12.5, 15.0, 17.5, 20.0, 23.0],
-  "15s": [6.0,  7.5,  9.5,  12.0, 14.5, 17.0, 20.0],
-  "30s": [4.5,  6.0,  7.5,  9.5,  11.5, 13.5, 16.0],
-  "1m":  [3.0,  4.0,  5.5,  7.0,  8.5,  10.0, 12.0],
-  "5m":  [2.0,  2.8,  3.5,  4.3,  5.0,  5.7,  6.5],
-  "10m": [1.8,  2.5,  3.2,  4.0,  4.7,  5.4,  6.2],
-  "20m": [1.6,  2.3,  3.0,  3.7,  4.3,  5.0,  5.8],
-  "60m": [1.4,  2.0,  2.6,  3.2,  3.8,  4.4,  5.2],
+  "5s":  [13.04, 14.81, 16.59, 18.66, 20.44, 22.22, 24.00],
+  "1m":  [6.79,  7.48,  8.17,  8.97,  9.66,  10.35, 11.04],
+  "5m":  [3.36,  3.98,  4.60,  5.33,  5.95,  6.57,  7.19],
+  "20m": [2.89,  3.45,  4.01,  4.66,  5.23,  5.79,  6.34],
+  "60m": [2.75,  3.29,  3.82,  4.44,  4.98,  5.51,  6.04],
 };
 
 // ── Peak Power Calculation ─────────────────────────────────────────
@@ -200,6 +213,33 @@ export function classifyPower(
   return {
     level: result.level,
     label: CATEGORY_LABELS[result.level],
+    percentile: result.percentile,
+    wPerKg: Math.round(wPerKg * 100) / 100,
+  };
+}
+
+/**
+ * Classify power using official Coggan W/kg thresholds.
+ * Returns racing category labels (Cat 5 → World Tour).
+ * Used on activity detail pages for per-ride rankings.
+ */
+export function classifyPowerRacing(
+  watts: number,
+  weightKg: number,
+  durationKey: string
+): PowerCategory {
+  const wPerKg = watts / weightKg;
+
+  const wkgTable = WKG_THRESHOLDS_MALE[durationKey];
+  if (!wkgTable) {
+    return { level: 0, label: RACING_CATEGORY_LABELS[0], percentile: 0, wPerKg: Math.round(wPerKg * 100) / 100 };
+  }
+
+  const result = classifyAgainstThresholds(wPerKg, wkgTable);
+
+  return {
+    level: result.level,
+    label: RACING_CATEGORY_LABELS[result.level],
     percentile: result.percentile,
     wPerKg: Math.round(wPerKg * 100) / 100,
   };
@@ -318,4 +358,4 @@ export function buildPowerProfile(
   };
 }
 
-export { DURATION_KEYS, CATEGORY_LABELS };
+export { DURATION_KEYS, CATEGORY_LABELS, RACING_CATEGORY_LABELS };

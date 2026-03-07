@@ -24,7 +24,7 @@ import {
   getCyclingFtpAtDate,
   getAthleteProfile,
 } from "@/lib/data/queries";
-import { classifyPower, CATEGORY_LABELS } from "@/lib/engine/cycling/power-profile";
+import { classifyPowerRacing } from "@/lib/engine/cycling/power-profile";
 import {
   formatDuration,
   formatDistance,
@@ -316,7 +316,7 @@ export default async function ActivityDetailPage({
     if (durations.length === 0) return null;
     return durations.map((d) => ({
       ...d,
-      category: classifyPower(d.watts, weightKg, d.key),
+      category: classifyPowerRacing(d.watts, weightKg, d.key),
     }));
   })() : null;
 
