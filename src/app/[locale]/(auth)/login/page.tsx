@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("Login");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,7 +41,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (result?.error) {
-      setError("Invalid email or password");
+      setError(t("invalidCredentials"));
     } else {
       router.push("/dashboard");
       router.refresh();
@@ -49,8 +51,8 @@ export default function LoginPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-        <CardDescription>Sign in to your training account</CardDescription>
+        <CardTitle className="text-2xl font-bold">{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button
@@ -76,7 +78,7 @@ export default function LoginPage() {
               fill="#EA4335"
             />
           </svg>
-          Continue with Google
+          {t("continueWithGoogle")}
         </Button>
 
         <div className="relative">
@@ -84,7 +86,9 @@ export default function LoginPage() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
+            <span className="bg-card px-2 text-muted-foreground">
+              {t("or")}
+            </span>
           </div>
         </div>
 
@@ -96,7 +100,7 @@ export default function LoginPage() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("email")}</Label>
             <Input
               id="email"
               name="email"
@@ -107,7 +111,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("password")}</Label>
             <Input
               id="password"
               name="password"
@@ -119,15 +123,18 @@ export default function LoginPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? t("signingIn") : t("signIn")}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="font-medium text-primary underline">
-            Sign up
+          {t("noAccount")}{" "}
+          <Link
+            href="/register"
+            className="font-medium text-primary underline"
+          >
+            {t("signUp")}
           </Link>
         </p>
       </CardFooter>

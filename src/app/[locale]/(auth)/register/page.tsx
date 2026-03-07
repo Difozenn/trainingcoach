@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ import {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations("Register");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -33,13 +35,13 @@ export default function RegisterPage() {
     const confirmPassword = formData.get("confirmPassword") as string;
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwordsNoMatch"));
       setLoading(false);
       return;
     }
 
     if (password.length < 12) {
-      setError("Password must be at least 12 characters");
+      setError(t("passwordMinLength"));
       setLoading(false);
       return;
     }
@@ -53,12 +55,11 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error || "Registration failed");
+        setError(data.error || t("registrationFailed"));
         setLoading(false);
         return;
       }
 
-      // Auto sign-in after registration
       const result = await signIn("credentials", {
         email,
         password,
@@ -66,13 +67,13 @@ export default function RegisterPage() {
       });
 
       if (result?.error) {
-        setError("Account created but sign-in failed. Please try logging in.");
+        setError(t("signInFailed"));
       } else {
         router.push("/dashboard");
         router.refresh();
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setError(t("somethingWrong"));
     }
 
     setLoading(false);
@@ -81,8 +82,8 @@ export default function RegisterPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-        <CardDescription>Start your training journey</CardDescription>
+        <CardTitle className="text-2xl font-bold">{t("title")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button
@@ -108,7 +109,7 @@ export default function RegisterPage() {
               fill="#EA4335"
             />
           </svg>
-          Continue with Google
+          {t("continueWithGoogle")}
         </Button>
 
         <div className="relative">
@@ -116,7 +117,9 @@ export default function RegisterPage() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or</span>
+            <span className="bg-card px-2 text-muted-foreground">
+              {t("or")}
+            </span>
           </div>
         </div>
 
@@ -128,7 +131,7 @@ export default function RegisterPage() {
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="name">{t("name")}</Label>
             <Input
               id="name"
               name="name"
@@ -139,7 +142,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("email")}</Label>
             <Input
               id="email"
               name="email"
@@ -150,7 +153,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("password")}</Label>
             <Input
               id="password"
               name="password"
@@ -159,13 +162,11 @@ export default function RegisterPage() {
               minLength={12}
               autoComplete="new-password"
             />
-            <p className="text-xs text-muted-foreground">
-              Minimum 12 characters
-            </p>
+            <p className="text-xs text-muted-foreground">{t("minChars")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">{t("confirmPassword")}</Label>
             <Input
               id="confirmPassword"
               name="confirmPassword"
@@ -177,15 +178,15 @@ export default function RegisterPage() {
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Create account"}
+            {loading ? t("creatingAccount") : t("createAccount")}
           </Button>
         </form>
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
-          Already have an account?{" "}
+          {t("hasAccount")}{" "}
           <Link href="/login" className="font-medium text-primary underline">
-            Sign in
+            {t("signIn")}
           </Link>
         </p>
       </CardFooter>

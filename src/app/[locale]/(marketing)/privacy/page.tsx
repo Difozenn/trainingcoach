@@ -28,7 +28,6 @@ export default function PrivacyPage() {
           have read and understood this Privacy Policy.
         </p>
 
-        {/* ── 1. Data Controller ─────────────────────────────────── */}
         <h2>1. Data Controller</h2>
         <p>
           Paincave is the data controller responsible for your personal data.
@@ -37,7 +36,6 @@ export default function PrivacyPage() {
           <a href="mailto:privacy@paincave.io">privacy@paincave.io</a>.
         </p>
 
-        {/* ── 2. Data We Collect ─────────────────────────────────── */}
         <h2>2. Data We Collect</h2>
 
         <h3>2.1 Account Data</h3>
@@ -94,7 +92,6 @@ export default function PrivacyPage() {
           profile you.
         </p>
 
-        {/* ── 3. Legal Basis for Processing ──────────────────────── */}
         <h2>3. Legal Basis for Processing</h2>
         <ul>
           <li>
@@ -112,7 +109,6 @@ export default function PrivacyPage() {
           </li>
         </ul>
 
-        {/* ── 4. How We Use Your Data ────────────────────────────── */}
         <h2>4. How We Use Your Data</h2>
         <p>Your data is used exclusively to:</p>
         <ul>
@@ -131,7 +127,6 @@ export default function PrivacyPage() {
           models. <strong>We do not</strong> serve advertisements.
         </p>
 
-        {/* ── 5. Third Parties ─────────────────────────────────── */}
         <h2>5. Third Parties</h2>
         <p>
           We use a limited number of third-party service providers to operate
@@ -146,7 +141,6 @@ export default function PrivacyPage() {
           are initiated and controlled by you and can be revoked at any time.
         </p>
 
-        {/* ── 6. Data Security ───────────────────────────────────── */}
         <h2>6. Data Security</h2>
         <p>
           We take appropriate technical and organisational measures to protect
@@ -155,7 +149,6 @@ export default function PrivacyPage() {
           data is only accessible to you.
         </p>
 
-        {/* ── 7. Data Retention ──────────────────────────────────── */}
         <h2>7. Data Retention</h2>
         <ul>
           <li>
@@ -176,7 +169,6 @@ export default function PrivacyPage() {
           </li>
         </ul>
 
-        {/* ── 8. International Transfers ─────────────────────────── */}
         <h2>8. International Data Transfers</h2>
         <p>
           Your data may be processed in the United States and the European
@@ -185,7 +177,6 @@ export default function PrivacyPage() {
           processors.
         </p>
 
-        {/* ── 9. Cookies ─────────────────────────────────────────── */}
         <h2>9. Cookies</h2>
         <p>
           Paincave uses only <strong>strictly necessary cookies</strong> for
@@ -193,7 +184,6 @@ export default function PrivacyPage() {
           analytics cookies, or advertising cookies.
         </p>
 
-        {/* ── 10. Your Rights ────────────────────────────────────── */}
         <h2>10. Your Rights Under GDPR</h2>
         <p>
           If you are in the European Economic Area (EEA) or the United Kingdom,
@@ -235,7 +225,6 @@ export default function PrivacyPage() {
           protection supervisory authority.
         </p>
 
-        {/* ── 11. Children's Privacy ─────────────────────────────── */}
         <h2>11. Children&apos;s Privacy</h2>
         <p>
           Paincave is not intended for individuals under the age of 16. We do
@@ -243,7 +232,6 @@ export default function PrivacyPage() {
           have collected data from a child under 16, we will delete it promptly.
         </p>
 
-        {/* ── 12. Changes ────────────────────────────────────────── */}
         <h2>12. Changes to This Policy</h2>
         <p>
           We may update this Privacy Policy from time to time. Material changes
@@ -252,7 +240,6 @@ export default function PrivacyPage() {
           most recent revision.
         </p>
 
-        {/* ── 13. Contact ────────────────────────────────────────── */}
         <h2>13. Contact</h2>
         <p>
           For privacy-related questions or data requests:{" "}
