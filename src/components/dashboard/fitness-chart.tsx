@@ -193,9 +193,8 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         (d.cyclingTss ?? 0) + (d.runningTss ?? 0) + (d.swimmingTss ?? 0)
     )
   );
-  // Round up to a multiple of 20 so tickCount=6 gives clean values (0,20,40,...,100)
   const rawUpper = Math.max(maxFitness * 1.15, maxTss * 1.1) || 50;
-  const upperDomain = Math.ceil(rawUpper / 20) * 20;
+  const upperDomain = Math.ceil(rawUpper / 10) * 10;
 
   // Form domain
   const formValues = data.map((d) => d.formPct).filter((v): v is number => v != null);
@@ -229,7 +228,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           <XAxis dataKey="date" tick={false} tickLine={false} axisLine={false} height={0} />
           <YAxis
             domain={[0, upperDomain]}
-            tickCount={6}
+            tickCount={Math.round(upperDomain / 10) + 1}
             allowDecimals={false}
             tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickLine={false}
@@ -315,12 +314,12 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
       </ResponsiveContainer>
 
       {/* ── Form chart — sits under fitness with small gap ────────────── */}
-      <div className="h-2" />
+      <div className="h-1.5" />
       <ResponsiveContainer width="100%" height={120}>
         <ComposedChart
           data={data}
           syncId="pmc"
-          margin={{ top: 6, right: 12, bottom: 0, left: 0 }}
+          margin={{ top: 8, right: 12, bottom: 4, left: 0 }}
         >
           {/* Zone backgrounds */}
           {FORM_ZONES.map((z) => (
@@ -409,7 +408,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
       </ResponsiveContainer>
 
       {/* ── Shared date axis ─────────────────────────────────────────── */}
-      <ResponsiveContainer width="100%" height={24}>
+      <ResponsiveContainer width="100%" height={28}>
         <ComposedChart
           data={data}
           syncId="pmc"
@@ -422,7 +421,6 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             tick={{ fontSize: 9, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
-            dy={-4}
           />
           <YAxis hide width={40} />
         </ComposedChart>
