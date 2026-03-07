@@ -28,12 +28,18 @@ export type WbalPoint = {
 /**
  * Estimate W' (anaerobic work capacity) from FTP alone.
  * Fallback when no peak 5-min data is available.
- * Typical range: 15-30 kJ for trained cyclists.
+ *
+ * Research ranges (Skiba 2012, Morton 2006):
+ *   Recreational: 10-15 kJ
+ *   Trained:      15-25 kJ
+ *   Elite:        25-35 kJ
+ *
+ * Uses FTP as a proxy for training level. Linear interpolation:
+ *   FTP 150 → 12kJ, FTP 250 → 18kJ, FTP 350 → 24kJ, FTP 450 → 30kJ
  */
 function estimateWPrimeFromFtp(ftp: number): number {
-  // Rough approximation: W' ~ 200 * FTP^0.5
-  // At FTP=250 → ~19.9kJ, FTP=330 → ~22.9kJ
-  const wPrime = 200 * Math.sqrt(ftp);
+  // 60J per watt of FTP above a 150W baseline, starting at 12kJ
+  const wPrime = 12000 + Math.max(0, ftp - 150) * 60;
   return Math.max(10000, Math.min(35000, Math.round(wPrime)));
 }
 
@@ -94,21 +100,28 @@ export function calculateWbal(
   const pp = opts?.pMax ?? peakPowerFromStream(powerStream, 5);
   const effectivePP = Math.max(pp, cp + 100);
 
-  const MIN_BREACH_SECONDS = 10; // Must sustain power > MPA for 10s+
-  const MAX_BREACH_POWER_RATIO = 2.0; // Skip sprint-driven breaches (power > 2×CP)
-  const CONTEXT_WINDOW = 300; // 5-min window before breach to check riding context
-  const MIN_CONTEXT_RATIO = 0.80; // Avg power in context window must be ≥ 80% of CP
+  const PCR_BUFFER = 5; // Phosphocreatine handles the first 5s of any above-CP surge
+  const MIN_BREACH_SECONDS = 10;
+  const MAX_BREACH_POWER_RATIO = 2.0;
+  const CONTEXT_WINDOW = 300;
+  const MIN_CONTEXT_RATIO = 0.80;
 
   let wbal = wMax;
+  let consecutiveAboveCp = 0;
   const results: WbalPoint[] = [];
 
   for (let i = 0; i < powerStream.length; i++) {
     const power = powerStream[i];
 
     if (power > cp) {
-      // Depletion: linear, 1 joule per watt above CP per second
-      wbal -= (power - cp);
+      consecutiveAboveCp++;
+      // Only deplete W'bal after PCr buffer — the phosphocreatine system
+      // powers the first ~5s of any above-CP surge, not W'.
+      if (consecutiveAboveCp > PCR_BUFFER) {
+        wbal -= (power - cp);
+      }
     } else {
+      consecutiveAboveCp = 0;
       // Recovery: Skiba exponential model with power-dependent tau
       // tau = 546 × e^(-0.01 × (CP - P)) + 316.18
       const tau = 546 * Math.exp(-0.01 * (cp - power)) + 316.18;

@@ -359,9 +359,10 @@ export default async function ActivityDetailPage({
 
   if (activity.sport === "cycling" && wbalFtp && hasPower) {
     const powerStream = streams.map((s) => s.powerWatts ?? 0);
+    // Use ride-specific peaks (not all-time) for W'bal — reflects actual fitness on this day
     const wbalOpts = {
-      pMax: recentPeaks?.peaks["5s"] ?? undefined,
-      peak5m: recentPeaks?.peaks["5m"] ?? undefined,
+      pMax: activity.peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
+      peak5m: activity.peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
     };
     const wbalResult = calculateWbal(powerStream, wbalFtp, wbalOpts);
     const btPoint = wbalResult.find((p) => p.isBreakthrough);
@@ -490,8 +491,8 @@ export default async function ActivityDetailPage({
             {activity.sport === "cycling" && wbalFtp && hasPower && (() => {
               const powerStream = streams.map((s) => s.powerWatts ?? 0);
               const wbalData = calculateWbal(powerStream, wbalFtp, {
-                pMax: recentPeaks?.peaks["5s"] ?? undefined,
-                peak5m: recentPeaks?.peaks["5m"] ?? undefined,
+                pMax: activity.peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
+                peak5m: activity.peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
               });
               const downsampled = downsampleWbal(wbalData);
               if (downsampled.length === 0) return null;
