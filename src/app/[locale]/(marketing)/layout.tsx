@@ -22,6 +22,18 @@ export default async function MarketingLayout({
           </Link>
           <nav className="hidden items-center gap-6 md:flex">
             <Link
+              href="/tools"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Tools
+            </Link>
+            <Link
+              href="/blog"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Blog
+            </Link>
+            <Link
               href="/pricing"
               className="text-sm text-muted-foreground hover:text-foreground"
             >
@@ -64,6 +76,12 @@ export default async function MarketingLayout({
                 {tFooter("product")}
               </h4>
               <nav className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <Link href="/tools" className="hover:text-foreground">
+                  Tools
+                </Link>
+                <Link href="/blog" className="hover:text-foreground">
+                  Blog
+                </Link>
                 <Link href="/pricing" className="hover:text-foreground">
                   {tHeader("pricing")}
                 </Link>
