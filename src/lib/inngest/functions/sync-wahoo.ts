@@ -12,6 +12,7 @@ import {
   activities,
   dailyMetrics,
   sportProfiles,
+  athleteProfiles,
 } from "@/lib/db/schema";
 import { eq, and, desc, lt } from "drizzle-orm";
 import {
@@ -97,23 +98,33 @@ export const processWahooWebhook = inngest.createFunction(
       return { status: "unsupported_sport" };
     }
 
-    // Get sport profile for thresholds
-    const profile = await step.run("get-sport-profile", async () => {
-      const [sp] = await db
-        .select()
-        .from(sportProfiles)
-        .where(
-          and(
-            eq(sportProfiles.userId, connection.userId),
-            eq(sportProfiles.sport, processed.sport)
+    // Get sport profile + athlete profile in parallel
+    const [profile, athleteProfile] = await Promise.all([
+      step.run("get-sport-profile", async () => {
+        const [sp] = await db
+          .select()
+          .from(sportProfiles)
+          .where(
+            and(
+              eq(sportProfiles.userId, connection.userId),
+              eq(sportProfiles.sport, processed.sport)
+            )
           )
-        )
-        .limit(1);
-      return sp;
-    });
+          .limit(1);
+        return sp;
+      }),
+      step.run("get-athlete-profile", async () => {
+        const [ap] = await db
+          .select({ restingHr: athleteProfiles.restingHr })
+          .from(athleteProfiles)
+          .where(eq(athleteProfiles.userId, connection.userId))
+          .limit(1);
+        return ap;
+      }),
+    ]);
 
     // Calculate metrics
-    const metrics = calculateWahooMetrics(processed, profile);
+    const metrics = calculateWahooMetrics(processed, profile, athleteProfile?.restingHr);
 
     // Store activity
     const storedActivityId = await step.run("store-activity", async () => {
@@ -253,6 +264,16 @@ export const backfillWahooActivities = inngest.createFunction(
       });
     }
 
+    // Fetch athlete resting HR once before the loop
+    const athleteProfile = await step.run("get-athlete-profile", async () => {
+      const [ap] = await db
+        .select({ restingHr: athleteProfiles.restingHr })
+        .from(athleteProfiles)
+        .where(eq(athleteProfiles.userId, userId))
+        .limit(1);
+      return ap;
+    });
+
     let totalImported = 0;
     for (let page = 1; page <= 10; page++) {
       const pageWorkouts = await step.run(`fetch-page-${page}`, async () => {
@@ -300,7 +321,7 @@ export const backfillWahooActivities = inngest.createFunction(
             )
             .limit(1);
 
-          const metrics = calculateWahooMetrics(processed, profile);
+          const metrics = calculateWahooMetrics(processed, profile, athleteProfile?.restingHr);
 
           await db.insert(activities).values({
             userId,

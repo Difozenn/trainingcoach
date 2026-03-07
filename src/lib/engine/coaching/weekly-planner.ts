@@ -222,13 +222,12 @@ export function generateWeeklyPlan(input: WeeklyPlanInput): WeeklyPlanOutput {
 
   const workouts: WorkoutTemplate[] = [];
 
+  const thresholds = { ftp, thresholdPaceSecPerKm, cssSPer100m };
+
   // 1. Long endurance session (always present, weekend slot)
   const longSport = primarySport;
-  workouts.push(
-    generateWorkout(longSport, getEasyWorkout(longSport), longRideTss, level, subPhase, {
-      ftp, thresholdPaceSecPerKm, cssSPer100m,
-    })
-  );
+  const longWorkout = generateWorkout(longSport, getEasyWorkout(longSport), longRideTss, level, subPhase, thresholds);
+  if (longWorkout) workouts.push(longWorkout);
 
   // 2. Hard sessions (spaced with easy days between)
   for (let i = 0; i < actualKeySessions; i++) {
@@ -236,27 +235,20 @@ export function generateWeeklyPlan(input: WeeklyPlanInput): WeeklyPlanOutput {
     const hardSport = sports.length > 1 ? sports[(i + 1) % sports.length] : primarySport;
     const hardTssPerSession = Math.round(targetTss * hardTssPct);
 
-    workouts.push(
-      generateWorkout(hardSport, workoutType, hardTssPerSession, level, subPhase, {
-        ftp, thresholdPaceSecPerKm, cssSPer100m,
-      })
-    );
+    const hardWorkout = generateWorkout(hardSport, workoutType, hardTssPerSession, level, subPhase, thresholds);
+    if (hardWorkout) workouts.push(hardWorkout);
   }
 
   // 3. Easy / recovery sessions to fill remaining slots
   for (let i = 0; i < easySessions; i++) {
     const easySport = sports[i % sports.length];
-    // If recovery phase, use recovery workouts
     const isRecoveryPhase = subPhase === "recovery" || subPhase === "transition";
     const workoutType = isRecoveryPhase
       ? getRecoveryWorkout(easySport)
       : getEasyWorkout(easySport);
 
-    workouts.push(
-      generateWorkout(easySport, workoutType, easyTssPerSession, level, subPhase, {
-        ftp, thresholdPaceSecPerKm, cssSPer100m,
-      })
-    );
+    const easyWorkout = generateWorkout(easySport, workoutType, easyTssPerSession, level, subPhase, thresholds);
+    if (easyWorkout) workouts.push(easyWorkout);
   }
 
   // Sort: long ride first (weekend), then hard sessions, then easy (for display order)
@@ -292,13 +284,16 @@ function generateWorkout(
     thresholdPaceSecPerKm?: number;
     cssSPer100m?: number;
   }
-): WorkoutTemplate {
+): WorkoutTemplate | null {
   switch (sport) {
     case "cycling":
-      return generateCyclingWorkout(workoutType, thresholds.ftp ?? 200, targetTss, level, subPhase);
+      if (!thresholds.ftp) return null;
+      return generateCyclingWorkout(workoutType, thresholds.ftp, targetTss, level, subPhase);
     case "running":
-      return generateRunningWorkout(workoutType, thresholds.thresholdPaceSecPerKm ?? 300, targetTss, level, subPhase);
+      if (!thresholds.thresholdPaceSecPerKm) return null;
+      return generateRunningWorkout(workoutType, thresholds.thresholdPaceSecPerKm, targetTss, level, subPhase);
     case "swimming":
-      return generateSwimmingWorkout(workoutType, thresholds.cssSPer100m ?? 100, targetTss, level, subPhase);
+      if (!thresholds.cssSPer100m) return null;
+      return generateSwimmingWorkout(workoutType, thresholds.cssSPer100m, targetTss, level, subPhase);
   }
 }
