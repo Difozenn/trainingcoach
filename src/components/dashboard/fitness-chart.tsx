@@ -152,22 +152,23 @@ function buildFormGradientStops(lower: number, upper: number) {
   ];
 }
 
-// ── Tick interval helper ────────────────────────────────────────────
+// ── X-axis: monthly tick positions ──────────────────────────────────
 
-function computeTickInterval(count: number): number {
-  if (count <= 30) return 6;     // ~weekly ticks for 1 month
-  if (count <= 60) return 13;    // ~biweekly for 2 months
-  if (count <= 120) return 13;   // ~biweekly for 90 days
-  return Math.ceil(count / 8);   // ~8 ticks for longer ranges
+function computeMonthlyTicks(data: TimelinePoint[]): string[] {
+  const ticks: string[] = [];
+  let prevMonth = "";
+  for (const d of data) {
+    const month = d.date.split(" ")[0]; // "Dec", "Jan", etc.
+    if (month !== prevMonth) {
+      ticks.push(d.date);
+      prevMonth = month;
+    }
+  }
+  return ticks;
 }
 
-function niceYTicks(upper: number): number[] {
-  const steps = [5, 10, 20, 25, 50, 100];
-  const target = upper / 6;
-  const step = steps.find((s) => s >= target) ?? Math.ceil(target / 10) * 10;
-  const ticks: number[] = [];
-  for (let v = 0; v <= upper; v += step) ticks.push(v);
-  return ticks;
+function monthTickFormatter(value: string): string {
+  return value.split(" ")[0]; // "Jan 5" → "Jan"
 }
 
 // ── Main component ──────────────────────────────────────────────────
@@ -192,8 +193,9 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         (d.cyclingTss ?? 0) + (d.runningTss ?? 0) + (d.swimmingTss ?? 0)
     )
   );
-  const upperDomain =
-    Math.ceil((Math.max(maxFitness * 1.15, maxTss * 1.1)) / 10) * 10 || 50;
+  // Round up to a multiple of 20 so tickCount=6 gives clean values (0,20,40,...,100)
+  const rawUpper = Math.max(maxFitness * 1.15, maxTss * 1.1) || 50;
+  const upperDomain = Math.ceil(rawUpper / 20) * 20;
 
   // Form domain
   const formValues = data.map((d) => d.formPct).filter((v): v is number => v != null);
@@ -205,7 +207,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
   const dataMax = formValues.length > 0 ? Math.max(...formValues) : formUpper;
   const formGradientStops = buildFormGradientStops(dataMin, dataMax);
 
-  const tickInterval = computeTickInterval(data.length);
+  const monthTicks = computeMonthlyTicks(data);
 
   return (
     <div>
@@ -227,7 +229,8 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
           <XAxis dataKey="date" tick={false} tickLine={false} axisLine={false} height={0} />
           <YAxis
             domain={[0, upperDomain]}
-            ticks={niceYTicks(upperDomain)}
+            tickCount={6}
+            allowDecimals={false}
             tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
@@ -311,12 +314,13 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* ── Form chart — sits directly under fitness ─────────────────── */}
+      {/* ── Form chart — sits under fitness with small gap ────────────── */}
+      <div className="h-2" />
       <ResponsiveContainer width="100%" height={120}>
         <ComposedChart
           data={data}
           syncId="pmc"
-          margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+          margin={{ top: 6, right: 12, bottom: 0, left: 0 }}
         >
           {/* Zone backgrounds */}
           {FORM_ZONES.map((z) => (
@@ -413,10 +417,11 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
         >
           <XAxis
             dataKey="date"
+            ticks={monthTicks}
+            tickFormatter={monthTickFormatter}
             tick={{ fontSize: 9, fill: "#94a3b8" }}
             tickLine={false}
             axisLine={false}
-            interval={tickInterval}
             dy={-4}
           />
           <YAxis hide width={40} />
