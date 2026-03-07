@@ -43,6 +43,32 @@ export default function BaseTrainingCyclingPage() {
             work in the world will only get you so far.
           </p>
 
+          <figure className="not-prose my-10">
+            <div className="mx-auto max-w-sm">
+              <div className="space-y-1">
+                <div className="mx-auto w-[40%] rounded-t-lg bg-orange-500/20 py-2 text-center">
+                  <p className="text-[10px] font-semibold text-orange-400">Race Fitness</p>
+                  <p className="text-[9px] text-muted-foreground">Z5-Z7</p>
+                </div>
+                <div className="mx-auto w-[60%] bg-yellow-500/20 py-2 text-center">
+                  <p className="text-[10px] font-semibold text-yellow-400">Threshold Power</p>
+                  <p className="text-[9px] text-muted-foreground">Z4 intervals</p>
+                </div>
+                <div className="mx-auto w-[80%] bg-green-500/20 py-2 text-center">
+                  <p className="text-[10px] font-semibold text-green-400">Tempo / Sweet Spot</p>
+                  <p className="text-[9px] text-muted-foreground">Z3 muscular endurance</p>
+                </div>
+                <div className="mx-auto w-full rounded-b-lg bg-blue-500/20 py-3 text-center">
+                  <p className="text-sm font-bold text-blue-400">Aerobic Base</p>
+                  <p className="text-[10px] text-muted-foreground">Zone 2 — This is what base training builds</p>
+                </div>
+              </div>
+            </div>
+            <figcaption className="mt-3 text-center text-xs text-muted-foreground">
+              Your aerobic base is the foundation. The wider and deeper it is, the higher you can build everything above it.
+            </figcaption>
+          </figure>
+
           <h2>What Base Training Actually Is</h2>
 
           <p>
@@ -166,6 +192,25 @@ export default function BaseTrainingCyclingPage() {
               Base training triggers five key adaptations: mitochondrial biogenesis, capillarization, fat oxidation, cardiac remodeling, and slow-twitch fiber development. None of these can be shortcutted with intensity — they require sustained aerobic volume over weeks and months.
             </p>
           </div>
+
+          <figure className="not-prose my-8">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {[
+                { name: "Mitochondria", icon: "\u{1F50B}", stat: "2-3\u00D7", desc: "density increase" },
+                { name: "Capillaries", icon: "\u{1FA78}", stat: "\u2191 network", desc: "oxygen delivery" },
+                { name: "Fat Burning", icon: "\u{1F525}", stat: ">1.0 g/min", desc: "oxidation rate" },
+                { name: "Heart", icon: "\u2764\uFE0F", stat: "\u2191 stroke vol", desc: "cardiac output" },
+                { name: "Slow-Twitch", icon: "\u{1F4AA}", stat: "\u2191 endurance", desc: "fiber development" },
+              ].map((a) => (
+                <div key={a.name} className="rounded-lg border border-border/50 p-3 text-center">
+                  <p className="text-lg">{a.icon}</p>
+                  <p className="text-[10px] font-semibold mt-1">{a.name}</p>
+                  <p className="text-xs text-primary font-bold">{a.stat}</p>
+                  <p className="text-[9px] text-muted-foreground">{a.desc}</p>
+                </div>
+              ))}
+            </div>
+          </figure>
 
           <hr />
           <h2>What Zone 2 Actually Means</h2>
@@ -434,6 +479,28 @@ export default function BaseTrainingCyclingPage() {
             gradually climbs while the effort feels the same. This is aerobic
             fitness in action.
           </p>
+
+          <figure className="not-prose my-8">
+            <div className="rounded-lg border border-green-500/20 bg-green-500/5 p-4">
+              <p className="text-xs font-semibold mb-3 text-green-400">Signs your base training is working</p>
+              <div className="space-y-2">
+                {[
+                  "Lower heart rate at the same power output",
+                  "Less cardiac drift during long rides",
+                  "Improved energy on long rides (better fat oxidation)",
+                  "Faster recovery between training sessions",
+                  "Higher power output at the same perceived effort",
+                ].map((sign) => (
+                  <div key={sign} className="flex items-start gap-2">
+                    <svg className="h-4 w-4 shrink-0 text-green-500 mt-0.5" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-xs text-muted-foreground">{sign}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </figure>
 
           <hr />
           <h2>The Biggest Mistakes</h2>

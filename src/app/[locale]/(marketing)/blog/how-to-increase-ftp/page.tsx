@@ -45,6 +45,26 @@ export default function HowToIncreaseFtpPage() {
             a 12-week training block that delivers measurable gains.
           </p>
 
+          <figure className="not-prose my-10">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { pillar: "VO2max", subtitle: "The Ceiling", icon: "\u2191", desc: "Maximum aerobic capacity \u2014 how big your engine is", color: "border-orange-500/30 bg-orange-500/5" },
+                { pillar: "Lactate Threshold", subtitle: "The Tipping Point", icon: "\u2696", desc: "Where lactate production exceeds clearance \u2014 your FTP lives here", color: "border-primary/30 bg-primary/5" },
+                { pillar: "Efficiency", subtitle: "The Multiplier", icon: "\u26A1", desc: "How much metabolic energy converts into watts at the pedals", color: "border-green-500/30 bg-green-500/5" },
+              ].map((p) => (
+                <div key={p.pillar} className={`rounded-lg border ${p.color} p-4 text-center`}>
+                  <p className="text-2xl mb-2">{p.icon}</p>
+                  <p className="text-sm font-semibold">{p.pillar}</p>
+                  <p className="text-[10px] text-primary font-medium mt-0.5">{p.subtitle}</p>
+                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{p.desc}</p>
+                </div>
+              ))}
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              FTP sits at the intersection of these three systems. Effective training targets at least two of them.
+            </figcaption>
+          </figure>
+
           <h2>What Determines Your FTP</h2>
           <p>
             FTP sits at the intersection of three physiological systems. To
@@ -268,6 +288,58 @@ export default function HowToIncreaseFtpPage() {
             adapted for FTP development.
           </p>
 
+          <figure className="not-prose my-8">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-xs font-semibold mb-3 text-center">12-Week FTP Training Block</p>
+              <div className="flex rounded overflow-hidden">
+                <div className="bg-blue-500/20 border-r border-background flex-[4] py-3 px-2 text-center">
+                  <p className="text-[10px] font-semibold text-blue-400">Base</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Wk 1-4</p>
+                </div>
+                <div className="bg-yellow-500/20 border-r border-background flex-[4] py-3 px-2 text-center">
+                  <p className="text-[10px] font-semibold text-yellow-400">Build</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Wk 5-8</p>
+                </div>
+                <div className="bg-orange-500/20 border-r border-background flex-[3] py-3 px-2 text-center">
+                  <p className="text-[10px] font-semibold text-orange-400">Specialize</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Wk 9-11</p>
+                </div>
+                <div className="bg-green-500/20 flex-[1] py-3 px-2 text-center">
+                  <p className="text-[10px] font-semibold text-green-400">Test</p>
+                  <p className="text-[9px] text-muted-foreground mt-0.5">Wk 12</p>
+                </div>
+              </div>
+              <div className="flex mt-2">
+                <div className="flex-[4] text-center">
+                  <p className="text-[9px] text-muted-foreground">80% Z2, 20% SST</p>
+                </div>
+                <div className="flex-[4] text-center">
+                  <p className="text-[9px] text-muted-foreground">Z4 + Z5 intervals</p>
+                </div>
+                <div className="flex-[3] text-center">
+                  <p className="text-[9px] text-muted-foreground">Race-specific</p>
+                </div>
+                <div className="flex-[1] text-center">
+                  <p className="text-[9px] text-muted-foreground">Taper</p>
+                </div>
+              </div>
+              {/* Intensity arrow */}
+              <div className="flex items-center gap-2 mt-3 px-2">
+                <span className="text-[9px] text-muted-foreground">Intensity</span>
+                <div className="flex-1 h-1.5 rounded-full bg-gradient-to-r from-blue-500/30 via-yellow-500/40 to-orange-500/50" />
+                <span className="text-[9px] text-muted-foreground">{"\u2192"}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-1 px-2">
+                <span className="text-[9px] text-muted-foreground">Volume&nbsp;&nbsp;&nbsp;</span>
+                <div className="flex-1 h-1.5 rounded-full bg-gradient-to-r from-blue-500/50 via-yellow-500/30 to-green-500/10" />
+                <span className="text-[9px] text-muted-foreground">{"\u2192"}</span>
+              </div>
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              Volume decreases as intensity increases through the block. The taper week sheds fatigue before retesting.
+            </figcaption>
+          </figure>
+
           <h3>Weeks 1-4: Base Building</h3>
           <p>
             The base phase is about volume, not intensity. Approximately 80% of
@@ -371,34 +443,23 @@ export default function HowToIncreaseFtpPage() {
             This assumes five rides per week, which is manageable for most
             serious amateur cyclists.
           </p>
-          <p>
-            <strong>Monday:</strong> Rest day. Complete recovery. No riding.
-          </p>
-          <p>
-            <strong>Tuesday:</strong> Threshold intervals — 3x10 minutes at
-            95-105% FTP. Total ride time: 75 minutes including warm-up and
-            cool-down.
-          </p>
-          <p>
-            <strong>Wednesday:</strong> Zone 2 endurance ride, 60-90 minutes.
-            Easy spinning, stay below 75% FTP. Use this session for active
-            recovery from Tuesday&apos;s intensity.
-          </p>
-          <p>
-            <strong>Thursday:</strong> VO2max intervals — 5x4 minutes at
-            106-120% FTP. Total ride time: 75-90 minutes.
-          </p>
-          <p>
-            <strong>Friday:</strong> Rest day or very easy 30-minute spin.
-          </p>
-          <p>
-            <strong>Saturday:</strong> Sweet spot intervals — 2x20 minutes at
-            88-93% FTP. Total ride time: 90 minutes.
-          </p>
-          <p>
-            <strong>Sunday:</strong> Long zone 2 ride, 2-4 hours. This is your
-            primary aerobic volume session. Keep intensity strictly in zone 2.
-          </p>
+          <div className="not-prose my-6 grid grid-cols-7 gap-1">
+            {[
+              { day: "Mon", type: "Rest", color: "bg-zinc-500/10", text: "text-zinc-400", detail: "Full recovery" },
+              { day: "Tue", type: "Z4", color: "bg-yellow-500/15", text: "text-yellow-400", detail: "3\u00D710min threshold" },
+              { day: "Wed", type: "Z2", color: "bg-blue-500/15", text: "text-blue-400", detail: "60-90min easy" },
+              { day: "Thu", type: "Z5", color: "bg-orange-500/15", text: "text-orange-400", detail: "5\u00D74min VO2max" },
+              { day: "Fri", type: "Rest", color: "bg-zinc-500/10", text: "text-zinc-400", detail: "Rest or easy spin" },
+              { day: "Sat", type: "SST", color: "bg-green-500/15", text: "text-green-400", detail: "2\u00D720min sweet spot" },
+              { day: "Sun", type: "Z2", color: "bg-blue-500/15", text: "text-blue-400", detail: "Long ride 2-4hr" },
+            ].map((d) => (
+              <div key={d.day} className={`${d.color} rounded-lg p-2 text-center`}>
+                <p className="text-[10px] text-muted-foreground">{d.day}</p>
+                <p className={`text-xs font-bold ${d.text} mt-0.5`}>{d.type}</p>
+                <p className="text-[9px] text-muted-foreground mt-1 leading-tight">{d.detail}</p>
+              </div>
+            ))}
+          </div>
           <p>
             The key principle: never stack two high-intensity sessions on
             consecutive days. Always separate hard days with at least one easy

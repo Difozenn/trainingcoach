@@ -42,6 +42,40 @@ export default function CyclingPowerZonesArticle() {
             feel?&quot; Just watts, percentages, and repeatable training stimulus.
           </p>
 
+          <figure className="not-prose my-10">
+            <div className="rounded-lg border border-border/50 p-4">
+              <div className="flex rounded overflow-hidden">
+                {[
+                  { zone: "Z1", color: "bg-zinc-500", flex: "1" },
+                  { zone: "Z2", color: "bg-blue-500", flex: "2" },
+                  { zone: "Z3", color: "bg-green-500", flex: "1.5" },
+                  { zone: "Z4", color: "bg-yellow-500", flex: "1.5" },
+                  { zone: "Z5", color: "bg-orange-500", flex: "1.5" },
+                  { zone: "Z6", color: "bg-red-500", flex: "1.5" },
+                  { zone: "Z7", color: "bg-purple-500", flex: "1" },
+                ].map((z) => (
+                  <div key={z.zone} className={`${z.color} flex items-center justify-center py-3`} style={{ flex: z.flex }}>
+                    <span className="text-[10px] font-bold text-white">{z.zone}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+                <span>Recovery</span>
+                <span>&larr; Aerobic &rarr;</span>
+                <span>&larr; Threshold &rarr;</span>
+                <span>Anaerobic &rarr;</span>
+              </div>
+              <div className="flex justify-between mt-0.5 text-[10px] text-muted-foreground">
+                <span>&lt;55% FTP</span>
+                <span className="text-center">FTP</span>
+                <span>&gt;150% FTP</span>
+              </div>
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              The 7 Coggan power zones span from easy recovery to all-out sprinting, each targeting different energy systems.
+            </figcaption>
+          </figure>
+
           <h2>Why Train with Power Zones?</h2>
 
           <p>
@@ -368,6 +402,36 @@ export default function CyclingPowerZonesArticle() {
             volume for a purely polarized approach. Effective for raising FTP in the short term, but carries higher
             fatigue cost and may lead to stagnation if sustained indefinitely.
           </p>
+
+          <figure className="not-prose my-8">
+            <div className="grid grid-cols-3 gap-4">
+              {[
+                { label: "Polarized", segments: [{ pct: 80, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 0, label: "Z3", color: "hsl(142 70% 45%)" }, { pct: 20, label: "Z4-7", color: "hsl(0 70% 55%)" }] },
+                { label: "Pyramidal", segments: [{ pct: 65, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 20, label: "Z3", color: "hsl(142 70% 45%)" }, { pct: 15, label: "Z4-7", color: "hsl(0 70% 55%)" }] },
+                { label: "Threshold", segments: [{ pct: 50, label: "Z1-2", color: "hsl(217 91% 60%)" }, { pct: 35, label: "Z3-4", color: "hsl(45 90% 50%)" }, { pct: 15, label: "Z5-7", color: "hsl(0 70% 55%)" }] },
+              ].map((model) => (
+                <div key={model.label} className="rounded-lg border border-border/50 p-4 text-center">
+                  <p className="text-xs font-semibold mb-3">{model.label}</p>
+                  <div className="flex justify-center gap-1 mb-3">
+                    {model.segments.filter(s => s.pct > 0).map((s) => (
+                      <div key={s.label} className="rounded" style={{ width: `${s.pct}%`, height: 32, backgroundColor: s.color, opacity: 0.7, minWidth: s.pct > 0 ? 16 : 0 }} />
+                    ))}
+                  </div>
+                  <div className="flex justify-center gap-3">
+                    {model.segments.filter(s => s.pct > 0).map((s) => (
+                      <div key={s.label} className="text-center">
+                        <div className="h-2 w-2 rounded-full mx-auto mb-0.5" style={{ backgroundColor: s.color, opacity: 0.7 }} />
+                        <p className="text-[10px] text-muted-foreground">{s.label}: {s.pct}%</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              Three training distribution models. Research favors the polarized approach for most endurance athletes.
+            </figcaption>
+          </figure>
 
           <hr />
           <h2>The 80/20 Rule</h2>

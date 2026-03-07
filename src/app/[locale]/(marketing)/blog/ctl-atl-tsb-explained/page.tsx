@@ -82,6 +82,38 @@ export default function CtlAtlTsbExplainedPage() {
             Power.
           </p>
 
+          <figure className="not-prose my-10">
+            <svg viewBox="0 0 600 260" className="w-full" aria-label="Performance Management Chart overview">
+              {/* Grid */}
+              <line x1="60" y1="20" x2="60" y2="220" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.2" strokeWidth="1" />
+              <line x1="60" y1="220" x2="570" y2="220" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.2" strokeWidth="1" />
+              {/* Zero line for TSB */}
+              <line x1="60" y1="160" x2="570" y2="160" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.1" strokeWidth="1" strokeDasharray="4 4" />
+              {/* CTL line (fitness) - steadily rising */}
+              <path d="M 80 180 Q 150 170, 220 155 Q 300 138, 380 120 Q 450 105, 520 95 L 560 90" fill="none" stroke="hsl(217 91% 60%)" strokeWidth="2.5" strokeLinecap="round" />
+              {/* ATL line (fatigue) - oscillating above CTL */}
+              <path d="M 80 175 Q 110 130, 140 100 Q 160 120, 180 145 Q 200 110, 230 80 Q 250 120, 270 140 Q 290 95, 320 70 Q 340 110, 360 125 Q 380 80, 410 60 Q 430 100, 450 115 Q 470 75, 500 55 Q 520 85, 550 80" fill="none" stroke="hsl(0 70% 55%)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              {/* TSB line (form) - oscillating below zero */}
+              <path d="M 80 163 Q 110 190, 140 200 Q 160 185, 180 170 Q 200 195, 230 205 Q 250 185, 270 170 Q 290 200, 320 210 Q 340 190, 360 175 Q 380 205, 410 215 Q 430 190, 450 178 Q 470 200, 500 210 Q 520 195, 550 190" fill="none" stroke="hsl(142 70% 45%)" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
+              {/* Labels */}
+              <text x="565" y="87" fill="hsl(217 91% 60%)" fontSize="11" fontWeight="600">CTL</text>
+              <text x="555" y="77" fill="hsl(0 70% 55%)" fontSize="11" fontWeight="600">ATL</text>
+              <text x="555" y="200" fill="hsl(142 70% 45%)" fontSize="11" fontWeight="600">TSB</text>
+              {/* Axis labels */}
+              <text x="315" y="248" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle">Weeks of training →</text>
+              {/* Legend */}
+              <rect x="70" y="232" width="12" height="3" rx="1" fill="hsl(217 91% 60%)" />
+              <text x="86" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Fitness (CTL)</text>
+              <rect x="170" y="232" width="12" height="3" rx="1" fill="hsl(0 70% 55%)" />
+              <text x="186" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Fatigue (ATL)</text>
+              <rect x="270" y="232" width="12" height="3" rx="1" fill="hsl(142 70% 45%)" />
+              <text x="286" y="236" fill="hsl(var(--muted-foreground))" fontSize="9">Form (TSB)</text>
+            </svg>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              The Performance Management Chart: CTL (fitness) rises steadily with training. ATL (fatigue) spikes with hard efforts and drops with rest. TSB (form) is the difference between the two.
+            </figcaption>
+          </figure>
+
           <hr />
           <h2>CTL — Chronic Training Load (Fitness)</h2>
           <p>
@@ -333,6 +365,30 @@ export default function CtlAtlTsbExplainedPage() {
             few days is a warning sign of detraining, not a sign of peak form.
           </p>
 
+          <figure className="not-prose my-8">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {[
+                { label: "Building", desc: "CTL rising, TSB negative", paths: { ctl: "M10 50 L70 20", atl: "M10 45 Q30 15,50 25 Q60 10,70 15", tsb: "M10 55 Q30 70,50 65 Q60 72,70 68" } },
+                { label: "Maintenance", desc: "CTL flat, TSB near zero", paths: { ctl: "M10 35 L70 35", atl: "M10 33 Q30 25,50 40 Q60 28,70 35", tsb: "M10 50 Q30 55,50 45 Q60 53,70 50" } },
+                { label: "Taper", desc: "ATL drops, TSB rises", paths: { ctl: "M10 30 Q40 30,70 38", atl: "M10 20 Q30 30,50 45 Q60 55,70 60", tsb: "M10 60 Q30 55,50 42 Q60 35,70 25" } },
+                { label: "Detraining", desc: "Both drop, TSB high", paths: { ctl: "M10 25 Q40 35,70 55", atl: "M10 20 Q30 40,50 55 Q60 62,70 68", tsb: "M10 55 Q30 40,50 30 Q60 25,70 20" } },
+              ].map((p) => (
+                <div key={p.label} className="rounded-lg border border-border/50 p-3">
+                  <p className="text-xs font-semibold mb-1">{p.label}</p>
+                  <svg viewBox="0 0 80 80" className="w-full h-16">
+                    <path d={p.paths.ctl} fill="none" stroke="hsl(217 91% 60%)" strokeWidth="2" />
+                    <path d={p.paths.atl} fill="none" stroke="hsl(0 70% 55%)" strokeWidth="1.5" opacity="0.7" />
+                    <path d={p.paths.tsb} fill="none" stroke="hsl(142 70% 45%)" strokeWidth="1.5" opacity="0.7" />
+                  </svg>
+                  <p className="text-[10px] text-muted-foreground">{p.desc}</p>
+                </div>
+              ))}
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              Four common PMC patterns. Blue = CTL (fitness), Red = ATL (fatigue), Green = TSB (form).
+            </figcaption>
+          </figure>
+
           <hr />
           <h2>CTL Ramp Rate: How Fast Can You Build Fitness?</h2>
           <p>
@@ -377,6 +433,33 @@ export default function CtlAtlTsbExplainedPage() {
               Keep your CTL ramp rate between 3-7 TSS/week. Ramp rate is more predictive of injury risk than absolute CTL — your body can only adapt at a finite rate, and connective tissue adapts slower than your cardiovascular system.
             </p>
           </div>
+
+          <figure className="not-prose my-8">
+            <div className="rounded-lg border border-border/50 p-4">
+              <p className="text-xs font-semibold mb-3 text-center">CTL Ramp Rate — Risk Guide</p>
+              <div className="relative h-8 rounded-full overflow-hidden bg-muted">
+                <div className="absolute inset-y-0 left-0 w-[35%] bg-green-500/30 flex items-center justify-center">
+                  <span className="text-[10px] font-medium text-green-400">3-5</span>
+                </div>
+                <div className="absolute inset-y-0 left-[35%] w-[25%] bg-yellow-500/30 flex items-center justify-center">
+                  <span className="text-[10px] font-medium text-yellow-400">5-7</span>
+                </div>
+                <div className="absolute inset-y-0 left-[60%] w-[22%] bg-orange-500/30 flex items-center justify-center">
+                  <span className="text-[10px] font-medium text-orange-400">7-10</span>
+                </div>
+                <div className="absolute inset-y-0 left-[82%] w-[18%] bg-red-500/30 flex items-center justify-center">
+                  <span className="text-[10px] font-medium text-red-400">10+</span>
+                </div>
+              </div>
+              <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
+                <span>Safe</span>
+                <span>Aggressive</span>
+                <span>High risk</span>
+                <span>Danger</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground text-center mt-2">TSS/week increase in CTL</p>
+            </div>
+          </figure>
 
           <hr />
           <h2>Periodization Using the PMC</h2>

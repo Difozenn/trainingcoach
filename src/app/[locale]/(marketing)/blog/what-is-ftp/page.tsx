@@ -50,6 +50,43 @@ export default function WhatIsFtpPage() {
           </p>
         </header>
 
+        {/* FTP Concept Diagram */}
+        <figure className="not-prose my-10">
+          <svg viewBox="0 0 600 280" className="w-full" aria-label="FTP threshold concept diagram">
+            <defs>
+              <linearGradient id="sustainableGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+              </linearGradient>
+              <linearGradient id="unsustainableGrad" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="hsl(0 70% 50%)" stopOpacity="0.1" />
+                <stop offset="100%" stopColor="hsl(0 70% 50%)" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {/* Axes */}
+            <line x1="60" y1="20" x2="60" y2="240" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.3" strokeWidth="1" />
+            <line x1="60" y1="240" x2="570" y2="240" stroke="hsl(var(--muted-foreground))" strokeOpacity="0.3" strokeWidth="1" />
+            {/* Axis labels */}
+            <text x="30" y="135" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle" transform="rotate(-90, 30, 135)">Power (watts)</text>
+            <text x="315" y="265" fill="hsl(var(--muted-foreground))" fontSize="11" textAnchor="middle">Time</text>
+            {/* FTP line */}
+            <line x1="60" y1="140" x2="570" y2="140" stroke="hsl(var(--primary))" strokeWidth="2" strokeDasharray="8 4" />
+            <text x="575" y="137" fill="hsl(var(--primary))" fontSize="13" fontWeight="600" textAnchor="start">FTP</text>
+            {/* Zones */}
+            <rect x="60" y="140" width="510" height="100" fill="url(#sustainableGrad)" />
+            <rect x="60" y="20" width="510" height="120" fill="url(#unsustainableGrad)" />
+            <text x="315" y="195" fill="hsl(var(--primary))" fontSize="12" textAnchor="middle" opacity="0.7">Sustainable — aerobic dominant</text>
+            <text x="315" y="75" fill="hsl(0 70% 50%)" fontSize="12" textAnchor="middle" opacity="0.7">Unsustainable — lactate accumulates</text>
+            {/* Power curve */}
+            <path d="M 80 50 Q 150 55, 200 90 Q 250 115, 300 130 Q 380 145, 460 160 Q 520 170, 560 180" fill="none" stroke="hsl(var(--foreground))" strokeWidth="2.5" strokeLinecap="round" />
+            <circle cx="300" cy="130" r="4" fill="hsl(var(--primary))" />
+            <text x="305" y="120" fill="hsl(var(--muted-foreground))" fontSize="10">~60 min</text>
+          </svg>
+          <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+            FTP is the power output where your body transitions from sustainable aerobic effort to unsustainable anaerobic effort — roughly the power you can hold for one hour.
+          </figcaption>
+        </figure>
+
         {/* Article Body */}
         <article className="prose prose-neutral dark:prose-invert prose-headings:mt-12 prose-headings:mb-4 prose-h3:mt-8 prose-p:my-4 prose-ul:my-4 prose-li:my-1 mx-auto max-w-3xl">
           <h2>What FTP Actually Means</h2>
@@ -128,6 +165,29 @@ export default function WhatIsFtpPage() {
             There are three widely used field tests for estimating FTP. Each has
             trade-offs between accuracy, repeatability, and how painful they are.
           </p>
+
+          <figure className="not-prose my-8">
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { test: "20-min", factor: "× 0.95", duration: "20 min", width: "66%", accuracy: "Highest" },
+                { test: "8-min", factor: "× 0.90", duration: "2 × 8 min", width: "44%", accuracy: "Moderate" },
+                { test: "Ramp", factor: "× 0.75", duration: "~12-20 min", width: "33%", accuracy: "Lowest" },
+              ].map((t) => (
+                <div key={t.test} className="rounded-lg border border-border/50 p-4 text-center">
+                  <p className="text-xs text-muted-foreground mb-2">{t.test} Test</p>
+                  <div className="mx-auto h-2 w-full rounded-full bg-muted mb-2">
+                    <div className="h-2 rounded-full bg-primary" style={{ width: t.width }} />
+                  </div>
+                  <p className="text-lg font-bold text-primary">{t.factor}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t.duration}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Accuracy: {t.accuracy}</p>
+                </div>
+              ))}
+            </div>
+            <figcaption className="mt-2 text-center text-xs text-muted-foreground">
+              Shorter tests require larger correction factors because more anaerobic energy contributes to the result.
+            </figcaption>
+          </figure>
 
           <h3>The 20-Minute Test (Gold Standard)</h3>
           <p>
@@ -225,36 +285,34 @@ export default function WhatIsFtpPage() {
             of FTP. Without an accurate FTP, every zone is wrong — and you end
             up training too hard on easy days and too easy on hard days.
           </p>
-          <div className="not-prose my-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 1 — Active Recovery</p>
-              <p className="text-xs text-muted-foreground mt-1">&lt;55% FTP</p>
+          <figure className="not-prose my-6">
+            <div className="space-y-2">
+              {[
+                { zone: "Z1", name: "Active Recovery", range: "<55%", color: "bg-zinc-500", width: "36%" },
+                { zone: "Z2", name: "Endurance", range: "56-75%", color: "bg-blue-500", width: "50%" },
+                { zone: "Z3", name: "Tempo", range: "76-90%", color: "bg-green-500", width: "60%" },
+                { zone: "Z4", name: "Threshold", range: "91-105%", color: "bg-yellow-500", width: "70%" },
+                { zone: "Z5", name: "VO2max", range: "106-120%", color: "bg-orange-500", width: "80%" },
+                { zone: "Z6", name: "Anaerobic", range: "121-150%", color: "bg-red-500", width: "90%" },
+                { zone: "Z7", name: "Neuromuscular", range: ">150%", color: "bg-purple-500", width: "100%" },
+              ].map((z) => (
+                <div key={z.zone} className="flex items-center gap-3 text-sm">
+                  <span className="w-8 font-mono text-xs text-muted-foreground">{z.zone}</span>
+                  <div className="flex-1">
+                    <div className="h-5 w-full rounded bg-muted/50">
+                      <div className={`h-5 rounded ${z.color} flex items-center px-2`} style={{ width: z.width }}>
+                        <span className="text-[10px] font-medium text-white truncate">{z.name}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className="w-16 text-right text-xs text-muted-foreground">{z.range}</span>
+                </div>
+              ))}
             </div>
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 2 — Endurance</p>
-              <p className="text-xs text-muted-foreground mt-1">56-75% FTP</p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 3 — Tempo</p>
-              <p className="text-xs text-muted-foreground mt-1">76-90% FTP</p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 4 — Threshold</p>
-              <p className="text-xs text-muted-foreground mt-1">91-105% FTP</p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 5 — VO2max</p>
-              <p className="text-xs text-muted-foreground mt-1">106-120% FTP</p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-4">
-              <p className="text-sm font-semibold">Zone 6 — Anaerobic</p>
-              <p className="text-xs text-muted-foreground mt-1">121-150% FTP</p>
-            </div>
-            <div className="rounded-lg border border-border/50 p-4 sm:col-span-2">
-              <p className="text-sm font-semibold">Zone 7 — Neuromuscular</p>
-              <p className="text-xs text-muted-foreground mt-1">&gt;150% FTP</p>
-            </div>
-          </div>
+            <figcaption className="mt-3 text-center text-xs text-muted-foreground">
+              All seven Coggan zones are defined as percentages of your FTP.
+            </figcaption>
+          </figure>
 
           <h3>Training Stress Score (TSS)</h3>
           <p>
