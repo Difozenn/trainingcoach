@@ -13,7 +13,7 @@ import {
   dailyMetrics,
   sportProfiles,
 } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc, lt } from "drizzle-orm";
 import {
   getValidToken,
   encryptTokens,
@@ -456,7 +456,7 @@ async function upsertDailyMetrics(
   tss: number
 ) {
   const date = new Date(activityDate);
-  date.setHours(0, 0, 0, 0);
+  date.setUTCHours(0, 0, 0, 0);
 
   const [existing] = await db
     .select()
@@ -471,10 +471,36 @@ async function upsertDailyMetrics(
         ? "runningTss"
         : "swimmingTss";
 
+  // Find most recent metric BEFORE today (handles gaps & timezone mismatches)
+  const [prev] = await db
+    .select({ ctl: dailyMetrics.ctl, atl: dailyMetrics.atl, date: dailyMetrics.date })
+    .from(dailyMetrics)
+    .where(
+      and(eq(dailyMetrics.userId, userId), lt(dailyMetrics.date, date))
+    )
+    .orderBy(desc(dailyMetrics.date))
+    .limit(1);
+
+  let prevCtl = prev?.ctl ?? 0;
+  let prevAtl = prev?.atl ?? 0;
+
+  // Decay through any gap days (rest days with TSS=0)
+  if (prev?.date) {
+    const prevDate = new Date(prev.date);
+    const gapMs = date.getTime() - prevDate.getTime();
+    const gapDays = Math.max(0, Math.round(gapMs / (24 * 3600_000)) - 1);
+    for (let i = 0; i < gapDays; i++) {
+      const decayed = computeDailyUpdate(0, prevCtl, prevAtl);
+      prevCtl = decayed.ctl;
+      prevAtl = decayed.atl;
+    }
+  }
+
   if (existing) {
     const currentSportTss = (existing[sportTssField] as number) ?? 0;
     const newTotalTss = (existing.totalTss ?? 0) - currentSportTss + tss;
-    const updated = computeDailyUpdate(newTotalTss, existing.ctl ?? 0, existing.atl ?? 0);
+
+    const updated = computeDailyUpdate(newTotalTss, prevCtl, prevAtl);
 
     await db
       .update(dailyMetrics)
@@ -487,15 +513,7 @@ async function upsertDailyMetrics(
       })
       .where(eq(dailyMetrics.id, existing.id));
   } else {
-    const yesterday = new Date(date);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const [prev] = await db
-      .select({ ctl: dailyMetrics.ctl, atl: dailyMetrics.atl })
-      .from(dailyMetrics)
-      .where(and(eq(dailyMetrics.userId, userId), eq(dailyMetrics.date, yesterday)))
-      .limit(1);
-
-    const updated = computeDailyUpdate(tss, prev?.ctl ?? 0, prev?.atl ?? 0);
+    const updated = computeDailyUpdate(tss, prevCtl, prevAtl);
 
     await db.insert(dailyMetrics).values({
       userId,
