@@ -2,11 +2,19 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FitnessChart } from "@/components/dashboard/fitness-chart";
 import { RangeSelector } from "@/components/dashboard/range-selector";
-import { PowerProfileTab } from "./power-profile-tab";
 import { formatDateShort } from "@/lib/data/helpers";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+
+const FitnessChart = dynamic(
+  () => import("@/components/dashboard/fitness-chart").then((m) => m.FitnessChart),
+  { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-lg bg-muted/50" /> }
+);
+const PowerProfileTab = dynamic(
+  () => import("./power-profile-tab").then((m) => m.PowerProfileTab),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted/50" /> }
+);
 
 type TimelineRow = {
   date: Date;

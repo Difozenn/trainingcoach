@@ -5,7 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getHealthMetrics, getLatestMetrics } from "@/lib/data/queries";
 import { formatDateShort } from "@/lib/data/helpers";
-import { HealthTrendChart } from "@/components/dashboard/health-charts";
+import dynamic from "next/dynamic";
+
+const HealthTrendChart = dynamic(
+  () => import("@/components/dashboard/health-charts").then((m) => m.HealthTrendChart),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg bg-muted/50" /> }
+);
 import { getUserPlan } from "@/lib/subscription";
 import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 

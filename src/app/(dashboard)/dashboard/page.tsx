@@ -33,7 +33,12 @@ import {
   formatDate,
 } from "@/lib/data/helpers";
 import Link from "next/link";
-import { PowerProfileTab } from "../profile/power-profile-tab";
+import dynamic from "next/dynamic";
+
+const PowerProfileTab = dynamic(
+  () => import("../profile/power-profile-tab").then((m) => m.PowerProfileTab),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted/50" /> }
+);
 
 const sportIcons = {
   cycling: Bike,

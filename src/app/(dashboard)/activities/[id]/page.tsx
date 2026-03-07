@@ -36,8 +36,17 @@ import {
 } from "@/lib/data/helpers";
 import Link from "next/link";
 import { ActivityMapWrapper } from "@/components/dashboard/activity-map-wrapper";
-import { ActivityStreamCharts, BreakthroughChart } from "@/components/dashboard/stream-charts";
 import type { StreamData } from "@/components/dashboard/stream-charts";
+import dynamic from "next/dynamic";
+
+const ActivityStreamCharts = dynamic(
+  () => import("@/components/dashboard/stream-charts").then((m) => m.ActivityStreamCharts),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-lg bg-muted/50" /> }
+);
+const BreakthroughChart = dynamic(
+  () => import("@/components/dashboard/stream-charts").then((m) => m.BreakthroughChart),
+  { ssr: false, loading: () => <div className="h-48 animate-pulse rounded-lg bg-muted/50" /> }
+);
 import { calculateWbal, calculateBreakthroughFtp, downsampleWbal } from "@/lib/engine/cycling/wbal";
 import { getCyclingPowerZones } from "@/lib/engine/cycling/zones";
 import { getRunningPaceZones } from "@/lib/engine/running/zones";
@@ -231,11 +240,13 @@ export default async function ActivityDetailPage({
 
   if (!activity) notFound();
 
-  // Get fitness context for activity date
-  const fitnessContext = await getDailyMetricsForDate(
-    userId,
-    activity.startedAt
-  );
+  // Parallel fetch: fitness context + historical FTP (both depend on activity date)
+  const [fitnessContext, historicalFtp] = await Promise.all([
+    getDailyMetricsForDate(userId, activity.startedAt),
+    activity.sport === "cycling"
+      ? getCyclingFtpAtDate(userId, activity.startedAt)
+      : Promise.resolve(null),
+  ]);
 
   const Icon =
     sportIcons[activity.sport as keyof typeof sportIcons] ?? Activity;
@@ -246,12 +257,6 @@ export default async function ActivityDetailPage({
   const ftp = sportProfile?.ftp;
   const thresholdPace = sportProfile?.thresholdPaceSPerKm;
   const css = sportProfile?.cssSPer100m;
-
-  // Historical FTP for W'bal/MPA: use FTP that was in effect before this ride
-  const historicalFtp =
-    activity.sport === "cycling"
-      ? await getCyclingFtpAtDate(userId, activity.startedAt)
-      : null;
   const wbalFtp = historicalFtp ?? ftp;
 
   // GPS points
