@@ -299,11 +299,9 @@ export default async function ActivityDetailPage({
   // Metabolic calories ≈ mechanical work / efficiency (~24%)
   const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
 
-  // Ride classification: single NP-based category (like Sauce)
+  // Ride classification: best category across all peak durations (like Sauce)
+  // Compares each peak power against Coggan W/kg curve, takes highest result
   const weightKg = athleteProfile?.weightKg ?? 75;
-  const rideCategory = activity.sport === "cycling" && activity.normalizedPower
-    ? classifyPowerRacing(activity.normalizedPower, weightKg, "20m")
-    : null;
   const ridePeaks = activity.sport === "cycling" ? [
     { label: "5s", watts: activity.peak5s },
     { label: "1m", watts: activity.peak1m },
@@ -311,6 +309,12 @@ export default async function ActivityDetailPage({
     { label: "20m", watts: activity.peak20m },
     { label: "60m", watts: activity.peak60m },
   ].filter((d): d is { label: string; watts: number } => d.watts != null && d.watts > 0) : null;
+  const rideCategory = activity.sport === "cycling" && ridePeaks && ridePeaks.length > 0
+    ? ridePeaks.reduce<ReturnType<typeof classifyPowerRacing> | null>((best, peak) => {
+        const cat = classifyPowerRacing(peak.watts, weightKg, peak.label);
+        return !best || cat.level > best.level || (cat.level === best.level && cat.percentile > best.percentile) ? cat : best;
+      }, null)
+    : null;
 
   // Coasting % from streams
   const coastingPct =
@@ -494,6 +498,15 @@ export default async function ActivityDetailPage({
                 pMax: activity.peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
                 peak5m: activity.peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
               });
+              // On non-breakthrough rides, clamp MPA to stay above actual power.
+              // Matches Xert philosophy: MPA below power means parameters are wrong,
+              // not a real breakthrough. Our filters already reject sprint/low-context
+              // crossings, so clamping just ensures the chart reflects that decision.
+              if (!breakthroughData) {
+                for (const point of wbalData) {
+                  point.mpa = Math.max(point.mpa, point.power);
+                }
+              }
               const downsampled = downsampleWbal(wbalData);
               if (downsampled.length === 0) return null;
               return (

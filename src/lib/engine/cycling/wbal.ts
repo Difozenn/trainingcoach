@@ -1,20 +1,30 @@
 /**
- * W'bal (W-prime balance) — Differential Model (Skiba et al. 2012)
+ * W'bal (W-prime balance) — Differential Model
  *
  * Models the depletion and recovery of anaerobic work capacity (W').
  * W' = total work capacity above CP (Critical Power ≈ FTP).
  *
  * Depletion: when P > CP, W'bal decreases by (P - CP) per second
- * Recovery:  when P < CP, W'bal recovers exponentially toward W'max
- *            dW'bal = (W'max - W'bal) × (1 - e^(-1/tau))
- *            tau = 546 × e^(-0.01 × (CP - P)) + 316.18  (Skiba 2012)
+ *   (after PCr buffer — first ~10s of any surge uses phosphocreatine, not W')
+ *
+ * Recovery: when P < CP, W'bal recovers proportionally to depletion depth:
+ *   dW'bal = (CP - P) × (W'max - W'bal) / W'max
+ *   Implicit tau = W'max / (CP - P), giving fast recovery at rest (~70s)
+ *   and slow recovery near CP. This matches PCr resynthesis kinetics
+ *   and produces realistic W'bal dynamics during interval training.
  *
  * MPA (Maximal Power Available) = CP + (PP - CP) × (W'bal / W'max)
  *   where PP = Peak Power (highest ~5s power the rider can produce)
- * Breakthrough = power exceeds MPA (suggests fitness signature underestimated)
+ *   Based on Morton's 3-parameter critical power model (1996).
  *
- * Reference: Skiba PF, et al. "Modeling the expenditure and reconstitution
- * of work capacity above critical power." Med Sci Sports Exerc. 2012.
+ * Breakthrough = power exceeds MPA for sustained period at near-threshold
+ *   intensity (suggests fitness signature is underestimated).
+ *
+ * References:
+ *   Morton RH. "A 3-parameter critical power model." Ergonomics. 1996.
+ *   Skiba PF, et al. "Modeling the expenditure and reconstitution of work
+ *     capacity above critical power." Med Sci Sports Exerc. 2012.
+ *   Kontro H, et al. "Maximum Power Available." J Sci Cycling. 2024.
  */
 
 export type WbalPoint = {
@@ -100,7 +110,10 @@ export function calculateWbal(
   const pp = opts?.pMax ?? peakPowerFromStream(powerStream, 5);
   const effectivePP = Math.max(pp, cp + 100);
 
-  const PCR_BUFFER = 5; // Phosphocreatine handles the first 5s of any above-CP surge
+  // Phosphocreatine (PCr) buffer: the alactic energy system powers the first
+  // ~10s of any above-CP surge (PCr half-life ~25s). Without this buffer,
+  // accumulated micro-surges falsely deplete W'bal on endurance rides.
+  const PCR_BUFFER = 10;
   const MIN_BREACH_SECONDS = 10;
   const MAX_BREACH_POWER_RATIO = 2.0;
   const CONTEXT_WINDOW = 300;
@@ -116,16 +129,19 @@ export function calculateWbal(
     if (power > cp) {
       consecutiveAboveCp++;
       // Only deplete W'bal after PCr buffer — the phosphocreatine system
-      // powers the first ~5s of any above-CP surge, not W'.
+      // handles the initial seconds of any above-CP surge.
       if (consecutiveAboveCp > PCR_BUFFER) {
         wbal -= (power - cp);
       }
     } else {
       consecutiveAboveCp = 0;
-      // Recovery: Skiba exponential model with power-dependent tau
-      // tau = 546 × e^(-0.01 × (CP - P)) + 316.18
-      const tau = 546 * Math.exp(-0.01 * (cp - power)) + 316.18;
-      const recovery = (wMax - wbal) * (1 - Math.exp(-1 / tau));
+      // Recovery proportional to depletion depth and distance below CP.
+      // Implicit time constant tau = W'max / (CP - P):
+      //   At rest (P=0):   tau ≈ W'max/CP ≈ 70s  (fast, matches PCr resynthesis)
+      //   Near CP (P≈CP):  tau → ∞                (slow, realistic for threshold work)
+      // This avoids false breakthroughs during interval sessions where Skiba's
+      // slower empirical tau (316-862s) prevents adequate inter-interval recovery.
+      const recovery = (cp - power) * (wMax - wbal) / wMax;
       wbal += recovery;
     }
 
@@ -133,6 +149,7 @@ export function calculateWbal(
     wbal = Math.max(0, Math.min(wMax, wbal));
 
     // MPA = CP + (PP - CP) × (W'bal / W'max)
+    // Morton's 3-parameter model: MPA scales linearly with remaining W'
     const mpa = cp + (effectivePP - cp) * (wbal / wMax);
 
     results.push({
