@@ -245,15 +245,10 @@ export async function fetchWeeks(
     cursor.setDate(cursor.getDate() - 7);
   }
 
-  // Next cursor: the Monday of the week after the oldest one we returned
-  const nextMonday = new Date(cursor);
-  nextMonday.setDate(nextMonday.getDate() + 7); // cursor is already 1 week past
-  // Actually cursor ended up at (startMonday - count*7), so next load starts there
-  const nextCursor = dateKey(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7));
-  // Simpler: next cursor = oldest monday we built
+  // Next cursor: the oldest Monday we built minus 1 week
   const oldestBuilt = new Date(startMonday);
   oldestBuilt.setDate(oldestBuilt.getDate() - (count - 1) * 7);
-  oldestBuilt.setDate(oldestBuilt.getDate() - 7); // one week before oldest
+  oldestBuilt.setDate(oldestBuilt.getDate() - 7);
 
   return {
     weeks,
