@@ -51,11 +51,11 @@ const sportIcons = {
 // ── Phase colors and labels ─────────────────────────────────────────
 
 const PHASE_COLORS: Record<string, string> = {
-  base1: "bg-blue-500",
+  base1: "bg-sky-400",
   base2: "bg-blue-500",
-  base3: "bg-blue-500",
-  build1: "bg-amber-500",
-  build2: "bg-amber-500",
+  base3: "bg-blue-700",
+  build1: "bg-amber-400",
+  build2: "bg-amber-600",
   peak: "bg-green-500",
   race: "bg-red-500",
   recovery: "bg-purple-500",
@@ -63,11 +63,11 @@ const PHASE_COLORS: Record<string, string> = {
 };
 
 const PHASE_BG_COLORS: Record<string, string> = {
-  base1: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
+  base1: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
   base2: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  base3: "bg-blue-500/10 text-blue-700 dark:text-blue-400",
-  build1: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
-  build2: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  base3: "bg-blue-700/10 text-blue-800 dark:text-blue-300",
+  build1: "bg-amber-400/10 text-amber-600 dark:text-amber-400",
+  build2: "bg-amber-600/10 text-amber-700 dark:text-amber-300",
   peak: "bg-green-500/10 text-green-700 dark:text-green-400",
   race: "bg-red-500/10 text-red-700 dark:text-red-400",
   recovery: "bg-purple-500/10 text-purple-700 dark:text-purple-400",
@@ -451,96 +451,40 @@ export default async function PlanPage() {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Expected distribution from phase config */}
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Expected ({PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase)
-              </p>
-              <div className="flex h-6 w-full overflow-hidden rounded-full">
-                <div
-                  className="bg-green-500/80 transition-all"
-                  style={{ width: `${expectedZones.zone1_2Pct}%` }}
-                  title={`Z1-Z2: ${expectedZones.zone1_2Pct}%`}
-                />
-                <div
-                  className="bg-amber-500/80 transition-all"
-                  style={{ width: `${expectedZones.zone3Pct}%` }}
-                  title={`Z3: ${expectedZones.zone3Pct}%`}
-                />
-                <div
-                  className="bg-red-500/80 transition-all"
-                  style={{ width: `${expectedZones.zone4_5Pct}%` }}
-                  title={`Z4-Z5+: ${expectedZones.zone4_5Pct}%`}
-                />
-              </div>
-              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground tabular-nums">
-                <span>Z1-Z2 {expectedZones.zone1_2Pct}%</span>
-                <span>Z3 {expectedZones.zone3Pct}%</span>
-                <span>Z4-Z5+ {expectedZones.zone4_5Pct}%</span>
-              </div>
-            </div>
+          <CardContent className="space-y-3">
+            <p className="text-[11px] text-muted-foreground">
+              {PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase · outline = target, fill = actual
+            </p>
 
-            {/* Actual distribution from power streams */}
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Actual (this week)
-              </p>
-              {polarization ? (
-                <>
-                  <div className="flex h-6 w-full overflow-hidden rounded-full">
-                    {polarization.low > 0 && (
-                      <div
-                        className="bg-green-500 transition-all"
-                        style={{ width: `${polarization.low}%` }}
-                        title={`Z1-Z2: ${polarization.low}%`}
-                      />
-                    )}
-                    {polarization.mid > 0 && (
-                      <div
-                        className="bg-amber-500 transition-all"
-                        style={{ width: `${polarization.mid}%` }}
-                        title={`Z3-Z4: ${polarization.mid}%`}
-                      />
-                    )}
-                    {polarization.high > 0 && (
-                      <div
-                        className="bg-red-500 transition-all"
-                        style={{ width: `${polarization.high}%` }}
-                        title={`Z5+: ${polarization.high}%`}
-                      />
-                    )}
-                  </div>
-                  <div className="flex justify-between mt-1 text-[10px] text-muted-foreground tabular-nums">
-                    <span>Z1-Z2 {polarization.low}%</span>
-                    <span>Z3-Z4 {polarization.mid}%</span>
-                    <span>Z5+ {polarization.high}%</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex h-6 w-full items-center justify-center rounded-full bg-muted">
-                  <span className="text-[11px] text-muted-foreground">
-                    No power data this week
+            {/* Combined bars — outline for expected, fill for actual */}
+            {[
+              { label: "Easy (Z1-Z2)", expected: expectedZones.zone1_2Pct, actual: polarization?.low ?? 0, color: "bg-green-500", border: "border-green-500" },
+              { label: "Tempo (Z3)", expected: expectedZones.zone3Pct, actual: polarization?.mid ?? 0, color: "bg-amber-500", border: "border-amber-500" },
+              { label: "Hard (Z4-Z5+)", expected: expectedZones.zone4_5Pct, actual: polarization?.high ?? 0, color: "bg-red-500", border: "border-red-500" },
+            ].map((z) => (
+              <div key={z.label}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-muted-foreground">{z.label}</span>
+                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                    {polarization ? `${z.actual}%` : "—"} / {z.expected}%
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Comparison legend */}
-            <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-500" />
-                Easy (Z1-Z2)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
-                Tempo (Z3-Z4)
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" />
-                Hard (Z5+)
-              </span>
-            </div>
+                <div className="relative h-5 w-full rounded bg-muted/40">
+                  {/* Expected — outline */}
+                  <div
+                    className={`absolute inset-y-0 left-0 rounded ${z.border} border-2 bg-transparent`}
+                    style={{ width: `${z.expected}%` }}
+                  />
+                  {/* Actual — filled */}
+                  {polarization && z.actual > 0 && (
+                    <div
+                      className={`absolute inset-y-0 left-0 rounded ${z.color}/70`}
+                      style={{ width: `${z.actual}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
