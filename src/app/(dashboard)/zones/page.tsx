@@ -19,7 +19,7 @@ import Link from "next/link";
 import {
   LazyFitnessByYearChart as FitnessByYearChart,
   LazyDistanceByYearChart as DistanceByYearChart,
-  LazyPowerHrScatterChart as PowerHrScatterChart,
+  LazyPowerHrByYearChart as PowerHrByYearChart,
   LazyPowerCurveByYearChart as PowerCurveByYearChart,
 } from "@/components/dashboard/lazy-charts";
 
@@ -172,7 +172,7 @@ export default async function ZonesPage() {
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Power vs % Max HR
               </h3>
-              <PowerHrScatterChart data={powerHrData} maxHr={maxHr} />
+              <PowerHrByYearChart data={powerHrData} maxHr={maxHr} />
             </CardContent>
           </Card>
 

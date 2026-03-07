@@ -42,6 +42,12 @@ export default async function MarketingLayout({
             >
               Blog
             </Link>
+            <Link
+              href="/contact"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Contact
+            </Link>
             <LanguageSwitcher />
             <Button variant="outline" size="sm" asChild>
               <Link href="/login">{tHeader("signIn")}</Link>

@@ -27,8 +27,8 @@ export const LazyDistanceByYearChart = dynamic(
   { ssr: false, loading: skeleton("h-[280px]") }
 );
 
-export const LazyPowerHrScatterChart = dynamic(
-  () => import("./zone-trends").then((m) => m.PowerHrScatterChart),
+export const LazyPowerHrByYearChart = dynamic(
+  () => import("./zone-trends").then((m) => m.PowerHrByYearChart),
   { ssr: false, loading: skeleton("h-[280px]") }
 );
 

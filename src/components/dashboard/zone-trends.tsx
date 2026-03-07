@@ -6,14 +6,11 @@ import {
   Line,
   BarChart,
   Bar,
-  ScatterChart,
-  Scatter,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
   Legend,
-  ZAxis,
 } from "recharts";
 
 // ── Year colors ────────────────────────────────────────────────────
@@ -211,11 +208,14 @@ export function DistanceByYearChart({ data }: { data: DistRow[] }) {
   );
 }
 
-// ── 3. Power/HR Scatter by Year ────────────────────────────────────
+// ── 3. Power vs Heart Rate by Year ─────────────────────────────────
+// intervals.icu style: x=watts (binned), y=%threshold HR, one line per year
 
 type PowerHrRow = { date: Date; avgPower: number | null; avgHr: number | null };
 
-export function PowerHrScatterChart({
+const BIN_SIZE = 10; // watts per bin
+
+export function PowerHrByYearChart({
   data,
   maxHr,
 }: {
@@ -226,62 +226,86 @@ export function PowerHrScatterChart({
 
   const thresholdHr = maxHr ?? 190;
 
-  // Group by year
-  const byYear = new Map<string, { watts: number; hrPct: number }[]>();
+  // Group activities by year, then bin by power (10W bins)
+  const byYear = new Map<string, Map<number, { sumHrPct: number; count: number }>>();
   for (const d of data) {
-    if (!d.avgPower || !d.avgHr) continue;
+    if (!d.avgPower || !d.avgHr || d.avgPower < 80) continue;
     const year = String(new Date(d.date).getFullYear());
-    if (!byYear.has(year)) byYear.set(year, []);
-    byYear.get(year)!.push({
-      watts: d.avgPower,
-      hrPct: Math.round((d.avgHr / thresholdHr) * 100),
-    });
+    const bin = Math.round(d.avgPower / BIN_SIZE) * BIN_SIZE;
+    const hrPct = (d.avgHr / thresholdHr) * 100;
+    if (!byYear.has(year)) byYear.set(year, new Map());
+    const yBins = byYear.get(year)!;
+    const existing = yBins.get(bin) ?? { sumHrPct: 0, count: 0 };
+    existing.sumHrPct += hrPct;
+    existing.count += 1;
+    yBins.set(bin, existing);
   }
 
   const years = Array.from(byYear.keys()).sort();
   const colors = yearColors(years);
 
+  // Find power range across all years
+  let minW = Infinity, maxW = -Infinity;
+  for (const bins of byYear.values()) {
+    for (const w of bins.keys()) {
+      if (w < minW) minW = w;
+      if (w > maxW) maxW = w;
+    }
+  }
+
+  // Build merged dataset: { watts, [year]: avg%HR }
+  const merged: Record<string, number | null>[] = [];
+  for (let w = minW; w <= maxW; w += BIN_SIZE) {
+    const row: Record<string, number | null> = { watts: w };
+    let hasAny = false;
+    for (const y of years) {
+      const bin = byYear.get(y)?.get(w);
+      if (bin && bin.count >= 1) {
+        row[y] = Math.round((bin.sumHrPct / bin.count) * 10) / 10;
+        hasAny = true;
+      } else {
+        row[y] = null;
+      }
+    }
+    if (hasAny) merged.push(row);
+  }
+
   return (
     <ResponsiveContainer width="100%" height={280}>
-      <ScatterChart margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
+      <LineChart data={merged} margin={{ top: 4, right: 8, bottom: 0, left: -8 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
         <XAxis
           dataKey="watts"
           type="number"
-          name="Power"
-          unit="W"
           tick={{ fontSize: 10 }}
           stroke="hsl(var(--muted-foreground))"
+          unit="w"
         />
         <YAxis
-          dataKey="hrPct"
-          type="number"
-          name="HR"
-          unit="%"
           tick={{ fontSize: 10 }}
           stroke="hsl(var(--muted-foreground))"
-          label={{ value: "% Max HR", angle: -90, position: "insideLeft", style: { fontSize: 10, fill: "hsl(var(--muted-foreground))" } }}
+          unit="%"
+          domain={["auto", "auto"]}
         />
-        <ZAxis range={[20, 20]} />
         <Tooltip
           contentStyle={tooltipStyle}
-          formatter={(v: number | undefined, name?: string) => {
-            if (name === "Power") return v != null ? [`${v}W`] : ["-"];
-            if (name === "HR") return v != null ? [`${v}%`] : ["-"];
-            return [v];
-          }}
+          labelFormatter={(w) => `${w}W`}
+          formatter={(v: number | undefined, name?: string) => (v != null ? [`${v}%`, name] : ["-"])}
         />
         <Legend iconSize={8} wrapperStyle={{ fontSize: 11 }} />
         {years.map((y, i) => (
-          <Scatter
+          <Line
             key={y}
+            dataKey={y}
             name={y}
-            data={byYear.get(y)}
-            fill={colors[y]}
-            opacity={i === years.length - 1 ? 0.8 : 0.4}
+            stroke={colors[y]}
+            dot={false}
+            strokeWidth={i === years.length - 1 ? 2 : 1.5}
+            opacity={i === years.length - 1 ? 1 : 0.5}
+            connectNulls
           />
         ))}
-      </ScatterChart>
+      </LineChart>
     </ResponsiveContainer>
   );
 }
