@@ -108,11 +108,15 @@ function generatePhaseTimeline(
   const timeline: { subPhase: SubPhase; isRecovery: boolean; weekNum: number }[] = [];
   const pattern = getRecoveryPattern(level);
 
+  // Project CTL growth: ~1.5 CTL/week during training, ~0 during recovery
+  let projectedCtl = ctl;
   for (let i = 0; i < weeksAhead; i++) {
     const week = weeksSinceStart + i;
     const recovery = isRecoveryWeek(week, pattern);
-    const sub = recovery ? "recovery" as SubPhase : detectSubPhase(ctl, week);
+    const sub = recovery ? "recovery" as SubPhase : detectSubPhase(projectedCtl, week);
     timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1 });
+    // Simulate CTL growth for future weeks
+    if (!recovery) projectedCtl += 1.5;
   }
 
   return timeline;
