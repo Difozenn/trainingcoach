@@ -663,15 +663,15 @@ export async function getCyclingFtpAtDate(
   return row ? Math.round(row.value) : null;
 }
 
-// ── Zone Analysis Charts ──────────────────────────────────────────
+// ── Zone Analysis Charts (year-over-year) ─────────────────────────
 
 /**
- * Monthly peak powers for cycling (best per month at each duration).
+ * Yearly best peak powers for cycling (best at each duration per year).
  */
-export async function getMonthlyPeakPowers(userId: string) {
-  const rows = await db
+export async function getYearlyPeakPowers(userId: string) {
+  return db
     .select({
-      month: sql<string>`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`,
+      year: sql<string>`EXTRACT(YEAR FROM ${activities.startedAt})::int::text`,
       peak5s: sql<number>`MAX(${activities.peak5s})`,
       peak1m: sql<number>`MAX(${activities.peak1m})`,
       peak5m: sql<number>`MAX(${activities.peak5m})`,
@@ -679,27 +679,20 @@ export async function getMonthlyPeakPowers(userId: string) {
       peak60m: sql<number>`MAX(${activities.peak60m})`,
     })
     .from(activities)
-    .where(
-      and(
-        eq(activities.userId, userId),
-        eq(activities.sport, "cycling"),
-      )
-    )
-    .groupBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`)
-    .orderBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`);
-  return rows;
+    .where(and(eq(activities.userId, userId), eq(activities.sport, "cycling")))
+    .groupBy(sql`EXTRACT(YEAR FROM ${activities.startedAt})`)
+    .orderBy(sql`EXTRACT(YEAR FROM ${activities.startedAt})`);
 }
 
 /**
- * Power/HR efficiency ratio per activity (cycling with both power + HR).
+ * All cycling activities with power + HR (for scatter plot).
  */
-export async function getPowerHrTimeseries(userId: string) {
-  const rows = await db
+export async function getPowerHrScatter(userId: string) {
+  return db
     .select({
       date: activities.startedAt,
       avgPower: activities.averagePowerWatts,
       avgHr: activities.averageHr,
-      np: activities.normalizedPower,
     })
     .from(activities)
     .where(
@@ -711,23 +704,19 @@ export async function getPowerHrTimeseries(userId: string) {
       )
     )
     .orderBy(activities.startedAt);
-  return rows;
 }
 
 /**
- * Monthly distance totals by sport.
+ * All activities with distance (for cumulative distance by year).
  */
-export async function getMonthlyDistance(userId: string) {
-  const rows = await db
+export async function getActivitiesForYearlyDistance(userId: string) {
+  return db
     .select({
-      month: sql<string>`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`,
+      date: activities.startedAt,
+      distanceMeters: activities.distanceMeters,
       sport: activities.sport,
-      totalDistance: sql<number>`COALESCE(SUM(${activities.distanceMeters}), 0)`,
-      count: sql<number>`COUNT(*)::int`,
     })
     .from(activities)
-    .where(eq(activities.userId, userId))
-    .groupBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`, activities.sport)
-    .orderBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`);
-  return rows;
+    .where(and(eq(activities.userId, userId), sql`${activities.distanceMeters} > 0`))
+    .orderBy(activities.startedAt);
 }
