@@ -103,27 +103,61 @@ function generatePhaseTimeline(
   ctl: number,
   weeksSinceStart: number,
   level: AthleteLevel,
+  weeklyHours: number,
   weeksAhead: number = 12
-): { subPhase: SubPhase; isRecovery: boolean; weekNum: number }[] {
-  const timeline: { subPhase: SubPhase; isRecovery: boolean; weekNum: number }[] = [];
+): { subPhase: SubPhase; isRecovery: boolean; weekNum: number; projectedCtl: number }[] {
+  const timeline: { subPhase: SubPhase; isRecovery: boolean; weekNum: number; projectedCtl: number }[] = [];
   const pattern = getRecoveryPattern(level);
 
-  // Project CTL growth per week by level (recovery weeks: no growth)
-  const ctlGrowthPerWeek: Record<AthleteLevel, number> = {
-    novice: 2.5,
-    beginner: 3.5,
-    intermediate: 4.5,
-    advanced: 5.5,
-    competitive: 6,
+  // CTL projection — exponential approach to ceiling
+  //
+  // CTL = EMA(TSS, 42 days). Steady-state CTL = weeklyTSS / 7.
+  //
+  // Average TSS/hr across a mixed training week (Coggan/Allen):
+  //   Easy rides ~40 TSS/hr, tempo ~60, threshold ~80, intervals ~90+
+  //   Blended avg ~45-55 depending on intensity mix.
+  //   Higher-level athletes do slightly more intensity per hour.
+  //
+  // Safe ramp rates (Coggan, Friel, Couzens):
+  //   Novice: 3-5 CTL/wk    Competitive: 7-10 CTL/wk
+  //   >10 CTL/wk = injury/overtraining risk (Friel, Couzens)
+  //
+  // Recovery week: volume ~60% → CTL decays ~5-7% (proportional)
+  //
+  const avgTssPerHour: Record<AthleteLevel, number> = {
+    novice: 42,     // mostly easy + some tempo
+    beginner: 47,   // regular sweet spot sessions
+    intermediate: 52, // structured intervals
+    advanced: 55,   // high-intensity mix
+    competitive: 58, // race-intensity training
   };
-  const growth = ctlGrowthPerWeek[level];
+  const maxRampRate: Record<AthleteLevel, number> = {
+    novice: 4,      // conservative (Coggan: 3-5 safe for novice)
+    beginner: 5,    // mid-range novice ceiling
+    intermediate: 6, // standard (Coggan: 5-7 for most athletes)
+    advanced: 7,    // upper standard range
+    competitive: 9, // aggressive but below injury threshold (Couzens: <10)
+  };
+
+  const weeklyTssCapacity = weeklyHours * avgTssPerHour[level];
+  const ctlCeiling = weeklyTssCapacity / 7;
+  const maxRamp = maxRampRate[level];
+
   let projectedCtl = ctl;
   for (let i = 0; i < weeksAhead; i++) {
     const week = weeksSinceStart + i;
     const recovery = isRecoveryWeek(week, pattern);
     const sub = recovery ? "recovery" as SubPhase : detectSubPhase(projectedCtl, week);
-    timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1 });
-    if (!recovery) projectedCtl += growth;
+    timeline.push({ subPhase: sub, isRecovery: recovery, weekNum: week + 1, projectedCtl: Math.round(projectedCtl) });
+    if (recovery) {
+      // Recovery week: ~60% volume → CTL decays ~6% (proportional to current load)
+      projectedCtl = Math.max(0, projectedCtl * 0.94);
+    } else {
+      // Exponential approach to ceiling, capped by max safe ramp rate
+      const headroom = Math.max(0, ctlCeiling - projectedCtl);
+      const growth = Math.min(maxRamp, headroom * 0.15);
+      projectedCtl += growth;
+    }
   }
 
   return timeline;
@@ -223,8 +257,9 @@ export default async function PlanPage() {
     Math.floor((Date.now() - profileCreated.getTime()) / (7 * 24 * 3600_000))
   );
 
+  const weeklyHours = profile?.weeklyHoursAvailable ?? 8;
   const currentPhase = generateAutoProgressivePlan(ctl, weeksSinceStart, level);
-  const phaseTimeline = generatePhaseTimeline(ctl, weeksSinceStart, level, 12);
+  const phaseTimeline = generatePhaseTimeline(ctl, weeksSinceStart, level, weeklyHours, 12);
 
   // ── Expected Zone Distribution ──────────────────────────────────
   const expectedZones = currentPhase.intensityDistribution;

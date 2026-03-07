@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   ReferenceArea,
+  Label,
 } from "recharts";
 
 type TimelinePoint = {
@@ -28,45 +29,37 @@ type TimelinePoint = {
 // ── Form zones ──────────────────────────────────────────────────────
 
 const FORM_ZONES = [
-  { min: 25, max: 100, label: "Detraining", color: "hsl(var(--muted-foreground))", opacity: 0.04 },
-  { min: 5, max: 25, label: "Fresh", color: "#3b82f6", opacity: 0.04 },
-  { min: -10, max: 5, label: "Neutral", color: "hsl(var(--muted-foreground))", opacity: 0.02 },
-  { min: -30, max: -10, label: "Optimal", color: "#22c55e", opacity: 0.06 },
-  { min: -100, max: -30, label: "Overreaching", color: "#ef4444", opacity: 0.05 },
+  { min: 25, max: 100, label: "Detraining", color: "#f97316", opacity: 0.05 },
+  { min: 5, max: 25, label: "Fresh", color: "#3b82f6", opacity: 0.05 },
+  { min: -10, max: 5, label: "Neutral", color: "#6b7280", opacity: 0.03 },
+  { min: -30, max: -10, label: "Optimal", color: "#22c55e", opacity: 0.07 },
+  { min: -100, max: -30, label: "Overreaching", color: "#ef4444", opacity: 0.06 },
 ] as const;
-
-function getFormColor(formPct: number): string {
-  if (formPct < -30) return "#ef4444";
-  if (formPct < -10) return "#22c55e";
-  if (formPct < 5) return "hsl(var(--muted-foreground))";
-  if (formPct < 25) return "#3b82f6";
-  return "#f97316";
-}
 
 // ── Legend ───────────────────────────────────────────────────────────
 
 function ChartLegend() {
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] text-muted-foreground mb-4">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[11px] text-muted-foreground mb-4">
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-[2px] w-4 bg-[#3b82f6]" />
+        <span className="inline-block h-[2.5px] w-5 rounded-full bg-[#3b82f6]" />
         CTL (Fitness)
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-[2px] w-4 bg-[#ec4899]" />
+        <span className="inline-block h-[2.5px] w-5 rounded-full bg-[#ec4899]" />
         ATL (Fatigue)
       </span>
       <span className="h-3 w-px bg-border" />
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-2.5 w-2 rounded-[1px] bg-[#64748b]/50" />
+        <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-[#64748b]/40" />
         Cycling TSS
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-2.5 w-2 rounded-[1px] bg-[#22c55e]/50" />
+        <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-[#22c55e]/40" />
         Running TSS
       </span>
       <span className="flex items-center gap-1.5">
-        <span className="inline-block h-2.5 w-2 rounded-[1px] bg-[#06b6d4]/50" />
+        <span className="inline-block h-2.5 w-2.5 rounded-[2px] bg-[#06b6d4]/40" />
         Swimming TSS
       </span>
     </div>
@@ -105,31 +98,31 @@ function MainTooltip({
     (point.swimmingTss ?? 0);
 
   return (
-    <div className="pointer-events-none rounded border border-border/60 bg-background/95 backdrop-blur-sm px-3 py-2 shadow-md text-xs font-mono">
-      <p className="text-[10px] text-muted-foreground mb-1.5 font-sans">{label}</p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+    <div className="pointer-events-none rounded-lg border border-border/60 bg-background/95 backdrop-blur-sm px-3 py-2.5 shadow-lg text-xs font-mono">
+      <p className="text-[10px] text-muted-foreground mb-1.5 font-sans font-medium">{label}</p>
+      <div className="grid grid-cols-2 gap-x-5 gap-y-0.5">
         {ctl != null && (
           <>
             <span className="text-muted-foreground">CTL</span>
-            <span className="text-right font-medium text-[#3b82f6]">{Math.round(ctl)}</span>
+            <span className="text-right font-semibold text-[#3b82f6]">{Math.round(ctl)}</span>
           </>
         )}
         {atl != null && (
           <>
             <span className="text-muted-foreground">ATL</span>
-            <span className="text-right font-medium text-[#ec4899]">{Math.round(atl)}</span>
+            <span className="text-right font-semibold text-[#ec4899]">{Math.round(atl)}</span>
           </>
         )}
         {tsb != null && (
           <>
             <span className="text-muted-foreground">TSB</span>
-            <span className="text-right font-medium">{tsb > 0 ? "+" : ""}{Math.round(tsb)}</span>
+            <span className="text-right font-semibold">{tsb > 0 ? "+" : ""}{Math.round(tsb)}</span>
           </>
         )}
         {totalTss > 0 && (
           <>
             <span className="text-muted-foreground">TSS</span>
-            <span className="text-right font-medium">{Math.round(totalTss)}</span>
+            <span className="text-right font-semibold">{Math.round(totalTss)}</span>
           </>
         )}
       </div>
@@ -159,6 +152,15 @@ function buildFormGradientStops(lower: number, upper: number) {
   ];
 }
 
+// ── Tick interval helper ────────────────────────────────────────────
+
+function computeTickInterval(count: number): number {
+  if (count <= 30) return 6;     // ~weekly ticks for 1 month
+  if (count <= 60) return 13;    // ~biweekly for 2 months
+  if (count <= 120) return 13;   // ~biweekly for 90 days
+  return Math.ceil(count / 8);   // ~8 ticks for longer ranges
+}
+
 // ── Main component ──────────────────────────────────────────────────
 
 export function FitnessChart({ data }: { data: TimelinePoint[] }) {
@@ -182,7 +184,7 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
     )
   );
   const upperDomain =
-    Math.ceil((Math.max(maxFitness * 1.15, maxTss * 1.1) ) / 10) * 10 || 50;
+    Math.ceil((Math.max(maxFitness * 1.15, maxTss * 1.1)) / 10) * 10 || 50;
 
   // Form domain
   const formValues = data.map((d) => d.formPct).filter((v): v is number => v != null);
@@ -194,56 +196,60 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
   const dataMax = formValues.length > 0 ? Math.max(...formValues) : formUpper;
   const formGradientStops = buildFormGradientStops(dataMin, dataMax);
 
+  const tickInterval = computeTickInterval(data.length);
+
   return (
     <div>
       <ChartLegend />
 
       {/* ── Main PMC chart ─────────────────────────────────────────── */}
-      <ResponsiveContainer width="100%" height={340}>
+      <ResponsiveContainer width="100%" height={360}>
         <ComposedChart
           data={data}
           syncId="pmc"
-          margin={{ top: 4, right: 8, bottom: 0, left: -8 }}
+          margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
         >
           <CartesianGrid
             strokeDasharray="none"
-            stroke="currentColor"
-            className="text-border/30"
-            strokeWidth={0.5}
-            vertical={false}
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.5}
+            strokeWidth={0.75}
+            vertical={true}
           />
           <XAxis
             dataKey="date"
-            tick={false}
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
-            axisLine={false}
+            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            interval={tickInterval}
+            dy={4}
           />
           <YAxis
             domain={[0, upperDomain]}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
-            axisLine={false}
-            className="text-muted-foreground/60"
-            width={36}
+            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            width={40}
           />
           <Tooltip
             content={<MainTooltip />}
             cursor={{
               stroke: "hsl(var(--muted-foreground))",
-              strokeWidth: 0.5,
-              strokeOpacity: 0.4,
+              strokeWidth: 1,
+              strokeOpacity: 0.3,
+              strokeDasharray: "4 3",
             }}
             wrapperStyle={{ zIndex: 10 }}
           />
 
-          {/* TSS bars — subtle, stacked by sport */}
+          {/* TSS bars — stacked by sport */}
           <Bar
             dataKey="cyclingTss"
             name="Cycling"
             stackId="tss"
             fill="#64748b"
-            opacity={0.35}
-            maxBarSize={5}
+            opacity={0.4}
+            maxBarSize={6}
             radius={[1, 1, 0, 0]}
           />
           <Bar
@@ -251,23 +257,23 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             name="Running"
             stackId="tss"
             fill="#22c55e"
-            opacity={0.35}
-            maxBarSize={5}
+            opacity={0.4}
+            maxBarSize={6}
           />
           <Bar
             dataKey="swimmingTss"
             name="Swimming"
             stackId="tss"
             fill="#06b6d4"
-            opacity={0.35}
-            maxBarSize={5}
+            opacity={0.4}
+            maxBarSize={6}
           />
 
-          {/* CTL fill — subtle gradient under the line */}
+          {/* CTL fill — gradient under the line */}
           <defs>
             <linearGradient id="ctlFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.08} />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.01} />
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.15} />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.02} />
             </linearGradient>
           </defs>
           <Area
@@ -280,15 +286,15 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             isAnimationActive={false}
           />
 
-          {/* CTL line — blue, clean */}
+          {/* CTL line — blue */}
           <Line
             type="monotone"
             dataKey="ctl"
             name="CTL"
             stroke="#3b82f6"
-            strokeWidth={1.5}
+            strokeWidth={2}
             dot={false}
-            activeDot={{ r: 2.5, strokeWidth: 0, fill: "#3b82f6" }}
+            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#fff", fill: "#3b82f6" }}
           />
           {/* ATL line — pink */}
           <Line
@@ -296,27 +302,27 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             dataKey="atl"
             name="ATL"
             stroke="#ec4899"
-            strokeWidth={1.5}
+            strokeWidth={2}
             dot={false}
-            activeDot={{ r: 2.5, strokeWidth: 0, fill: "#ec4899" }}
+            activeDot={{ r: 3, strokeWidth: 1.5, stroke: "#fff", fill: "#ec4899" }}
           />
         </ComposedChart>
       </ResponsiveContainer>
 
       {/* ── Form chart ─────────────────────────────────────────────── */}
-      <div className="mt-3 mb-1 px-1">
-        <span className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground/70">
+      <div className="mt-4 mb-1.5 px-1">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
           Form (TSB / CTL)
         </span>
       </div>
 
-      <ResponsiveContainer width="100%" height={110}>
+      <ResponsiveContainer width="100%" height={130}>
         <ComposedChart
           data={data}
           syncId="pmc"
-          margin={{ top: 2, right: 8, bottom: 4, left: -8 }}
+          margin={{ top: 2, right: 12, bottom: 4, left: 0 }}
         >
-          {/* Zone backgrounds — very subtle */}
+          {/* Zone backgrounds */}
           {FORM_ZONES.map((z) => (
             <ReferenceArea
               key={z.label}
@@ -324,56 +330,67 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
               y2={z.max}
               fill={z.color}
               fillOpacity={z.opacity}
+              ifOverflow="hidden"
             />
           ))}
 
           <CartesianGrid
             strokeDasharray="none"
-            stroke="currentColor"
-            className="text-border/25"
-            strokeWidth={0.5}
-            vertical={false}
+            stroke="hsl(var(--border))"
+            strokeOpacity={0.4}
+            strokeWidth={0.75}
+            vertical={true}
           />
           <XAxis
             dataKey="date"
-            tick={{ fontSize: 9 }}
-            className="text-muted-foreground/60"
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
-            axisLine={false}
+            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            interval={tickInterval}
+            dy={4}
           />
           <YAxis
             domain={[formLower, formUpper]}
-            tick={{ fontSize: 9 }}
+            tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
-            axisLine={false}
-            className="text-muted-foreground/60"
-            width={36}
+            axisLine={{ stroke: "hsl(var(--border))", strokeOpacity: 0.6 }}
+            width={40}
             tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip
             content={() => null}
             cursor={{
               stroke: "hsl(var(--muted-foreground))",
-              strokeWidth: 0.5,
-              strokeOpacity: 0.4,
+              strokeWidth: 1,
+              strokeOpacity: 0.3,
+              strokeDasharray: "4 3",
             }}
           />
           <ReferenceLine
             y={0}
             stroke="hsl(var(--muted-foreground))"
-            strokeWidth={0.5}
-            strokeOpacity={0.3}
+            strokeWidth={0.75}
+            strokeOpacity={0.5}
+            strokeDasharray="3 3"
           />
+
+          {/* Zone labels on right side */}
+          <ReferenceLine y={-20} stroke="none">
+            <Label value="Optimal" position="insideRight" fontSize={8} fill="#22c55e" fillOpacity={0.7} />
+          </ReferenceLine>
+          <ReferenceLine y={15} stroke="none">
+            <Label value="Fresh" position="insideRight" fontSize={8} fill="#3b82f6" fillOpacity={0.7} />
+          </ReferenceLine>
 
           <defs>
             <linearGradient id="formFillGrad" x1="0" y1="0" x2="0" y2="1">
               {formGradientStops.map((s, i) => (
-                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.08} />
+                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.12} />
               ))}
             </linearGradient>
             <linearGradient id="formStrokeGrad" x1="0" y1="0" x2="0" y2="1">
               {formGradientStops.map((s, i) => (
-                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.8} />
+                <stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={0.9} />
               ))}
             </linearGradient>
           </defs>
@@ -391,13 +408,26 @@ export function FitnessChart({ data }: { data: TimelinePoint[] }) {
             type="monotone"
             dataKey="formPct"
             stroke="url(#formStrokeGrad)"
-            strokeWidth={1.5}
+            strokeWidth={1.8}
             dot={false}
             activeDot={false}
             isAnimationActive={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* ── Form zone legend ─────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 px-1 text-[10px] text-muted-foreground">
+        {FORM_ZONES.slice().reverse().map((z) => (
+          <span key={z.label} className="flex items-center gap-1">
+            <span
+              className="inline-block h-2 w-2 rounded-[2px]"
+              style={{ backgroundColor: z.color, opacity: 0.6 }}
+            />
+            {z.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
