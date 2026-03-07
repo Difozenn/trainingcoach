@@ -449,7 +449,7 @@ export default async function PlanPage() {
               )}
             </CardTitle>
             <p className="text-[11px] text-muted-foreground">
-              {PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase targets{polarization ? " vs this week" : ""}
+              {PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase targets{polarization ? " vs this week so far" : ""}
             </p>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -500,7 +500,7 @@ export default async function PlanPage() {
                             <span className={`text-[10px] font-medium ${
                               delta > 0 ? "text-amber-500" : "text-blue-400"
                             }`}>
-                              {delta > 0 ? "+" : ""}{delta}
+                              {delta > 0 ? "+" : ""}{Math.round(delta)}
                             </span>
                           )}
                         </>
