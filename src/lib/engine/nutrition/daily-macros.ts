@@ -45,7 +45,7 @@ const MACRO_SPLITS: Record<TrainingDayType, [number, number, number]> = {
   carb_load: [65, 18, 17],
 };
 
-const DAY_TYPE_LABELS: Record<TrainingDayType, string> = {
+export const DAY_TYPE_LABELS: Record<TrainingDayType, string> = {
   rest: "Rest",
   easy: "Low load",
   endurance: "Moderate load",

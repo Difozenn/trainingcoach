@@ -10,6 +10,7 @@ import { UpgradePrompt } from "@/components/dashboard/upgrade-prompt";
 import {
   calculateDailyMacros,
   getTrainingDayType,
+  DAY_TYPE_LABELS,
 } from "@/lib/engine/nutrition/daily-macros";
 
 function formatDay(date: Date): string {
@@ -126,7 +127,7 @@ export default async function NutritionPage() {
       label: formatDay(date),
       tss: Math.round(tss),
       exerciseCal: Math.round(exerciseCal),
-      dayType: macros.trainingDayType.replace("_", " "),
+      dayType: DAY_TYPE_LABELS[macros.trainingDayType] ?? macros.trainingDayType.replace("_", " "),
       calories: macros.totalCalories,
       carbs: macros.carbsGrams,
       protein: macros.proteinGrams,
