@@ -432,59 +432,115 @@ export default async function PlanPage() {
 
         {/* ── Expected vs Actual Zone Distribution ───────────────── */}
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between">
               <span>Intensity Distribution</span>
-              <div className="flex items-center gap-2">
-                {polarization && (
-                  <>
-                    <Badge variant="outline" className="capitalize text-xs">
-                      {polarization.label}
-                    </Badge>
-                    {polarization.pi !== null && (
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        PI {polarization.pi.toFixed(2)}
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-[11px] text-muted-foreground">
-              {PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase · outline = target, fill = actual
-            </p>
-
-            {/* Combined bars — outline for expected, fill for actual */}
-            {[
-              { label: "Easy (Z1-Z2)", expected: expectedZones.zone1_2Pct, actual: polarization?.low ?? 0, color: "bg-green-500", border: "border-green-500" },
-              { label: "Tempo (Z3)", expected: expectedZones.zone3Pct, actual: polarization?.mid ?? 0, color: "bg-amber-500", border: "border-amber-500" },
-              { label: "Hard (Z4-Z5+)", expected: expectedZones.zone4_5Pct, actual: polarization?.high ?? 0, color: "bg-red-500", border: "border-red-500" },
-            ].map((z) => (
-              <div key={z.label}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] text-muted-foreground">{z.label}</span>
-                  <span className="text-[10px] tabular-nums text-muted-foreground">
-                    {polarization ? `${z.actual}%` : "—"} / {z.expected}%
-                  </span>
-                </div>
-                <div className="relative h-5 w-full rounded bg-muted/40">
-                  {/* Expected — outline */}
-                  <div
-                    className={`absolute inset-y-0 left-0 rounded ${z.border} border-2 bg-transparent`}
-                    style={{ width: `${z.expected}%` }}
-                  />
-                  {/* Actual — filled */}
-                  {polarization && z.actual > 0 && (
-                    <div
-                      className={`absolute inset-y-0 left-0 rounded ${z.color}/70`}
-                      style={{ width: `${z.actual}%` }}
-                    />
+              {polarization && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize text-xs">
+                    {polarization.label}
+                  </Badge>
+                  {polarization.pi !== null && (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      PI {polarization.pi.toFixed(2)}
+                    </span>
                   )}
                 </div>
-              </div>
-            ))}
+              )}
+            </CardTitle>
+            <p className="text-[11px] text-muted-foreground">
+              {PHASE_LABELS[currentPhase.subPhase] ?? "Current"} phase targets{polarization ? " vs this week" : ""}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {/* Legend */}
+            <div className="flex items-center gap-5 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-[7px] w-4 rounded-[2px] bg-muted-foreground/20" />
+                Target
+              </span>
+              {polarization && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-[7px] w-4 rounded-[2px] bg-primary/70" />
+                  Actual
+                </span>
+              )}
+            </div>
+
+            {[
+              { label: "Easy", zones: "Z1–Z2", expected: expectedZones.zone1_2Pct, actual: polarization?.low ?? 0, color: "#22c55e" },
+              { label: "Tempo", zones: "Z3", expected: expectedZones.zone3Pct, actual: polarization?.mid ?? 0, color: "#f59e0b" },
+              { label: "Hard", zones: "Z4–Z5+", expected: expectedZones.zone4_5Pct, actual: polarization?.high ?? 0, color: "#ef4444" },
+            ].map((z) => {
+              const delta = polarization ? z.actual - z.expected : null;
+              return (
+                <div key={z.label} className="space-y-1.5">
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: z.color }}
+                      />
+                      <span className="text-[13px] font-medium">{z.label}</span>
+                      <span className="text-[10px] text-muted-foreground">{z.zones}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 tabular-nums">
+                      {polarization ? (
+                        <>
+                          <span
+                            className="text-[13px] font-semibold"
+                            style={{ color: z.color }}
+                          >
+                            {z.actual}%
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            / {z.expected}%
+                          </span>
+                          {delta !== null && Math.abs(delta) > 1 && (
+                            <span className={`text-[10px] font-medium ${
+                              delta > 0 ? "text-amber-500" : "text-blue-400"
+                            }`}>
+                              {delta > 0 ? "+" : ""}{delta}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-[13px] text-muted-foreground">
+                          {z.expected}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="relative h-[10px] w-full rounded-full bg-muted/40">
+                    {/* Target reference — subtle filled bar */}
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{ width: `${z.expected}%`, backgroundColor: z.color, opacity: 0.12 }}
+                    />
+                    {/* Actual bar */}
+                    {polarization && z.actual > 0 && (
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ width: `${z.actual}%`, backgroundColor: z.color, opacity: 0.7 }}
+                      />
+                    )}
+                    {/* Target tick marker */}
+                    <div
+                      className="absolute rounded-full"
+                      style={{
+                        left: `${z.expected}%`,
+                        top: "-2px",
+                        bottom: "-2px",
+                        width: "2px",
+                        backgroundColor: z.color,
+                        opacity: 0.45,
+                        transform: "translateX(-1px)",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
 

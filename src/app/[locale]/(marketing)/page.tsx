@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { routing } from "@/i18n/routing";
 import {
   TrendingUp,
@@ -93,14 +92,6 @@ export default async function LandingPage() {
                 <Link href="/register">
                   {t("Hero.startFree")} <ArrowRight className="h-4 w-4" />
                 </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="border-primary/40 text-primary hover:bg-primary/5"
-                asChild
-              >
-                <Link href="/pricing">{t("Hero.viewPricing")}</Link>
               </Button>
             </div>
           </div>
@@ -466,83 +457,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* Pricing preview */}
-      <section className="py-20">
-        <div className="mx-auto max-w-4xl px-4">
-          <div className="mx-auto mb-12 max-w-2xl text-center">
-            <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-              {t("PricingPreview.title")}
-            </h2>
-            <p className="text-muted-foreground">
-              {t("PricingPreview.description")}
-            </p>
-          </div>
-          <div className="grid gap-8 md:grid-cols-2">
-            <Card className="border-border/50 bg-card/50">
-              <CardContent className="space-y-4 pt-6">
-                <h3 className="text-xl font-bold">
-                  {t("PricingPreview.free")}
-                </h3>
-                <p className="text-4xl font-bold">
-                  {t("PricingPreview.freePrice")}
-                  <span className="text-base font-normal text-muted-foreground">
-                    {t("PricingPreview.perMonth")}
-                  </span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {t("PricingPreview.freeDesc")}
-                </p>
-                <ul className="space-y-2 text-sm">
-                  {([1, 2, 3, 4] as const).map((n) => (
-                    <li key={n} className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      {t(`PricingPreview.freeFeature${n}`)}
-                    </li>
-                  ))}
-                </ul>
-                <Button variant="outline" className="w-full" asChild>
-                  <Link href="/register">
-                    {t("PricingPreview.getStarted")}
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-            <Card className="relative border-primary/50 bg-card/50 shadow-lg shadow-primary/10">
-              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-                {t("PricingPreview.mostPopular")}
-              </Badge>
-              <CardContent className="space-y-4 pt-6">
-                <h3 className="text-xl font-bold">
-                  {t("PricingPreview.pro")}
-                </h3>
-                <p className="text-4xl font-bold">
-                  {t("PricingPreview.proPrice")}
-                  <span className="text-base font-normal text-muted-foreground">
-                    {t("PricingPreview.perMonth")}
-                  </span>
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {t("PricingPreview.proDesc")}
-                </p>
-                <ul className="space-y-2 text-sm">
-                  {([1, 2, 3, 4, 5, 6, 7] as const).map((n) => (
-                    <li key={n} className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-primary" />
-                      {t(`PricingPreview.proFeature${n}`)}
-                    </li>
-                  ))}
-                </ul>
-                <Button className="w-full" asChild>
-                  <Link href="/register">
-                    {t("PricingPreview.startFreeTrial")}
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
       {/* Bottom CTA */}
       <section className="relative overflow-hidden py-24">
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[700px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
@@ -562,14 +476,6 @@ export default async function LandingPage() {
                 {t("BottomCta.createFreeAccount")}{" "}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-primary/40 text-primary hover:bg-primary/5"
-              asChild
-            >
-              <Link href="/pricing">{t("BottomCta.comparePlans")}</Link>
             </Button>
           </div>
         </div>
