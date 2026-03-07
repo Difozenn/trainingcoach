@@ -49,13 +49,13 @@ const DURATIONS_SECONDS = [5, 15, 30, 60, 300, 600, 1200, 3600] as const;
 const DURATION_KEYS = ["5s", "15s", "30s", "1m", "5m", "10m", "20m", "60m"] as const;
 
 const CATEGORY_LABELS = [
-  "Beginner",
-  "Recreational",
-  "Fitness",
-  "Sportive",
-  "Competitive",
-  "Elite",
-  "Semi-Pro",
+  "Untrained",
+  "Cat 5",
+  "Cat 4",
+  "Cat 3",
+  "Cat 2",
+  "Cat 1",
+  "Pro",
   "World Tour",
 ] as const;
 

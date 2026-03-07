@@ -680,9 +680,9 @@ export default async function ActivityDetailPage({
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] tabular-nums text-muted-foreground">{r.category.wPerKg} W/kg</span>
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-                          r.category.level >= 6 ? "bg-purple-500/15 text-purple-400" :
-                          r.category.level >= 4 ? "bg-blue-500/15 text-blue-400" :
-                          r.category.level >= 2 ? "bg-green-500/15 text-green-400" :
+                          r.category.level >= 5 ? "bg-purple-500/15 text-purple-400" :
+                          r.category.level >= 3 ? "bg-blue-500/15 text-blue-400" :
+                          r.category.level >= 1 ? "bg-green-500/15 text-green-400" :
                           "bg-muted text-muted-foreground"
                         }`}>
                           {r.category.label}
