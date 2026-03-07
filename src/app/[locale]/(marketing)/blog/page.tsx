@@ -55,6 +55,33 @@ const posts = [
     date: "2026-03-07",
     readTime: "7 min",
   },
+  {
+    slug: "cycling-nutrition-guide",
+    title: "Cycling Nutrition: The Complete Fueling Guide",
+    excerpt:
+      "Daily macros, pre-ride fueling, on-bike carbs, recovery nutrition, and how to periodize your diet around your training load.",
+    category: "Nutrition",
+    date: "2026-03-07",
+    readTime: "10 min",
+  },
+  {
+    slug: "on-bike-fueling",
+    title: "On-Bike Fueling: How to Eat During a Ride",
+    excerpt:
+      "How many carbs per hour, the glucose:fructose ratio, what to eat, when to start, and how to train your gut for race-day fueling.",
+    category: "Nutrition",
+    date: "2026-03-07",
+    readTime: "9 min",
+  },
+  {
+    slug: "recovery-nutrition",
+    title: "Recovery Nutrition for Cyclists: What to Eat After a Ride",
+    excerpt:
+      "Post-ride nutrition timing, the recovery window, carb and protein targets, and practical meal ideas to maximize adaptation.",
+    category: "Nutrition",
+    date: "2026-03-07",
+    readTime: "8 min",
+  },
 ];
 
 export default function BlogPage() {
