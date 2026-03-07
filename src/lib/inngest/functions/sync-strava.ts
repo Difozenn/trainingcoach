@@ -5,6 +5,7 @@ import {
   activities,
   dailyMetrics,
   sportProfiles,
+  athleteProfiles,
 } from "@/lib/db/schema";
 import type { StreamDataBlob } from "@/lib/db/schema/activities";
 import { eq, and, desc, lt } from "drizzle-orm";
@@ -115,19 +116,26 @@ export const processStravaWebhook = inngest.createFunction(
       return { status: "unsupported_sport" };
     }
 
-    // Get sport profile for thresholds
-    const profile = await step.run("get-sport-profile", async () => {
-      const [sp] = await db
-        .select()
-        .from(sportProfiles)
-        .where(
-          and(
-            eq(sportProfiles.userId, connection.userId),
-            eq(sportProfiles.sport, processed.sport)
+    // Get sport profile + athlete profile for thresholds
+    const { profile, restingHr } = await step.run("get-sport-profile", async () => {
+      const [[sp], [ap]] = await Promise.all([
+        db
+          .select()
+          .from(sportProfiles)
+          .where(
+            and(
+              eq(sportProfiles.userId, connection.userId),
+              eq(sportProfiles.sport, processed.sport)
+            )
           )
-        )
-        .limit(1);
-      return sp;
+          .limit(1),
+        db
+          .select({ restingHr: athleteProfiles.restingHr })
+          .from(athleteProfiles)
+          .where(eq(athleteProfiles.userId, connection.userId))
+          .limit(1),
+      ]);
+      return { profile: sp, restingHr: ap?.restingHr ?? null };
     });
 
     // Fetch streams for detailed analysis
@@ -163,7 +171,8 @@ export const processStravaWebhook = inngest.createFunction(
         processed.sport,
         stravaActivity,
         streams,
-        profileForMetrics
+        profileForMetrics,
+        restingHr
       );
     });
 
@@ -388,16 +397,23 @@ export const backfillStravaActivities = inngest.createFunction(
             }
 
             // Fetch fresh profile (may have just been updated)
-            const [profile] = await db
-              .select()
-              .from(sportProfiles)
-              .where(
-                and(
-                  eq(sportProfiles.userId, userId),
-                  eq(sportProfiles.sport, processed.sport)
+            const [[profile], [ap]] = await Promise.all([
+              db
+                .select()
+                .from(sportProfiles)
+                .where(
+                  and(
+                    eq(sportProfiles.userId, userId),
+                    eq(sportProfiles.sport, processed.sport)
+                  )
                 )
-              )
-              .limit(1);
+                .limit(1),
+              db
+                .select({ restingHr: athleteProfiles.restingHr })
+                .from(athleteProfiles)
+                .where(eq(athleteProfiles.userId, userId))
+                .limit(1),
+            ]);
 
             // Use the time-appropriate FTP for metrics
             const profileForMetrics =
@@ -409,7 +425,8 @@ export const backfillStravaActivities = inngest.createFunction(
               processed.sport,
               stravaActivity,
               null,
-              profileForMetrics
+              profileForMetrics,
+              ap?.restingHr ?? null
             );
 
             await db.insert(activities).values({
@@ -563,7 +580,8 @@ function calculateActivityMetrics(
     average_speed: number;
   },
   streams: StravaStreamSet | null,
-  profile: SportProfileRow
+  profile: SportProfileRow,
+  athleteRestingHr?: number | null
 ): CalculatedMetrics {
   const result: CalculatedMetrics = {
     normalizedPower: null,
@@ -658,7 +676,7 @@ function calculateActivityMetrics(
 
   // HR-based TRIMP as fallback or supplement
   if (activity.average_heartrate && activity.max_heartrate) {
-    const restingHr = 60; // Default if unknown
+    const restingHr = athleteRestingHr ?? 60;
     result.trimp = calculateHrTSS(
       activity.average_heartrate,
       activity.moving_time,

@@ -14,6 +14,7 @@ import {
   activities,
   dailyMetrics,
   sportProfiles,
+  athleteProfiles,
 } from "@/lib/db/schema";
 import { eq, and, desc, lt } from "drizzle-orm";
 import {
@@ -103,18 +104,25 @@ async function processOneGarminActivity(
     );
     if (crossDupe) return "cross_platform_duplicate";
 
-    const [profile] = await db
-      .select()
-      .from(sportProfiles)
-      .where(
-        and(
-          eq(sportProfiles.userId, connection.userId),
-          eq(sportProfiles.sport, processed.sport)
+    const [[profile], [ap]] = await Promise.all([
+      db
+        .select()
+        .from(sportProfiles)
+        .where(
+          and(
+            eq(sportProfiles.userId, connection.userId),
+            eq(sportProfiles.sport, processed.sport)
+          )
         )
-      )
-      .limit(1);
+        .limit(1),
+      db
+        .select({ restingHr: athleteProfiles.restingHr })
+        .from(athleteProfiles)
+        .where(eq(athleteProfiles.userId, connection.userId))
+        .limit(1),
+    ]);
 
-    const metrics = calculateGarminMetrics(processed, profile);
+    const metrics = calculateGarminMetrics(processed, profile, ap?.restingHr);
 
     await db.insert(activities).values({
       userId: connection.userId,
@@ -342,18 +350,25 @@ export const backfillGarminActivities = inngest.createFunction(
           );
           if (crossDupe) continue;
 
-          const [profile] = await db
-            .select()
-            .from(sportProfiles)
-            .where(
-              and(
-                eq(sportProfiles.userId, userId),
-                eq(sportProfiles.sport, processed.sport)
+          const [[profile], [apBack]] = await Promise.all([
+            db
+              .select()
+              .from(sportProfiles)
+              .where(
+                and(
+                  eq(sportProfiles.userId, userId),
+                  eq(sportProfiles.sport, processed.sport)
+                )
               )
-            )
-            .limit(1);
+              .limit(1),
+            db
+              .select({ restingHr: athleteProfiles.restingHr })
+              .from(athleteProfiles)
+              .where(eq(athleteProfiles.userId, userId))
+              .limit(1),
+          ]);
 
-          const metrics = calculateGarminMetrics(processed, profile);
+          const metrics = calculateGarminMetrics(processed, profile, apBack?.restingHr);
 
           await db.insert(activities).values({
             userId,
@@ -595,7 +610,8 @@ type CalculatedMetrics = {
 
 function calculateGarminMetrics(
   processed: ReturnType<typeof processGarminActivity> & {},
-  profile: SportProfileRow
+  profile: SportProfileRow,
+  athleteRestingHr?: number | null
 ): CalculatedMetrics {
   const result: CalculatedMetrics = {
     normalizedPower: null,
@@ -653,7 +669,7 @@ function calculateGarminMetrics(
 
   // HR-based TRIMP as fallback
   if (processed.averageHr && processed.maxHr) {
-    const restingHr = 60;
+    const restingHr = athleteRestingHr ?? 60;
     result.trimp = calculateHrTSS(
       processed.averageHr,
       processed.durationSeconds,

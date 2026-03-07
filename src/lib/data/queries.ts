@@ -176,7 +176,49 @@ export async function getFitnessTimeline(
 
 export async function getActivityById(userId: string, activityId: string) {
   const [activity] = await db
-    .select()
+    .select({
+      id: activities.id,
+      userId: activities.userId,
+      externalId: activities.externalId,
+      platform: activities.platform,
+      sport: activities.sport,
+      name: activities.name,
+      description: activities.description,
+      startedAt: activities.startedAt,
+      durationSeconds: activities.durationSeconds,
+      movingTimeSeconds: activities.movingTimeSeconds,
+      elapsedTimeSeconds: activities.elapsedTimeSeconds,
+      distanceMeters: activities.distanceMeters,
+      elevationGainMeters: activities.elevationGainMeters,
+      averageHr: activities.averageHr,
+      maxHr: activities.maxHr,
+      averagePowerWatts: activities.averagePowerWatts,
+      maxPowerWatts: activities.maxPowerWatts,
+      averageCadence: activities.averageCadence,
+      averageSpeedMps: activities.averageSpeedMps,
+      poolLengthMeters: activities.poolLengthMeters,
+      totalStrokes: activities.totalStrokes,
+      averageSwolf: activities.averageSwolf,
+      normalizedPower: activities.normalizedPower,
+      normalizedGradedPace: activities.normalizedGradedPace,
+      intensityFactor: activities.intensityFactor,
+      tss: activities.tss,
+      trimp: activities.trimp,
+      zoneDistribution: activities.zoneDistribution,
+      ftpUsed: activities.ftpUsed,
+      peak5s: activities.peak5s,
+      peak15s: activities.peak15s,
+      peak30s: activities.peak30s,
+      peak1m: activities.peak1m,
+      peak5m: activities.peak5m,
+      peak10m: activities.peak10m,
+      peak20m: activities.peak20m,
+      peak60m: activities.peak60m,
+      gearId: activities.gearId,
+      createdAt: activities.createdAt,
+      // Excludes streamData and sourceData (multi-MB JSONB blobs)
+      // — streams are fetched separately by getActivityStreams()
+    })
     .from(activities)
     .where(
       and(eq(activities.id, activityId), eq(activities.userId, userId))

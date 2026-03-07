@@ -9,14 +9,6 @@ import { fetchWeeks, type WeekData } from "./actions";
 
 const sportIcons = { cycling: Bike, running: Footprints, swimming: Waves };
 
-const RANGE_PRESETS = [
-  { label: "4w", weeks: 5 },
-  { label: "3m", weeks: 14 },
-  { label: "6m", weeks: 27 },
-  { label: "1y", weeks: 53 },
-  { label: "All", weeks: 260 },
-] as const;
-
 export function WeekCalendar({
   initialWeeks,
   initialCursor,
@@ -26,7 +18,6 @@ export function WeekCalendar({
 }) {
   const [weeks, setWeeks] = useState(initialWeeks);
   const [cursor, setCursor] = useState(initialCursor);
-  const [activeRange, setActiveRange] = useState<string>("4w");
   const [isPending, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef(false);
@@ -55,36 +46,8 @@ export function WeekCalendar({
     return () => observer.disconnect();
   }, [loadMore]);
 
-  const selectRange = useCallback((label: string, weekCount: number) => {
-    setActiveRange(label);
-    loadingRef.current = true;
-    startTransition(async () => {
-      const { weeks: newWeeks, nextCursor } = await fetchWeeks(null, weekCount);
-      setWeeks(newWeeks);
-      setCursor(nextCursor);
-      loadingRef.current = false;
-    });
-  }, []);
-
   return (
     <div className="space-y-0">
-      {/* Range presets */}
-      <div className="flex items-center gap-1 mb-4">
-        {RANGE_PRESETS.map((p) => (
-          <button
-            key={p.label}
-            onClick={() => selectRange(p.label, p.weeks)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              activeRange === p.label
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
       {/* Day headers */}
       <div className="grid grid-cols-[160px_repeat(7,1fr)] gap-px text-center text-xs font-medium text-muted-foreground">
         <div />

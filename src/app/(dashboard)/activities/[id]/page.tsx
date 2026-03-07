@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
@@ -14,6 +15,7 @@ import {
   Heart,
   Timer,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import {
   getActivityById,
@@ -207,48 +209,53 @@ function getZoneDetails(
   }));
 }
 
-// ── Page ────────────────────────────────────────────────────────────
+// ── Streams section (deferred via Suspense) ─────────────────────────
 
-export default async function ActivityDetailPage({
-  params,
+function StreamsSkeleton() {
+  return (
+    <div className="space-y-6 min-w-0">
+      {/* Map skeleton */}
+      <Card className="overflow-hidden p-0">
+        <div className="h-[300px] flex items-center justify-center bg-muted/30">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      </Card>
+      {/* Chart skeleton */}
+      <Card className="p-4 sm:p-5">
+        <div className="h-[200px] flex items-center justify-center bg-muted/30 rounded-lg">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      </Card>
+      {/* W'bal skeleton */}
+      <Card className="p-4 sm:p-5">
+        <div className="h-[180px] flex items-center justify-center bg-muted/30 rounded-lg">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+async function StreamsSection({
+  activityId,
+  sport,
+  ftp,
+  wbalFtp,
+  peak5s,
+  peak5m,
+  recentPeaks,
+  color,
 }: {
-  params: Promise<{ id: string }>;
+  activityId: string;
+  sport: string;
+  ftp: number | null | undefined;
+  wbalFtp: number | null | undefined;
+  peak5s: number | null | undefined;
+  peak5m: number | null | undefined;
+  recentPeaks: { peaks: Record<string, number | null> } | null;
+  color: string;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-
-  const { id } = await params;
-  const userId = session.user.id;
-
-  // Parallel data fetch
-  const [activity, streams, profiles, recentPeaks, athleteProfile] = await Promise.all([
-    getActivityById(userId, id),
-    getActivityStreams(id),
-    getSportProfiles(userId),
-    getUserPeakPowers(userId),
-    getAthleteProfile(userId),
-  ]);
-
-  if (!activity) notFound();
-
-  // Parallel fetch: fitness context + historical FTP (both depend on activity date)
-  const [fitnessContext, historicalFtp] = await Promise.all([
-    getDailyMetricsForDate(userId, activity.startedAt),
-    activity.sport === "cycling"
-      ? getCyclingFtpAtDate(userId, activity.startedAt)
-      : Promise.resolve(null),
-  ]);
-
-  const Icon =
-    sportIcons[activity.sport as keyof typeof sportIcons] ?? Activity;
-  const color = sportColor(activity.sport);
-
-  // Sport profile for thresholds
-  const sportProfile = profiles.find((p) => p.sport === activity.sport);
-  const ftp = sportProfile?.ftp;
-  const thresholdPace = sportProfile?.thresholdPaceSPerKm;
-  const css = sportProfile?.cssSPer100m;
-  const wbalFtp = historicalFtp ?? ftp;
+  const streams = await getActivityStreams(activityId);
 
   // GPS points
   const gpsPoints = streams
@@ -267,106 +274,20 @@ export default async function ActivityDetailPage({
   const hasStreams = streamData.length > 0;
   const hasPower = streams.some((s) => s.powerWatts != null);
 
-  // Derived metrics
-  const avgSpeed =
-    activity.distanceMeters && activity.movingTimeSeconds
-      ? activity.distanceMeters / activity.movingTimeSeconds
-      : activity.averageSpeedMps;
+  if (!hasGps && !hasStreams) return null;
 
-  const vi =
-    activity.sport === "cycling" &&
-    activity.normalizedPower &&
-    activity.averagePowerWatts &&
-    activity.averagePowerWatts > 0
-      ? activity.normalizedPower / activity.averagePowerWatts
-      : null;
-
-  const powerHr =
-    activity.averagePowerWatts && activity.averageHr && activity.averageHr > 0
-      ? activity.averagePowerWatts / activity.averageHr
-      : null;
-
-  const efficiencyFactor =
-    activity.normalizedPower && activity.averageHr && activity.averageHr > 0
-      ? activity.normalizedPower / activity.averageHr
-      : null;
-
-  const workKJ =
-    activity.sport === "cycling" && activity.averagePowerWatts
-      ? (activity.averagePowerWatts * activity.durationSeconds) / 1000
-      : null;
-
-  // Metabolic calories ≈ mechanical work / efficiency (~24%)
-  const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
-
-  // Ride classification: best category across all peak durations (like Sauce)
-  // Compares each peak power against Coggan W/kg curve, takes highest result
-  const weightKg = athleteProfile?.weightKg ?? 75;
-  const ridePeaks = activity.sport === "cycling" ? [
-    { label: "5s", watts: activity.peak5s },
-    { label: "1m", watts: activity.peak1m },
-    { label: "5m", watts: activity.peak5m },
-    { label: "20m", watts: activity.peak20m },
-    { label: "60m", watts: activity.peak60m },
-  ].filter((d): d is { label: string; watts: number } => d.watts != null && d.watts > 0) : null;
-  const rideCategory = activity.sport === "cycling" && ridePeaks && ridePeaks.length > 0
-    ? ridePeaks.reduce<ReturnType<typeof classifyPowerRacing> | null>((best, peak) => {
-        const cat = classifyPowerRacing(peak.watts, weightKg, peak.label);
-        return !best || cat.level > best.level || (cat.level === best.level && cat.percentile > best.percentile) ? cat : best;
-      }, null)
-    : null;
-
-  // Coasting % from streams
-  const coastingPct =
-    activity.sport === "cycling" && hasStreams
-      ? (() => {
-          const powerPoints = streamData.filter(
-            (s) => s.powerWatts != null
-          );
-          if (powerPoints.length === 0) return null;
-          const zeros = powerPoints.filter((s) => s.powerWatts === 0).length;
-          return Math.round((zeros / powerPoints.length) * 100);
-        })()
-      : null;
-
-  // Zone details
-  const zoneDetails =
-    activity.zoneDistribution
-      ? getZoneDetails(
-          activity.zoneDistribution,
-          activity.sport,
-          activity.durationSeconds,
-          ftp,
-          thresholdPace,
-          css
-        )
-      : null;
-
-  // Summary line
-  const summaryParts: string[] = [];
-  if (activity.distanceMeters)
-    summaryParts.push(formatDistance(activity.distanceMeters));
-  summaryParts.push(formatDuration(activity.durationSeconds));
-  if (activity.elevationGainMeters)
-    summaryParts.push(`${Math.round(activity.elevationGainMeters)}m climbing`);
-  if (avgSpeed && activity.sport === "cycling")
-    summaryParts.push(formatSpeed(avgSpeed));
-  if (avgSpeed && activity.sport === "running")
-    summaryParts.push(formatPace(1000 / avgSpeed));
-
-  // ── Breakthrough detection ────────────────────────────────────────
+  // Breakthrough detection
   let breakthroughData: {
     newFtp: number;
     delta: number;
     time: string;
   } | null = null;
 
-  if (activity.sport === "cycling" && wbalFtp && hasPower) {
+  if (sport === "cycling" && wbalFtp && hasPower) {
     const powerStream = streams.map((s) => s.powerWatts ?? 0);
-    // Use ride-specific peaks (not all-time) for W'bal — reflects actual fitness on this day
     const wbalOpts = {
-      pMax: activity.peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
-      peak5m: activity.peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
+      pMax: peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
+      peak5m: peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
     };
     const wbalResult = calculateWbal(powerStream, wbalFtp, wbalOpts);
     const btPoint = wbalResult.find((p) => p.isBreakthrough);
@@ -407,11 +328,185 @@ export default async function ActivityDetailPage({
       metricName: "ftp",
       value: newFtp,
       source: "auto_detect",
-      activityId: id,
+      activityId,
     });
 
-    revalidatePath(`/activities/${id}`);
+    revalidatePath(`/activities/${activityId}`);
   }
+
+  return (
+    <div className="space-y-6 min-w-0">
+      {hasGps && (
+        <Card className="overflow-hidden p-0">
+          <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
+        </Card>
+      )}
+
+      {hasStreams && (
+        <Card className="p-4 sm:p-5">
+          <CardContent className="p-0">
+            <ActivityStreamCharts
+              streams={streamData}
+              ftp={ftp}
+              sport={sport}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Breakthrough prompt */}
+      {breakthroughData && wbalFtp && (
+        <BreakthroughPrompt
+          currentFtp={wbalFtp}
+          newFtp={breakthroughData.newFtp}
+          breakthroughWatts={breakthroughData.delta}
+          breakthroughTime={breakthroughData.time}
+          activityId={activityId}
+          updateAction={updateFtpAction}
+        />
+      )}
+
+      {/* W'bal / MPA Breakthrough chart for cycling with power */}
+      {sport === "cycling" && wbalFtp && hasPower && (() => {
+        const powerStream = streams.map((s) => s.powerWatts ?? 0);
+        const wbalData = calculateWbal(powerStream, wbalFtp, {
+          pMax: peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
+          peak5m: peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
+        });
+        // On non-breakthrough rides, clamp MPA to stay above actual power.
+        if (!breakthroughData) {
+          for (const point of wbalData) {
+            point.mpa = Math.max(point.mpa, point.power);
+          }
+        }
+        const downsampled = downsampleWbal(wbalData);
+        if (downsampled.length === 0) return null;
+        return (
+          <Card className="p-4 sm:p-5">
+            <CardContent className="p-0">
+              <BreakthroughChart data={downsampled} ftp={wbalFtp} />
+            </CardContent>
+          </Card>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────
+
+export default async function ActivityDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/login");
+
+  const { id } = await params;
+  const userId = session.user.id;
+
+  // Lightweight data fetch (no stream JSONB blob)
+  const [activity, profiles, recentPeaks, athleteProfile] = await Promise.all([
+    getActivityById(userId, id),
+    getSportProfiles(userId),
+    getUserPeakPowers(userId),
+    getAthleteProfile(userId),
+  ]);
+
+  if (!activity) notFound();
+
+  // Parallel fetch: fitness context + historical FTP (both depend on activity date)
+  const [fitnessContext, historicalFtp] = await Promise.all([
+    getDailyMetricsForDate(userId, activity.startedAt),
+    activity.sport === "cycling"
+      ? getCyclingFtpAtDate(userId, activity.startedAt)
+      : Promise.resolve(null),
+  ]);
+
+  const Icon =
+    sportIcons[activity.sport as keyof typeof sportIcons] ?? Activity;
+  const color = sportColor(activity.sport);
+
+  // Sport profile for thresholds
+  const sportProfile = profiles.find((p) => p.sport === activity.sport);
+  const ftp = sportProfile?.ftp;
+  const thresholdPace = sportProfile?.thresholdPaceSPerKm;
+  const css = sportProfile?.cssSPer100m;
+  const wbalFtp = historicalFtp ?? ftp;
+
+  // Derived metrics
+  const avgSpeed =
+    activity.distanceMeters && activity.movingTimeSeconds
+      ? activity.distanceMeters / activity.movingTimeSeconds
+      : activity.averageSpeedMps;
+
+  const vi =
+    activity.sport === "cycling" &&
+    activity.normalizedPower &&
+    activity.averagePowerWatts &&
+    activity.averagePowerWatts > 0
+      ? activity.normalizedPower / activity.averagePowerWatts
+      : null;
+
+  const powerHr =
+    activity.averagePowerWatts && activity.averageHr && activity.averageHr > 0
+      ? activity.averagePowerWatts / activity.averageHr
+      : null;
+
+  const efficiencyFactor =
+    activity.normalizedPower && activity.averageHr && activity.averageHr > 0
+      ? activity.normalizedPower / activity.averageHr
+      : null;
+
+  const workKJ =
+    activity.sport === "cycling" && activity.averagePowerWatts
+      ? (activity.averagePowerWatts * activity.durationSeconds) / 1000
+      : null;
+
+  // Metabolic calories ≈ mechanical work / efficiency (~24%)
+  const calories = workKJ ? Math.round(workKJ / 4.184 / 0.24) : null;
+
+  // Ride classification: best category across all peak durations (like Sauce)
+  const weightKg = athleteProfile?.weightKg ?? 75;
+  const ridePeaks = activity.sport === "cycling" ? [
+    { label: "5s", watts: activity.peak5s },
+    { label: "1m", watts: activity.peak1m },
+    { label: "5m", watts: activity.peak5m },
+    { label: "20m", watts: activity.peak20m },
+    { label: "60m", watts: activity.peak60m },
+  ].filter((d): d is { label: string; watts: number } => d.watts != null && d.watts > 0) : null;
+  const rideCategory = activity.sport === "cycling" && ridePeaks && ridePeaks.length > 0
+    ? ridePeaks.reduce<ReturnType<typeof classifyPowerRacing> | null>((best, peak) => {
+        const cat = classifyPowerRacing(peak.watts, weightKg, peak.label);
+        return !best || cat.level > best.level || (cat.level === best.level && cat.percentile > best.percentile) ? cat : best;
+      }, null)
+    : null;
+
+  // Zone details
+  const zoneDetails =
+    activity.zoneDistribution
+      ? getZoneDetails(
+          activity.zoneDistribution,
+          activity.sport,
+          activity.durationSeconds,
+          ftp,
+          thresholdPace,
+          css
+        )
+      : null;
+
+  // Summary line
+  const summaryParts: string[] = [];
+  if (activity.distanceMeters)
+    summaryParts.push(formatDistance(activity.distanceMeters));
+  summaryParts.push(formatDuration(activity.durationSeconds));
+  if (activity.elevationGainMeters)
+    summaryParts.push(`${Math.round(activity.elevationGainMeters)}m climbing`);
+  if (avgSpeed && activity.sport === "cycling")
+    summaryParts.push(formatSpeed(avgSpeed));
+  if (avgSpeed && activity.sport === "running")
+    summaryParts.push(formatPace(1000 / avgSpeed));
 
   return (
     <>
@@ -444,9 +539,18 @@ export default async function ActivityDetailPage({
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {formatDate(activity.startedAt)}
-                {activity.platform && (
+                {activity.platform === "strava" && activity.externalId ? (
+                  <a
+                    href={`https://www.strava.com/activities/${activity.externalId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-[#FC4C02] hover:underline"
+                  >
+                    View on Strava
+                  </a>
+                ) : activity.platform ? (
                   <span className="ml-2 capitalize">via {activity.platform}</span>
-                )}
+                ) : null}
               </p>
             </div>
           </div>
@@ -456,70 +560,22 @@ export default async function ActivityDetailPage({
         </div>
 
         {/* Map + Charts + Stats grid */}
-        <div
-          className={`grid gap-6 ${hasGps || hasStreams ? "lg:grid-cols-[1fr_320px]" : "lg:grid-cols-1 max-w-3xl"}`}
-        >
-          {/* Left column: Map + Charts */}
-          <div className="space-y-6 min-w-0">
-            {hasGps && (
-              <Card className="overflow-hidden p-0">
-                <ActivityMapWrapper gpsPoints={gpsPoints} color={color} />
-              </Card>
-            )}
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+          {/* Left column: streams-dependent (deferred) */}
+          <Suspense fallback={<StreamsSkeleton />}>
+            <StreamsSection
+              activityId={id}
+              sport={activity.sport}
+              ftp={ftp}
+              wbalFtp={wbalFtp}
+              peak5s={activity.peak5s}
+              peak5m={activity.peak5m}
+              recentPeaks={recentPeaks}
+              color={color}
+            />
+          </Suspense>
 
-            {hasStreams && (
-              <Card className="p-4 sm:p-5">
-                <CardContent className="p-0">
-                  <ActivityStreamCharts
-                    streams={streamData}
-                    ftp={ftp}
-                    sport={activity.sport}
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Breakthrough prompt */}
-            {breakthroughData && wbalFtp && (
-              <BreakthroughPrompt
-                currentFtp={wbalFtp}
-                newFtp={breakthroughData.newFtp}
-                breakthroughWatts={breakthroughData.delta}
-                breakthroughTime={breakthroughData.time}
-                activityId={id}
-                updateAction={updateFtpAction}
-              />
-            )}
-
-            {/* W'bal / MPA Breakthrough chart for cycling with power */}
-            {activity.sport === "cycling" && wbalFtp && hasPower && (() => {
-              const powerStream = streams.map((s) => s.powerWatts ?? 0);
-              const wbalData = calculateWbal(powerStream, wbalFtp, {
-                pMax: activity.peak5s ?? recentPeaks?.peaks["5s"] ?? undefined,
-                peak5m: activity.peak5m ?? recentPeaks?.peaks["5m"] ?? undefined,
-              });
-              // On non-breakthrough rides, clamp MPA to stay above actual power.
-              // Matches Xert philosophy: MPA below power means parameters are wrong,
-              // not a real breakthrough. Our filters already reject sprint/low-context
-              // crossings, so clamping just ensures the chart reflects that decision.
-              if (!breakthroughData) {
-                for (const point of wbalData) {
-                  point.mpa = Math.max(point.mpa, point.power);
-                }
-              }
-              const downsampled = downsampleWbal(wbalData);
-              if (downsampled.length === 0) return null;
-              return (
-                <Card className="p-4 sm:p-5">
-                  <CardContent className="p-0">
-                    <BreakthroughChart data={downsampled} ftp={wbalFtp} />
-                  </CardContent>
-                </Card>
-              );
-            })()}
-          </div>
-
-          {/* Right: Stats sidebar */}
+          {/* Right: Stats sidebar (renders immediately) */}
           <Card className="p-4 sm:p-5 lg:sticky lg:top-6 lg:self-start">
             <CardContent className="space-y-5 p-0">
               {/* Power section */}
@@ -561,9 +617,6 @@ export default async function ActivityDetailPage({
                         value={`~${calories.toLocaleString()}`}
                         unit="kcal"
                       />
-                    )}
-                    {coastingPct != null && (
-                      <Stat label="Coasting" value={coastingPct} unit="%" />
                     )}
                   </StatSection>
                 )}
