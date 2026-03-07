@@ -662,3 +662,72 @@ export async function getCyclingFtpAtDate(
     .limit(1);
   return row ? Math.round(row.value) : null;
 }
+
+// ── Zone Analysis Charts ──────────────────────────────────────────
+
+/**
+ * Monthly peak powers for cycling (best per month at each duration).
+ */
+export async function getMonthlyPeakPowers(userId: string) {
+  const rows = await db
+    .select({
+      month: sql<string>`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`,
+      peak5s: sql<number>`MAX(${activities.peak5s})`,
+      peak1m: sql<number>`MAX(${activities.peak1m})`,
+      peak5m: sql<number>`MAX(${activities.peak5m})`,
+      peak20m: sql<number>`MAX(${activities.peak20m})`,
+      peak60m: sql<number>`MAX(${activities.peak60m})`,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.sport, "cycling"),
+      )
+    )
+    .groupBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`)
+    .orderBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`);
+  return rows;
+}
+
+/**
+ * Power/HR efficiency ratio per activity (cycling with both power + HR).
+ */
+export async function getPowerHrTimeseries(userId: string) {
+  const rows = await db
+    .select({
+      date: activities.startedAt,
+      avgPower: activities.averagePowerWatts,
+      avgHr: activities.averageHr,
+      np: activities.normalizedPower,
+    })
+    .from(activities)
+    .where(
+      and(
+        eq(activities.userId, userId),
+        eq(activities.sport, "cycling"),
+        sql`${activities.averagePowerWatts} > 0`,
+        sql`${activities.averageHr} > 0`,
+      )
+    )
+    .orderBy(activities.startedAt);
+  return rows;
+}
+
+/**
+ * Monthly distance totals by sport.
+ */
+export async function getMonthlyDistance(userId: string) {
+  const rows = await db
+    .select({
+      month: sql<string>`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`,
+      sport: activities.sport,
+      totalDistance: sql<number>`COALESCE(SUM(${activities.distanceMeters}), 0)`,
+      count: sql<number>`COUNT(*)::int`,
+    })
+    .from(activities)
+    .where(eq(activities.userId, userId))
+    .groupBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`, activities.sport)
+    .orderBy(sql`TO_CHAR(${activities.startedAt}, 'YYYY-MM')`);
+  return rows;
+}
